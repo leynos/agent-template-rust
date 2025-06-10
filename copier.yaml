@@ -1,0 +1,23 @@
+_min_copier_version: '7.0'
+_subdirectory: template
+
+project_name:
+  type: str
+  default: 'My Project'
+  help: 'The name of the project'
+package_name:
+  type: str
+  default: '{{ project_name | lower | replace(" ", "_") }}'
+  help: 'The crate name to use in Cargo.toml'
+license_year:
+  type: int
+  default: "{{ '%Y' | strftime }}"
+  help: 'Year for the license'
+license_holder:
+  type: str
+  default: 'Payton McIntosh'
+  help: 'Name for the license holder'
+license_email:
+  type: str
+  default: 'pmcintosh@df12.net'
+  help: 'Email for the license holder'
