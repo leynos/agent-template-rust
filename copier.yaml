@@ -1,5 +1,6 @@
 _min_copier_version: '7.0'
 _subdirectory: template
+templates_suffix: ""
 
 project_name:
   type: str
