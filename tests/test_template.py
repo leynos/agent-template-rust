@@ -23,3 +23,16 @@ def test_template_renders(tmp_path: Path, copier: CopierFixture) -> None:
     assert (project / "Cargo.toml").exists()
     assert (project / "src" / "main.rs").exists()
     project.run("cargo build")
+
+
+def test_template_compiles(tmp_path: Path, copier: CopierFixture) -> None:
+    """Generated crate builds and tests successfully."""
+    project = copier.copy(
+        tmp_path,
+        project_name="CompileTest",
+        package_name="compile_test",
+        license_year=datetime.now().year,
+        license_holder="Compile Dev",
+        license_email="compile@example.com",
+    )
+    project.run("cargo test")
