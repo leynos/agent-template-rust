@@ -29,3 +29,9 @@ crate preconfigured with sensible defaults and continuous integration.
 Use this template when you need a minimal scaffold for CLI tools or small
 utilities. The included workflow ensures coverage metrics are collected and
 linters run from the very first commit.
+
+## Testing
+
+Install the test requirements and run `pytest` to ensure the template renders
+correctly using `pytest-copier`. Additional details are in
+[`docs/testing.md`](docs/testing.md).
