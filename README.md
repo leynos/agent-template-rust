@@ -16,11 +16,11 @@ crate preconfigured with sensible defaults and continuous integration.
 - **Cargo setup** using the 2024 edition and Clippy's pedantic lint level
   enabled【F:template/Cargo.toml†L1-L9】.
 - **Starter code** providing either a binary entry point or a library
-  function depending on flavour【F:template/src/{% if flavour == 'app' %}main.rs{% else %}lib.rs{% endif %}.jinja†L1-L10】.
+  function depending on flavour【F:template/src/{% if flavour == APP %}main.rs{% else %}lib.rs{% endif %}.jinja†L1-L10】.
 - **GitHub workflow** for running coverage with `cargo-tarpaulin` and reporting
   to Codecov【F:template/.github/workflows/coverage.yml†L1-L25】.
 - **Release workflow** for cross-platform binaries when the app flavour is used
-  【F:template/.github/workflows/{% if flavour == 'app' %}release.yml{% endif %}.jinja†L1-L114】.
+  【F:template/.github/workflows/{% if flavour == APP %}release.yml{% endif %}.jinja†L1-L114】.
 - **Markdownlint** configuration applying consistent line length rules
   【F:template/.markdownlint-cli2.jsonc†L1-L11】.
 - **Codecov settings** requiring 80% patch coverage and a small project
