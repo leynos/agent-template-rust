@@ -8,17 +8,19 @@ crate preconfigured with sensible defaults and continuous integration.
 
 1. Install Copier: `pip install copier`.
 2. Run `copier copy gh:leynos/agent-template-rust <destination>`.
-3. Fill in the prompts for project, crate and license information.
+3. Fill in the prompts for project, crate, license, and nightly toolchain date.
 4. Change into the created directory and start coding.
 
 ## What you get
 
 - **Cargo setup** using the 2024 edition and Clippy's pedantic lint level
   enabled【F:template/Cargo.toml†L1-L9】.
+- **Pinned toolchain** file specifying a configurable nightly release
+  【F:template/rust-toolchain.toml.jinja†L1-L3】.
 - **Starter code** providing either a binary entry point or a library
   function depending on flavour【F:template/src/{% if flavour == APP %}main.rs{% else %}lib.rs{% endif %}.jinja†L1-L10】.
-- **GitHub workflow** for running coverage with `cargo-tarpaulin` and reporting
-  to Codecov【F:template/.github/workflows/coverage.yml†L1-L25】.
+- **GitHub CI workflow** that formats, lints, tests, and uploads
+  coverage metrics to CodeScene【F:template/.github/workflows/ci.yml†L1-L35】.
 - **Release workflow** for cross-platform binaries when the app flavour is used
   【F:template/.github/workflows/{% if flavour == APP %}release.yml{% endif %}.jinja†L1-L114】.
 - **Markdownlint** configuration applying consistent line length rules

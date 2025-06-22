@@ -34,4 +34,7 @@ flavour:
   choices: *flavour_choices
   default: *lib
   help: 'Project flavour: generate a library crate or an application'
-
+rust_nightly_date:
+  type: str
+  default: '2025-06-10'
+  help: 'Date for the Rust nightly toolchain'
