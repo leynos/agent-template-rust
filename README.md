@@ -17,10 +17,12 @@ crate preconfigured with sensible defaults and continuous integration.
   enabled【F:template/Cargo.toml†L1-L9】.
 - **Pinned toolchain** file specifying a configurable nightly release
   【F:template/rust-toolchain.toml.jinja†L1-L3】.
-- **A simple entry point** that prints a greeting so the project builds
-  immediately【F:template/src/main.rs†L1-L3】.
+- **Starter code** providing either a binary entry point or a library
+  function depending on flavour【F:template/src/{% if flavour == APP %}main.rs{% else %}lib.rs{% endif %}.jinja†L1-L10】.
 - **GitHub CI workflow** that formats, lints, tests, and uploads
   coverage metrics to CodeScene【F:template/.github/workflows/ci.yml†L1-L35】.
+- **Release workflow** for cross-platform binaries when the app flavour is used
+  【F:template/.github/workflows/{% if flavour == APP %}release.yml{% endif %}.jinja†L1-L114】.
 - **Markdownlint** configuration applying consistent line length rules
   【F:template/.markdownlint-cli2.jsonc†L1-L11】.
 - **Codecov settings** requiring 80% patch coverage and a small project
