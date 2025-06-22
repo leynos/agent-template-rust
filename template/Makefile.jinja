@@ -1,31 +1,42 @@
-.PHONY: all clean test build release lint fmt markdownlint nixie
+.PHONY: help all clean test build release lint fmt markdownlint nixie
 
-build: target/debug/{{ package_name }}
-release: target/release/{{ package_name }}
+APP ?= {{ package_name }}
+CARGO ?= cargo
+BUILD_JOBS ?=
+CLIPPY_FLAGS ?= --all-targets --all-features -- -D warnings
+MDLINT ?= markdownlint
+NIXIE ?= nixie
 
-all: release
+build: target/debug/$(APP) ## Build debug binary
+release: target/release/$(APP) ## Build release binary
 
-clean:
-	cargo clean
+all: release ## Default target builds release binary
 
-test:
-	RUSTFLAGS="-D warnings" cargo test
+clean: ## Remove build artifacts
+	$(CARGO) clean
 
-target/debug/{{ package_name }}:
-	cargo build --bin {{ package_name }}
+test: ## Run tests with warnings treated as errors
+	RUSTFLAGS="-D warnings" $(CARGO) test $(BUILD_JOBS)
 
-target/release/{{ package_name }}:
-	cargo build --release --bin {{ package_name }}
+target/debug/$(APP): ## Build debug binary
+	$(CARGO) build $(BUILD_JOBS) --bin $(APP)
 
-lint:
-	cargo clippy --all-targets --all-features -- -D warnings
+target/release/$(APP): ## Build release binary
+	$(CARGO) build $(BUILD_JOBS) --release --bin $(APP)
 
-fmt:
-	cargo fmt --all
+lint: ## Run Clippy with warnings denied
+	$(CARGO) clippy $(CLIPPY_FLAGS)
+
+fmt: ## Format Rust and Markdown sources
+	$(CARGO) fmt --all
 	mdformat-all
 
-markdownlint:
-	find . -name '*.md' -print0 | xargs -0 markdownlint
+markdownlint: ## Lint Markdown files
+	find . -name '*.md' -print0 | xargs -0 $(MDLINT)
 
-nixie:
-	find . -name '*.md' -print0 | xargs -0 nixie
+nixie: ## Validate Mermaid diagrams
+	find . -name '*.md' -print0 | xargs -0 $(NIXIE)
+
+help: ## Show available targets
+	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
+	awk 'BEGIN {FS=":"; printf "Available targets:\n"} {printf "  %-20s %s\n", $$1, $$2}'
