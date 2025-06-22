@@ -1,0 +1,11 @@
+{%- if flavour == "app" -%}
+fn main() {
+    println!("Hello from {{ project_name }}!");
+}
+{%- else -%}
+/// Returns a greeting for the library.
+#[must_use]
+pub fn greet() -> &'static str {
+    "Hello from {{ project_name }}!"
+}
+{%- endif -%}

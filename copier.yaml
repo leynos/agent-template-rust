@@ -22,3 +22,10 @@ license_email:
   type: str
   default: 'pmcintosh@df12.net'
   help: 'Email for the license holder'
+flavour:
+  type: str
+  choices:
+    - lib
+    - app
+  default: lib
+  help: 'Project flavour: generate a library crate or an application'

@@ -21,7 +21,7 @@ def test_template_renders(tmp_path: Path, copier: CopierFixture) -> None:
         license_email="example@example.com",
     )
     assert (project / "Cargo.toml").exists()
-    assert (project / "src" / "main.rs").exists()
+    assert (project / "src" / "lib.rs").exists()
     project.run("cargo build")
 
 
@@ -34,5 +34,7 @@ def test_template_compiles(tmp_path: Path, copier: CopierFixture) -> None:
         license_year=datetime.now().year,
         license_holder="Compile Dev",
         license_email="compile@example.com",
+        flavour="app",
     )
+    assert (project / "src" / "main.rs").exists()
     project.run("cargo test")
