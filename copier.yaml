@@ -22,3 +22,7 @@ license_email:
   type: str
   default: 'pmcintosh@df12.net'
   help: 'Email for the license holder'
+rust_nightly_date:
+  type: str
+  default: '2025-06-10'
+  help: 'Date for the Rust nightly toolchain'
