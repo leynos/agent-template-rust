@@ -26,6 +26,9 @@ flavour_choices: &flavour_choices
   - &lib lib
   - &app app
 
+APP: *app
+LIB: *lib
+
 flavour:
   type: str
   choices: *flavour_choices
@@ -33,4 +36,4 @@ flavour:
   help: 'Project flavour: generate a library crate or an application'
 
 _exclude:
-  - template/_constants.jinja
+  - _constants
