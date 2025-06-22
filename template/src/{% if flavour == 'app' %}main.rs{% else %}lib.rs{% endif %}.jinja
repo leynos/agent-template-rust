@@ -1,4 +1,5 @@
-{%- if flavour == "app" -%}
+{% include "template/_constants.jinja" %}
+{%- if flavour == APP -%}
 fn main() {
     println!("Hello from {{ project_name }}!");
 }

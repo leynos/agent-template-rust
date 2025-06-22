@@ -7,6 +7,9 @@ import subprocess
 import pytest
 from pytest_copier.plugin import CopierFixture
 
+APP = "app"
+LIB = "lib"
+
 TEMPLATE_PATH = Path(__file__).parents[1]
 
 
@@ -21,7 +24,7 @@ def test_template_renders(tmp_path: Path, copier: CopierFixture) -> None:
         license_email="example@example.com",
     )
     assert (project / "Cargo.toml").exists()
-    assert (project / "src" / "lib.rs").exists()
+    assert (project / "src" / f"{LIB}.rs").exists()
     project.run("cargo build")
 
 
@@ -34,7 +37,7 @@ def test_template_compiles(tmp_path: Path, copier: CopierFixture) -> None:
         license_year=datetime.now().year,
         license_holder="Compile Dev",
         license_email="compile@example.com",
-        flavour="app",
+        flavour=APP,
     )
     assert (project / "src" / "main.rs").exists()
     project.run("cargo test")
