@@ -17,8 +17,8 @@ crate preconfigured with sensible defaults and continuous integration.
   enabled【F:template/Cargo.toml†L1-L9】.
 - **A simple entry point** that prints a greeting so the project builds
   immediately【F:template/src/main.rs†L1-L3】.
-- **GitHub workflow** for running coverage with `cargo-tarpaulin` and reporting
-  to Codecov【F:template/.github/workflows/coverage.yml†L1-L25】.
+- **GitHub CI workflow** that formats, lints, tests and uploads
+  coverage metrics to CodeScene【F:template/.github/workflows/ci.yml†L1-L35】.
 - **Markdownlint** configuration applying consistent line length rules
   【F:template/.markdownlint-cli2.jsonc†L1-L11】.
 - **Codecov settings** requiring 80% patch coverage and a small project
