@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, UTC
 
 import pytest
 from pytest_copier.plugin import CopierFixture
@@ -18,7 +18,7 @@ def test_template_renders(tmp_path: Path, copier: CopierFixture) -> None:
         tmp_path,
         project_name="Example",
         package_name="example",
-        license_year=datetime.now().year,
+        license_year=datetime.now(tz=UTC).year,
         license_holder="Example Dev",
         license_email="example@example.com",
     )
@@ -33,7 +33,7 @@ def test_template_renders_app_flavour(tmp_path: Path, copier: CopierFixture) -> 
         tmp_path,
         project_name="AppExample",
         package_name="app_example",
-        license_year=datetime.now().year,
+        license_year=datetime.now(tz=UTC).year,
         license_holder="App Dev",
         license_email="app@example.com",
         flavour=APP,
@@ -48,7 +48,7 @@ def test_template_renders_lib_flavour(tmp_path: Path, copier: CopierFixture) -> 
         tmp_path,
         project_name="LibExample",
         package_name="lib_example",
-        license_year=datetime.now().year,
+        license_year=datetime.now(tz=UTC).year,
         license_holder="Lib Dev",
         license_email="lib@example.com",
         flavour=LIB,
@@ -63,7 +63,7 @@ def test_makefile_validates(tmp_path: Path, copier: CopierFixture) -> None:
         tmp_path,
         project_name="MakefileExample",
         package_name="makefile_example",
-        license_year=datetime.now().year,
+        license_year=datetime.now(tz=UTC).year,
         license_holder="Makefile Dev",
         license_email="makefile@example.com",
     )
@@ -77,7 +77,7 @@ def test_clippy_runs(tmp_path: Path, copier: CopierFixture) -> None:
         tmp_path,
         project_name="ClippyExample",
         package_name="clippy_example",
-        license_year=datetime.now().year,
+        license_year=datetime.now(tz=UTC).year,
         license_holder="Clippy Dev",
         license_email="clippy@example.com",
     )
