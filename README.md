@@ -4,9 +4,11 @@ This repository provides a [Copier](https://copier.readthedocs.io/) template for
 starting new Rust projects. Running Copier with this template generates a fresh
 crate preconfigured with sensible defaults and continuous integration.
 
+The template requires **Copier 9.0** or later to avoid incompatibilities.
+
 ## How to use
 
-1. Install Copier: `pip install copier`.
+1. Install Copier 9.0 or later: `pip install copier`.
 2. Run `copier copy gh:leynos/agent-template-rust <destination>`.
 3. Fill in the prompts for project, crate, license, and nightly toolchain date.
 4. Change into the created directory and start coding.
