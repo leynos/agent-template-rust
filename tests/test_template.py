@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from datetime import datetime
-import subprocess
 
 import pytest
 from pytest_copier.plugin import CopierFixture
@@ -56,3 +55,31 @@ def test_template_renders_lib_flavour(tmp_path: Path, copier: CopierFixture) -> 
     )
     assert (project / "src" / "lib.rs").exists()
     project.run("cargo build")
+
+
+def test_makefile_validates(tmp_path: Path, copier: CopierFixture) -> None:
+    """Generated Makefile validates with mbake."""
+    project = copier.copy(
+        tmp_path,
+        project_name="MakefileExample",
+        package_name="makefile_example",
+        license_year=datetime.now().year,
+        license_holder="Makefile Dev",
+        license_email="makefile@example.com",
+    )
+    assert (project / "Makefile").exists()
+    project.run("mbake validate Makefile")
+
+
+def test_clippy_runs(tmp_path: Path, copier: CopierFixture) -> None:
+    """Generated project passes Clippy."""
+    project = copier.copy(
+        tmp_path,
+        project_name="ClippyExample",
+        package_name="clippy_example",
+        license_year=datetime.now().year,
+        license_holder="Clippy Dev",
+        license_email="clippy@example.com",
+    )
+    project.run("cargo clippy --all-targets --all-features -- -D warnings")
+
