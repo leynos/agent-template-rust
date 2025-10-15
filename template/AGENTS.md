@@ -45,6 +45,7 @@
 - Documentation must use en-GB-oxendict ("-ize" / "-yse" / "-our") spelling
   and grammar. (EXCEPTION: the naming of the "LICENSE" file, which is to be
   left unchanged for community consistency.)
+- A documentation style guide is provided at `docs/documentation-style-guide.md`.
 
 ## Change Quality & Committing
 
