@@ -1,6 +1,6 @@
 # 🛡️ Reliable Testing in Rust via Dependency Injection
 
-Writing robust, reliable, and parallelisable tests requires an intentional
+Writing robust, reliable, and parallelizable tests requires an intentional
 approach to handling external dependencies such as environment variables, the
 filesystem, or the system clock. Functions that directly call `std::env::var`
 or `SystemTime::now()` are difficult to test because they depend on global,
@@ -22,7 +22,7 @@ dependencies are provided as arguments. The `mockable` crate offers a
 convenient set of traits (`Env`, `Clock`, etc.) to implement this pattern for
 common system interactions in Rust.
 
----
+______________________________________________________________________
 
 ## ✨ Mocking Environment Variables
 
@@ -32,12 +32,13 @@ First, add the crate to development dependencies in `Cargo.toml`.
 
 ```toml
 [dev-dependencies]
-mockable = "0.3"
+mockable = { version = "0.1.4", default-features = false, features = ["clock", "mock"] }
 ```
 
 ### 2. The Untestable Code (Before)
 
-Directly calling `std::env` makes it hard to test all logic paths.
+Directly calling `std::env` makes it difficult to test all logic paths
+exhaustively.
 
 ```rust
 pub fn get_api_key() -> Option<String> {
@@ -121,13 +122,13 @@ fn main() {
 }
 ```
 
----
+______________________________________________________________________
 
 ## 🔩 Handling Other Non-Deterministic Dependencies
 
 This dependency injection pattern also applies to other non-deterministic
-dependencies such as the system clock. `mockable` provides a `Clock` trait for
-this purpose.
+dependencies, such as the system clock. The `mockable` crate provides a `Clock`
+trait for this purpose.
 
 ### Untestable Code
 
@@ -187,12 +188,12 @@ mod tests {
 
 In production, an instance of `RealClock::new()` would be used.
 
----
+______________________________________________________________________
 
 ## 📌 Key Takeaways
 
 - **The Problem is Non-Determinism:** Directly accessing global state like
-  `std::env` or `SystemTime::now` makes code hard to test.
+  `std::env` or `SystemTime::now` makes code difficult to test exhaustively.
 - **The Solution is Dependency Injection:** Pass dependencies into functions as
   arguments.
 - **Use** `mockable` **Traits:** Abstract dependencies behind traits such as
