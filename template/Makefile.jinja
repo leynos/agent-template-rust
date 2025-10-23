@@ -3,7 +3,9 @@
 APP ?= {{ package_name }}
 CARGO ?= cargo
 BUILD_JOBS ?=
-CLIPPY_FLAGS ?= --all-targets --all-features -- -D warnings
+RUST_FLAGS ?= -D warnings
+CLIPPY_FLAGS ?= --all-targets --all-features -- $(RUST_FLAGS)
+TEST_FLAGS ?= --all-targets --all-features
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 
@@ -16,7 +18,7 @@ clean: ## Remove build artifacts
 	$(CARGO) clean
 
 test: ## Run tests with warnings treated as errors
-	RUSTFLAGS="-D warnings" $(CARGO) test --all-targets --all-features $(BUILD_JOBS)
+	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) test $(TEST_FLAGS) $(BUILD_JOBS)
 
 target/%/$(APP): ## Build binary in debug or release mode
 	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release) --bin $(APP)
