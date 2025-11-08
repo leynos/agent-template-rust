@@ -4,15 +4,16 @@ APP ?= {{ package_name }}
 CARGO ?= cargo
 BUILD_JOBS ?=
 RUST_FLAGS ?= -D warnings
-CLIPPY_FLAGS ?= --all-targets --all-features -- $(RUST_FLAGS)
-TEST_FLAGS ?= --all-targets --all-features
+CARGO_FLAGS ?= --all-targets --all-features
+CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
+TEST_FLAGS ?= $(CARGO_FLAGS)
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 
 build: target/debug/$(APP) ## Build debug binary
 release: target/release/$(APP) ## Build release binary
 
-all: release ## Default target builds release binary
+all: check-fmt lint test ## Perform a comprehensive check of code
 
 clean: ## Remove build artifacts
 	$(CARGO) clean
@@ -24,6 +25,7 @@ target/%/$(APP): ## Build binary in debug or release mode
 	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release) --bin $(APP)
 
 lint: ## Run Clippy with warnings denied
+	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --no-deps
 	$(CARGO) clippy $(CLIPPY_FLAGS)
 
 fmt: ## Format Rust and Markdown sources
