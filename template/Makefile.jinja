@@ -1,6 +1,10 @@
 .PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie
 
-APP ?= {{ package_name }}
+{% if flavour == APP %}
+TARGET ?= {{ package_name }}
+{% else %}
+TARGET ?= lib{{ package_name }}.rlib
+{% endif %}
 CARGO ?= cargo
 BUILD_JOBS ?=
 RUST_FLAGS ?= -D warnings
@@ -10,8 +14,8 @@ TEST_FLAGS ?= $(CARGO_FLAGS)
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 
-build: target/debug/$(APP) ## Build debug binary
-release: target/release/$(APP) ## Build release binary
+build: target/debug/$(TARGET) ## Build debug binary
+release: target/release/$(TARGET) ## Build release binary
 
 all: check-fmt lint test ## Perform a comprehensive check of code
 
@@ -21,8 +25,8 @@ clean: ## Remove build artifacts
 test: ## Run tests with warnings treated as errors
 	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) test $(TEST_FLAGS) $(BUILD_JOBS)
 
-target/%/$(APP): ## Build binary in debug or release mode
-	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release) --bin $(APP)
+target/%/$(TARGET): ## Build binary in debug or release mode
+	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release){% if flavour == APP %} --bin $(TARGET){% endif %}
 
 lint: ## Run Clippy with warnings denied
 	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --no-deps
