@@ -1,27 +1,35 @@
 _min_copier_version: '9.0'
 _subdirectory: template
 templates_suffix: ""
+_message_before_copy: |
+  Welcome to the Rust Project Generator!
+
+  This template will create a new Rust project with sensible defaults,
+  strict linting, CI/CD workflows, and comprehensive documentation.
+
+  Let's get started...
+
+_message_after_copy: |
+  Your project has been created successfully!
+
+  Next steps:
+    cd {{ _copier_conf.dst_path }}
+    make all    # Run formatting, linting, and tests
+
+  Happy coding!
 
 project_name:
   type: str
   default: 'My Project'
-  help: 'The name of the project'
+  help: 'What would you like to call your project?'
+  placeholder: 'e.g. My Awesome Tool'
+
 package_name:
   type: str
   default: '{{ project_name | lower | replace(" ", "_") }}'
-  help: 'The crate name to use in Cargo.toml'
-license_year:
-  type: int
-  default: "{{ '%Y' | strftime }}"
-  help: 'Year for the license'
-license_holder:
-  type: str
-  default: 'Payton McIntosh'
-  help: 'Name for the license holder'
-license_email:
-  type: str
-  default: 'pmcintosh@df12.net'
-  help: 'Email for the license holder'
+  help: 'Crate name for Cargo.toml (lowercase, underscores)'
+  placeholder: 'e.g. my_awesome_tool'
+
 flavour_choices: &flavour_choices
   - &lib lib
   - &app app
@@ -33,8 +41,27 @@ flavour:
   type: str
   choices: *flavour_choices
   default: *lib
-  help: 'Project flavour: generate a library crate or an application'
+  help: 'What type of project? (lib = reusable library, app = executable binary)'
+
+license_holder:
+  type: str
+  default: 'Payton McIntosh'
+  help: 'Your name (for the ISC licence)'
+  placeholder: 'e.g. Jane Smith'
+
+license_email:
+  type: str
+  default: 'pmcintosh@df12.net'
+  help: 'Your email (for the ISC licence)'
+  placeholder: 'e.g. jane@example.com'
+
+license_year:
+  type: int
+  default: "{{ '%Y' | strftime }}"
+  help: 'Copyright year'
+
 rust_nightly_date:
   type: str
   default: '2025-06-10'
-  help: 'Date for the Rust nightly toolchain'
+  help: 'Rust nightly toolchain date (YYYY-MM-DD)'
+  placeholder: 'e.g. 2025-06-10'

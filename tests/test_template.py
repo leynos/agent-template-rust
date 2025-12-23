@@ -83,3 +83,20 @@ def test_clippy_runs(tmp_path: Path, copier: CopierFixture) -> None:
     )
     project.run("cargo clippy --all-targets --all-features -- -D warnings")
 
+
+@pytest.mark.parametrize("flavour", [LIB, APP])
+def test_template_compiles(
+    tmp_path: Path, copier: CopierFixture, flavour: str
+) -> None:
+    """Generated project compiles with cargo check."""
+    project = copier.copy(
+        tmp_path,
+        project_name="CompileExample",
+        package_name="compile_example",
+        license_year=datetime.now(tz=UTC).year,
+        license_holder="Compile Dev",
+        license_email="compile@example.com",
+        flavour=flavour,
+    )
+    project.run("cargo check --all-targets --all-features")
+
