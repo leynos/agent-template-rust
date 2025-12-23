@@ -1,6 +1,6 @@
 .PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie
 
-{% if flavour == APP %}
+{% if flavour == 'app' %}
 TARGET ?= {{ package_name }}
 {% else %}
 TARGET ?= lib{{ package_name }}.rlib
@@ -26,7 +26,7 @@ test: ## Run tests with warnings treated as errors
 	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) test $(TEST_FLAGS) $(BUILD_JOBS)
 
 target/%/$(TARGET): ## Build binary in debug or release mode
-	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release){% if flavour == APP %} --bin $(TARGET){% endif %}
+	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release){% if flavour == 'app' %} --bin $(TARGET){% endif %}
 
 lint: ## Run Clippy with warnings denied
 	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --no-deps

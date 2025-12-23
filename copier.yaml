@@ -1,6 +1,6 @@
 _min_copier_version: '9.0'
 _subdirectory: template
-templates_suffix: ""
+_templates_suffix: .jinja
 _message_before_copy: |
   Welcome to the Rust Project Generator!
 
@@ -30,17 +30,14 @@ package_name:
   help: 'Crate name for Cargo.toml (lowercase, underscores)'
   placeholder: 'e.g. my_awesome_tool'
 
-flavour_choices: &flavour_choices
-  - &lib lib
-  - &app app
-
-APP: *app
-LIB: *lib
+_flavour_choices: &flavour_choices
+  - lib
+  - app
 
 flavour:
   type: str
   choices: *flavour_choices
-  default: *lib
+  default: lib
   help: 'What type of project? (lib = reusable library, app = executable binary)'
 
 license_holder:
