@@ -69,8 +69,8 @@ consistent, and easy to maintain across projects.
 Repositories that adopt this documentation style should keep a small set of
 high-value documents with clearly separated audiences and responsibilities.
 These document types are complementary: the contents file helps readers find
-material, the users guide explains how to use the project, the developers guide
-explains how to work on the project, the design document explains why the
+material, the user's guide explains how to use the project, the developer's
+guide explains how to work on the project, the design document explains why the
 system is shaped the way it is, and the repository layout document explains
 where important things live. For discoverability, use canonical filenames
 unless a stronger repository-specific constraint applies: `docs/contents.md`,
@@ -99,9 +99,9 @@ the documentation set.
   `execplans/` entry.
 - Update the contents file whenever a document is added, renamed, or removed.
 
-### Users guide
+### User's guide
 
-Use the users guide, canonically `docs/users-guide.md`, for readers who need
+Use the user's guide, canonically `docs/users-guide.md`, for readers who need
 to apply the project rather than modify its internals. In a library, this means
 consumers of the application programming interface (API). In an application,
 this means operators, end users, or integrators.
@@ -127,9 +127,9 @@ this means operators, end users, or integrators.
 - Exclude maintainer-only concerns such as internal layering debates, future
   refactor plans, or enforcement tooling unless they directly affect users.
 
-### Developers guide
+### Developer's guide
 
-Use the developers guide, canonically `docs/developers-guide.md`, for
+Use the developer's guide, canonically `docs/developers-guide.md`, for
 maintainers and contributors. Treat this as the operating manual for working on
 the existing system, not as the place for the project's primary design document.
 
@@ -149,7 +149,7 @@ the existing system, not as the place for the project's primary design document.
   integration points, and operational expectations. Put design rationale, major
   trade-offs, and proposed architecture in design documents instead.
 - Keep the document synchronized with decision records, roadmap items, and the
-  codebase. A stale developers guide is worse than a shorter one.
+  codebase. A stale developer's guide is worse than a shorter one.
 
 ### Design document, ADR, and RFC
 
@@ -178,7 +178,7 @@ Use a dedicated design document, conventionally named
 `docs/<product-or-topic>-design.md`, to explain the architecture,
 constraints, rationale, and intended evolution of a system or subsystem. This
 document is the correct location for design intent; that material must not be
-buried in the users guide or developers guide.
+buried in the user's guide or developer's guide.
 
 - Start with a concise front matter section that states status, scope, primary
   audience, and the decision records or other documents that take precedence.
@@ -490,7 +490,7 @@ implementation is required.>
 Use a repository layout document, canonically `docs/repository-layout.md`, to
 explain the shape of the tree and the responsibilities of its major paths. This
 may be a standalone document or a clearly labelled section within the
-developers guide, provided readers can find it easily from the contents file.
+developer's guide, provided readers can find it easily from the contents file.
 
 - Document the top-level directories and any critical subdirectories that a new
   contributor must understand quickly.
