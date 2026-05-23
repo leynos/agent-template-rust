@@ -1,0 +1,16 @@
+[unstable]
+codegen-backend = true
+
+[profile.dev]
+codegen-backend = "cranelift"
+
+{% if dev_target and 'linux' in dev_target -%}
+[target.{{ dev_target }}]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+{% elif dev_target -%}
+# mold is Linux-only. For faster linking on {{ dev_target }}, add a
+# platform-specific block here. Common options include lld via clang on macOS
+# or BSD targets, and lld-link for Windows MSVC targets on recent Rust
+# toolchains.
+{% endif -%}

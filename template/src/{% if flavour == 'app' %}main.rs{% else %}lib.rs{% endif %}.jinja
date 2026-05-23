@@ -1,19 +1,17 @@
-{%- if flavour == 'app' -%}
+{% if flavour == 'app' -%}
 //! `{{ project_name }}` application entry point.
 
-// TODO: Remove this stub and implement actual application functionality.
+// TODO: Remove this stub as soon as actual application functionality exists.
 /// Application entry point.
-#[allow(clippy::print_stdout, reason = "CLI output is the intended behaviour")]
+#[expect(clippy::print_stdout, reason = "CLI output is the intended behaviour")]
 fn main() {
     println!("Hello from {{ project_name }}!");
 }
-{%- else -%}
+{% else -%}
 //! `{{ project_name }}` library.
 
-// TODO: Remove this stub and implement actual library functionality.
+// TODO: Remove this stub as soon as actual library functionality exists.
 /// Returns a greeting for the library.
 #[must_use]
-pub const fn greet() -> &'static str {
-    "Hello from {{ project_name }}!"
-}
-{%- endif -%}
+pub const fn greet() -> &'static str { "Hello from {{ project_name }}!" }
+{% endif -%}

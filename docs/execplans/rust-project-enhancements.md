@@ -78,15 +78,30 @@ and record the resulting pins in the plan and pull request validation notes.
   patterns.
 - [x] 2026-05-23: Inspected `../agent-template-python` pytest-copier template
   testing approach.
-- [ ] Import generated-project Rust toolchain, linker, nextest, Whitaker,
-  cargo-binstall, metadata, and CI contracts.
-- [ ] Replace imported GitHub Action version pins with current SHAs sourced
-  through Firecrawl-assisted lookup.
-- [ ] Extend pytest-copier tests so rendered projects pass formatting, linting,
-  nextest, and generated Makefile checks through public targets.
-- [ ] Run `coderabbit review --agent` after major milestones and resolve
-  concerns.
-- [ ] Gate, commit, push, and create a draft pull request.
+- [x] 2026-05-23: Imported generated-project Rust toolchain, linker, nextest,
+  Whitaker, cargo-binstall, metadata, and CI contracts into the template.
+- [x] 2026-05-23: Resolved action repositories with Firecrawl search results
+  and pinned current default-branch SHAs via `git ls-remote` for
+  `actions/checkout`, `actions/cache`, `astral-sh/setup-uv`,
+  `DavidAnson/markdownlint-cli2-action`, `leynos/shared-actions`,
+  `actions/upload-artifact`, `actions/download-artifact`, and
+  `softprops/action-gh-release`.
+- [x] 2026-05-23: Extended pytest-copier tests so rendered library and
+  application projects pass generated `make all` gates and assert the requested
+  tooling contracts.
+- [x] 2026-05-23: Ran `make test 2>&1 | tee
+  /tmp/test-agent-template-rust-rust-project-enhancements-tooling-import.out`;
+  result was 9 passed in 17.52 seconds.
+- [x] 2026-05-23: Ran repeated `coderabbit review --agent` passes for the
+  tooling import milestone and resolved actionable release workflow, cache,
+  target matrix, timeout, stub, and linker configuration findings. Skipped the
+  final action-version-tag recommendation because it directly contradicted the
+  user requirement to replace action versions with SHAs sourced via Firecrawl.
+- [x] 2026-05-23: Re-ran `make test 2>&1 | tee
+  /tmp/test-agent-template-rust-rust-project-enhancements-tooling-import.out`;
+  result was 9 passed in 19.06 seconds after CodeRabbit fixes.
+- [ ] Commit the tooling import milestone.
+- [ ] Final validation, push, and create a draft pull request.
 
 ## Surprises & Discoveries
 
@@ -99,6 +114,11 @@ file reads are used for this template repository.
 
 The branch currently points at the same commit as `main`, so the requested
 implementation has not yet been committed.
+
+CodeRabbit recommended changing GitHub Action pins back to version tags such
+as `actions/checkout@v6.0.2`. That is intentionally not applied because the
+objective explicitly asks for action versions to be replaced by SHAs sourced
+using Firecrawl once the latest version is in place.
 
 ## Decision Log
 
