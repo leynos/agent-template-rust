@@ -100,7 +100,8 @@ and record the resulting pins in the plan and pull request validation notes.
 - [x] 2026-05-23: Re-ran `make test 2>&1 | tee
   /tmp/test-agent-template-rust-rust-project-enhancements-tooling-import.out`;
   result was 9 passed in 19.06 seconds after CodeRabbit fixes.
-- [ ] Commit the tooling import milestone.
+- [x] 2026-05-23: Committed the tooling import milestone as `60063ab
+  Import Rust template tooling`.
 - [ ] Final validation, push, and create a draft pull request.
 
 ## Surprises & Discoveries
@@ -138,6 +139,9 @@ the parent repository.
 
 ## Outcomes & Retrospective
 
-No final outcome yet. Completion requires current evidence for every requested
-template feature, passing parent-template tests, `coderabbit review --agent`
-with concerns resolved, committed changes, and a draft pull request.
+The template now renders projects with Cranelift debug codegen, Linux mold
+linker configuration, nextest testing, required crates.io metadata prompts,
+cargo-binstall metadata for app projects, Whitaker linting with CI caching,
+SHA-pinned CI actions, and pytest-copier coverage that runs generated `make
+all` gates. Final completion still requires a clean post-commit validation,
+push, and draft pull request.
