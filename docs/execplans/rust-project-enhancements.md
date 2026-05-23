@@ -105,7 +105,8 @@ and record the resulting pins in the plan and pull request validation notes.
 - [x] 2026-05-23: Ran final post-milestone `make test 2>&1 | tee
   /tmp/test-agent-template-rust-rust-project-enhancements-final.out`; result
   was 9 passed in 18.54 seconds.
-- [ ] Push and create a draft pull request.
+- [x] 2026-05-23: Pushed `rust-project-enhancements` and created draft pull
+  request <https://github.com/leynos/agent-template-rust/pull/32>.
 
 ## Surprises & Discoveries
 
@@ -146,4 +147,5 @@ The template now renders projects with Cranelift debug codegen, Linux mold
 linker configuration, nextest testing, required crates.io metadata prompts,
 cargo-binstall metadata for app projects, Whitaker linting with CI caching,
 SHA-pinned CI actions, and pytest-copier coverage that runs generated `make
-all` gates. Final completion still requires a push and draft pull request.
+all` gates. The branch was pushed and draft pull request
+<https://github.com/leynos/agent-template-rust/pull/32> was opened for review.
