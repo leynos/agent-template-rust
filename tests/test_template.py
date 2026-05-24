@@ -492,14 +492,7 @@ def assert_generated_tooling_contracts(
     )
 
     jobs = require_mapping(parsed_ci_workflow, "jobs", "CI workflow")
-    checkout_steps = [
-        step
-        for job in jobs.values()
-        if isinstance(job, dict)
-        for step in job.get("steps", [])
-        if isinstance(step, dict)
-        and step.get("uses", "").startswith("actions/checkout@")
-    ]
+    checkout_steps = extract_checkout_steps(jobs)
     assert checkout_steps, "expected generated CI workflow to check out sources"
     assert all(
         step.get("with", {}).get("persist-credentials") is False
@@ -560,14 +553,7 @@ def assert_generated_tooling_contracts(
 
     parsed_release_workflow = parse_yaml_mapping(release_workflow, "release workflow")
     jobs = require_mapping(parsed_release_workflow, "jobs", "release workflow")
-    release_checkout_steps = [
-        step
-        for job in jobs.values()
-        if isinstance(job, dict)
-        for step in job.get("steps", [])
-        if isinstance(step, dict)
-        and step.get("uses", "").startswith("actions/checkout@")
-    ]
+    release_checkout_steps = extract_checkout_steps(jobs)
     assert release_checkout_steps, "expected app release workflow to check out sources"
     assert all(
         step.get("with", {}).get("persist-credentials") is False
@@ -589,3 +575,15 @@ def assert_generated_tooling_contracts(
     assert "files: |" in release_workflow, (
         "expected app release workflow to upload release files"
     )
+
+
+def extract_checkout_steps(jobs: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return checkout steps from a parsed GitHub Actions jobs mapping."""
+    return [
+        step
+        for job in jobs.values()
+        if isinstance(job, dict)
+        for step in job.get("steps", [])
+        if isinstance(step, dict)
+        and step.get("uses", "").startswith("actions/checkout@")
+    ]
