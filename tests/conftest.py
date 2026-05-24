@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Pytest fixtures for configuring pytest-copier template selection.
 
 This module narrows pytest-copier's temporary template repository to the real
@@ -11,6 +9,8 @@ Example:
     A test that accepts `copier` and calls `copier.copy(...)` automatically uses
     these template paths.
 """
+
+from __future__ import annotations
 
 import pytest
 

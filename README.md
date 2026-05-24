@@ -19,6 +19,11 @@ The template requires **Copier 9.0** or later to avoid incompatibilities.
   enabled【F:template/Cargo.toml†L1-L9】.
 - **Pinned toolchain** file specifying a configurable nightly release
   【F:template/rust-toolchain.toml.jinja†L1-L3】.
+- **Project metadata prompts** for repository URL, homepage, crates.io keywords,
+  crates.io categories, nightly date, and optional Linux development target.
+- **Fast generated tooling** including Cranelift debug code generation, Linux
+  mold linking for development builds, cargo-nextest tests with a cargo-test
+  fallback, Whitaker linting, and an lld-backed coverage target.
 - **Starter code** providing either a binary entry point or a library
   function depending on flavour【F:template/src/{% if flavour == APP %}main.rs{% else %}lib.rs{% endif %}.jinja†L1-L10】.
 - **GitHub CI workflow** that formats, lints, tests, and uploads
@@ -41,3 +46,8 @@ linters run from the very first commit.
 Install the test requirements and run `pytest` to ensure the template renders
 correctly using `pytest-copier`. Additional details are in
 [`docs/testing.md`](docs/testing.md).
+
+User-facing generated-project behaviour is documented in
+[`docs/users-guide.md`](docs/users-guide.md). Parent-template development
+requirements are documented in
+[`docs/developers-guide.md`](docs/developers-guide.md).

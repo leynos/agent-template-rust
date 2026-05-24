@@ -18,6 +18,9 @@ Template tests use `pytest` and `pytest-copier`. Install or run them through
 `uv` so the parent repository does not need a manually managed virtual
 environment.
 
+See `docs/users-guide.md` for generated-project features and
+`docs/developers-guide.md` for parent-template tooling requirements.
+
 The repository Makefile exposes the expected entrypoint:
 
 ```sh

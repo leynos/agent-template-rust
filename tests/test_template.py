@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Template rendering tests for the Rust Copier project.
 
 This module verifies that the template renders useful Rust library and
@@ -13,8 +11,9 @@ Example:
     contract checks.
 """
 
+from __future__ import annotations
+
 import tomllib
-from datetime import datetime, UTC
 from pathlib import Path
 
 import pytest
@@ -33,6 +32,7 @@ def render_project(
     project_name: str,
     package_name: str,
     flavour: str = LIB,
+    license_year: int = 2026,
 ) -> CopierProject:
     """Render a generated Rust project with publishable metadata.
 
@@ -48,6 +48,8 @@ def render_project(
         Rust package name supplied to the Copier template.
     flavour : str, default=LIB
         Generated project flavour to render.
+    license_year : int, default=2026
+        Licence year supplied to the Copier template.
 
     Returns
     -------
@@ -63,45 +65,11 @@ def render_project(
         homepage_url=f"https://example.com/{package_name}",
         package_keywords="rust,template",
         package_categories="development-tools",
-        license_year=datetime.now(tz=UTC).year,
+        license_year=license_year,
         license_holder=f"{project_name} Dev",
         license_email=f"{package_name}@example.com",
         flavour=flavour,
     )
-
-
-def run_quality_gates(project: CopierProject) -> None:
-    """Run the generated project's public quality gate.
-
-    Parameters
-    ----------
-    project : CopierProject
-        Rendered generated project whose public gate should be executed.
-
-    Returns
-    -------
-    None
-        The function returns nothing and raises if the quality gate fails.
-    """
-    project.run("make all")
-
-
-def read_generated_file(project: CopierProject, relative_path: str) -> str:
-    """Read a generated file as UTF-8 text.
-
-    Parameters
-    ----------
-    project : CopierProject
-        Rendered generated project that contains the file.
-    relative_path : str
-        Path to read relative to the generated project root.
-
-    Returns
-    -------
-    str
-        UTF-8 decoded contents of the generated file.
-    """
-    return (project / relative_path).read_text(encoding="utf-8")
 
 
 def test_template_renders(tmp_path: Path, copier: CopierFixture) -> None:
@@ -115,7 +83,7 @@ def test_template_renders(tmp_path: Path, copier: CopierFixture) -> None:
     assert (project / "src" / f"{LIB}.rs").exists(), (
         f"expected src/{LIB}.rs to exist in generated project"
     )
-    run_quality_gates(project)
+    project.run("make all")
 
 
 def test_template_renders_app_flavour(tmp_path: Path, copier: CopierFixture) -> None:
@@ -133,7 +101,7 @@ def test_template_renders_app_flavour(tmp_path: Path, copier: CopierFixture) -> 
     assert (project / ".github" / "workflows" / "release.yml").exists(), (
         "expected release workflow to exist for app flavour"
     )
-    run_quality_gates(project)
+    project.run("make all")
 
 
 def test_template_renders_lib_flavour(tmp_path: Path, copier: CopierFixture) -> None:
@@ -151,7 +119,7 @@ def test_template_renders_lib_flavour(tmp_path: Path, copier: CopierFixture) -> 
     assert not (project / ".github" / "workflows" / "release.yml").exists(), (
         "expected release workflow to be omitted for lib flavour"
     )
-    run_quality_gates(project)
+    project.run("make all")
 
 
 def test_makefile_validates(tmp_path: Path, copier: CopierFixture) -> None:
@@ -207,16 +175,19 @@ def test_generated_tooling_contracts(
         flavour=flavour,
     )
 
-    cargo_toml = read_generated_file(project, "Cargo.toml")
+    project.run("mbake validate Makefile")
+    project.run("cargo metadata --format-version=1 --no-deps")
+
+    cargo_toml = (project / "Cargo.toml").read_text(encoding="utf-8")
     cargo = tomllib.loads(cargo_toml)
     package = cargo["package"]
     metadata = package.get("metadata", {})
-    makefile = read_generated_file(project, "Makefile")
-    cargo_config = read_generated_file(project, ".cargo/config.toml")
-    ci_workflow = read_generated_file(project, ".github/workflows/ci.yml")
-    readme = read_generated_file(project, "README.md")
-    rust_toolchain = read_generated_file(project, "rust-toolchain.toml")
-    test_stub = read_generated_file(project, "tests/stub.rs")
+    makefile = (project / "Makefile").read_text(encoding="utf-8")
+    cargo_config = (project / ".cargo/config.toml").read_text(encoding="utf-8")
+    ci_workflow = (project / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    readme = (project / "README.md").read_text(encoding="utf-8")
+    rust_toolchain = (project / "rust-toolchain.toml").read_text(encoding="utf-8")
+    test_stub = (project / "tests/stub.rs").read_text(encoding="utf-8")
 
     assert package["description"] == "ToolingExample package used by template tests.", (
         "expected generated Cargo.toml to include package description"
@@ -326,7 +297,9 @@ def test_generated_tooling_contracts(
         assert binstall["disabled-strategies"] == ["quick-install", "compile"], (
             "expected app flavour binstall metadata to disable unsupported strategies"
         )
-        release_workflow = read_generated_file(project, ".github/workflows/release.yml")
+        release_workflow = (project / ".github/workflows/release.yml").read_text(
+            encoding="utf-8"
+        )
         assert (
             "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
             in release_workflow
