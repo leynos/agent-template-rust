@@ -1,3 +1,5 @@
+{% set package_keyword_values = package_keywords.split(',') | map('trim') | reject('equalto', '') | list -%}
+{% set package_category_values = package_categories.split(',') | map('trim') | reject('equalto', '') | list -%}
 [package]
 name = "{{ package_name }}"
 version = "0.1.0"
@@ -7,8 +9,8 @@ license = "ISC"
 repository = "{{ repository_url }}"
 homepage = "{{ homepage_url }}"
 readme = "README.md"
-keywords = [{% for keyword in package_keywords.split(',') %}"{{ keyword.strip() }}"{% if not loop.last %}, {% endif %}{% endfor %}]
-categories = [{% for category in package_categories.split(',') %}"{{ category.strip() }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+keywords = [{% for keyword in package_keyword_values %}"{{ keyword }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+categories = [{% for category in package_category_values %}"{{ category }}"{% if not loop.last %}, {% endif %}{% endfor %}]
 
 [dependencies]
 

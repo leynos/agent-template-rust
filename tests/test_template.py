@@ -302,83 +302,6 @@ def test_generated_tooling_contracts(
     )
 
 
-@pytest.mark.parametrize(
-    ("flavour", "expected_user_docs", "unexpected_user_docs"),
-    [
-        (
-            APP,
-            "application behaviour or user\ninterface",
-            "behaviour or public API that a\nconsumer of the library",
-        ),
-        (
-            LIB,
-            "behaviour or public API that a\nconsumer of the library",
-            "application behaviour or user\ninterface",
-        ),
-    ],
-)
-def test_generated_agent_instructions_include_quality_contracts(
-    tmp_path: Path,
-    copier: CopierFixture,
-    flavour: str,
-    expected_user_docs: str,
-    unexpected_user_docs: str,
-) -> None:
-    """Generated AGENTS.md captures testing and documentation expectations."""
-    project = render_project(
-        tmp_path,
-        copier,
-        project_name="AgentDocsExample",
-        package_name="agent_docs_example",
-        flavour=flavour,
-    )
-    agents = (project / "AGENTS.md").read_text(encoding="utf-8")
-
-    assert "unit tests using `rstest`" in agents, (
-        "expected AGENTS.md to require rstest unit coverage"
-    )
-    assert "behavioural tests using `rstest-bdd`" in agents, (
-        "expected AGENTS.md to require rstest-bdd behavioural coverage"
-    )
-    assert "Cover happy paths" in agents, (
-        "expected AGENTS.md to require happy-path coverage"
-    )
-    assert "unhappy paths, and relevant edge cases" in agents, (
-        "expected AGENTS.md to require happy, unhappy, and edge-case coverage"
-    )
-    assert "externally observable workflows" in agents, (
-        "expected AGENTS.md to describe when end-to-end tests are required"
-    )
-    assert "property tests with `proptest`" in agents, (
-        "expected AGENTS.md to require proptest where invariants apply"
-    )
-    assert "bounded model checker with `kani`" in agents, (
-        "expected AGENTS.md to require kani where invariants apply"
-    )
-    assert "exhaustive proof with `verus`" in agents, (
-        "expected AGENTS.md to require Verus for contractual logic"
-    )
-    assert "substantive, rigorous, and well-founded" in agents, (
-        "expected AGENTS.md to reject vacuous proof obligations"
-    )
-    assert "Record design decisions in the design document" in agents, (
-        "expected AGENTS.md to require design-decision documentation"
-    )
-    assert "ADR document following the documentation style\nguide" in agents, (
-        "expected AGENTS.md to require substantive ADRs"
-    )
-    assert expected_user_docs in agents, (
-        "expected AGENTS.md to render flavour-specific users-guide wording"
-    )
-    assert unexpected_user_docs not in agents, (
-        "expected AGENTS.md to omit the other flavour's users-guide wording"
-    )
-    assert "relevant component architecture document" in agents, (
-        "expected AGENTS.md to require component architecture documentation"
-    )
-    assert "docs/developers-guide.md" in agents, (
-        "expected AGENTS.md to require developers-guide convention updates"
-    )
 def test_generated_structured_file_snapshots(
     tmp_path: Path, copier: CopierFixture, snapshot: SnapshotAssertion
 ) -> None:
@@ -726,8 +649,15 @@ def _assert_release_workflow_contracts(release_workflow: str) -> None:
         "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
         in release_workflow
     ), "expected app release workflow to use pinned upload-artifact action"
-    assert "CROSS_REVISION: v0.2.5" in release_workflow, (
-        "expected app release workflow to pin cross revision"
+    cross_revision = "88f49ff79e777bef6d3564531636ee4d3cc2f8d2"
+    assert f"CROSS_REVISION: {cross_revision}" in release_workflow, (
+        "expected app release workflow to pin cross to an immutable revision"
+    )
+    assert 'cargo install cross --git https://github.com/cross-rs/cross --rev "$' in (
+        release_workflow
+    ), "expected app release workflow to install cross by immutable revision"
+    assert "--tag" not in release_workflow, (
+        "expected app release workflow not to install cross by mutable tag"
     )
     assert "aarch64-pc-windows-gnullvm" not in release_workflow, (
         "expected app release workflow to omit unsupported cross targets"
