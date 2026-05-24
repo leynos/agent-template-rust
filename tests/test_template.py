@@ -154,6 +154,7 @@ def test_generated_tooling_contracts(
     assert "rustc-codegen-cranelift-preview" in rust_toolchain
     assert "llvm-tools-preview" in rust_toolchain
     assert "Cache Whitaker installation" in ci_workflow
+    assert "cargo-nextest" in ci_workflow
     assert "fuse-ld=lld" in ci_workflow
     assert "Delete this file as soon as the project has real" in test_stub
 
