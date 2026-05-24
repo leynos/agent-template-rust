@@ -52,7 +52,7 @@ make test
 For long test runs, capture output with `tee` into `/tmp`, for example:
 
 ```sh
-make test 2>&1 | tee /tmp/test-agent-template-rust-$(git branch --show).out
+make test 2>&1 | tee /tmp/test-agent-template-rust-$(git branch --show-current).out
 ```
 
 Review the log before committing if the terminal output is truncated.
