@@ -1,7 +1,7 @@
 .PHONY: test
 
 test: ## Run template tests
-	uvx --with pytest-copier pytest tests/
+	uvx --with pytest-copier --with pyyaml pytest tests/
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \

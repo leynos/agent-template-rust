@@ -12,10 +12,10 @@ Run the public parent gate:
 make test
 ```
 
-The target uses `uvx --with pytest-copier pytest tests/`, so Python test
-dependencies must be added to that invocation before tests import them. Keep
-long runs logged through `tee` into `/tmp`, following the example in
-`AGENTS.md`.
+The target uses `uvx --with pytest-copier --with pyyaml pytest tests/`, so
+Python test dependencies must be added to that invocation before tests import
+them. Keep long runs logged through `tee` into `/tmp`, following the example
+in `AGENTS.md`.
 
 The tests render both library and application projects, run generated public
 gates such as `make all`, validate generated Makefiles with `mbake`, and parse
@@ -28,6 +28,7 @@ projects:
 
 - `uv` for isolated Python test dependency execution.
 - `pytest-copier` for rendering Copier templates in tests.
+- PyYAML for parsing rendered GitHub Actions workflows in tests.
 - Rust and Cargo through `rustup`.
 - cargo-nextest for generated fast test execution in CI, while generated
   Makefiles still fall back to `cargo test` for contributors.

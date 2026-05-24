@@ -17,6 +17,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+import yaml
 from pytest_copier.plugin import CopierFixture, CopierProject
 
 APP = "app"
@@ -32,7 +33,8 @@ def render_project(
     project_name: str,
     package_name: str,
     flavour: str = LIB,
-    license_year: int = 2026,
+    license_year: int | None = 2026,
+    dev_target: str = "x86_64-unknown-linux-gnu",
 ) -> CopierProject:
     """Render a generated Rust project with publishable metadata.
 
@@ -48,28 +50,33 @@ def render_project(
         Rust package name supplied to the Copier template.
     flavour : str, default=LIB
         Generated project flavour to render.
-    license_year : int, default=2026
+    license_year : int | None, default=2026
         Licence year supplied to the Copier template.
+    dev_target : str, default="x86_64-unknown-linux-gnu"
+        Development target supplied to the Copier template.
 
     Returns
     -------
     CopierProject
         Rendered project wrapper for file assertions and command execution.
     """
-    return copier.copy(
-        tmp_path,
-        project_name=project_name,
-        package_name=package_name,
-        package_description=f"{project_name} package used by template tests.",
-        repository_url=f"https://github.com/example/{package_name}",
-        homepage_url=f"https://example.com/{package_name}",
-        package_keywords="rust,template",
-        package_categories="development-tools",
-        license_year=license_year,
-        license_holder=f"{project_name} Dev",
-        license_email=f"{package_name}@example.com",
-        flavour=flavour,
-    )
+    answers: dict[str, str | int] = {
+        "project_name": project_name,
+        "package_name": package_name,
+        "package_description": f"{project_name} package used by template tests.",
+        "repository_url": f"https://github.com/example/{package_name}",
+        "homepage_url": f"https://example.com/{package_name}",
+        "package_keywords": "rust,template",
+        "package_categories": "development-tools",
+        "license_holder": f"{project_name} Dev",
+        "license_email": f"{package_name}@example.com",
+        "flavour": flavour,
+        "dev_target": dev_target,
+    }
+    if license_year is not None:
+        answers["license_year"] = license_year
+
+    return copier.copy(tmp_path, **answers)
 
 
 def test_template_renders(tmp_path: Path, copier: CopierFixture) -> None:
@@ -162,9 +169,16 @@ def test_template_compiles(
     project.run("cargo check --all-targets --all-features")
 
 
-@pytest.mark.parametrize("flavour", [LIB, APP])
+@pytest.mark.parametrize(
+    ("flavour", "dev_target"),
+    [
+        (LIB, "x86_64-unknown-linux-gnu"),
+        (APP, "x86_64-unknown-linux-gnu"),
+        (LIB, "aarch64-apple-darwin"),
+    ],
+)
 def test_generated_tooling_contracts(
-    tmp_path: Path, copier: CopierFixture, flavour: str
+    tmp_path: Path, copier: CopierFixture, flavour: str, dev_target: str
 ) -> None:
     """Generated projects include the requested Rust tooling contracts."""
     project = render_project(
@@ -173,8 +187,10 @@ def test_generated_tooling_contracts(
         project_name="ToolingExample",
         package_name="tooling_example",
         flavour=flavour,
+        dev_target=dev_target,
     )
 
+    project.run("make all")
     project.run("mbake validate Makefile")
     project.run("cargo metadata --format-version=1 --no-deps")
 
@@ -188,6 +204,19 @@ def test_generated_tooling_contracts(
     readme = (project / "README.md").read_text(encoding="utf-8")
     rust_toolchain = (project / "rust-toolchain.toml").read_text(encoding="utf-8")
     test_stub = (project / "tests/stub.rs").read_text(encoding="utf-8")
+    parsed_ci_workflow = yaml.safe_load(ci_workflow)
+
+    checkout_steps = [
+        step
+        for job in parsed_ci_workflow["jobs"].values()
+        for step in job["steps"]
+        if step.get("uses", "").startswith("actions/checkout@")
+    ]
+    assert checkout_steps, "expected generated CI workflow to check out sources"
+    assert all(
+        step.get("with", {}).get("persist-credentials") is False
+        for step in checkout_steps
+    ), "expected generated CI checkout steps to disable credential persistence"
 
     assert package["description"] == "ToolingExample package used by template tests.", (
         "expected generated Cargo.toml to include package description"
@@ -234,12 +263,21 @@ def test_generated_tooling_contracts(
     assert 'codegen-backend = "cranelift"' in cargo_config, (
         "expected generated cargo config to enable Cranelift"
     )
-    assert "[target.x86_64-unknown-linux-gnu]" in cargo_config, (
-        "expected generated cargo config to include Linux target settings"
-    )
-    assert 'link-arg=-fuse-ld=mold' in cargo_config, (
-        "expected generated cargo config to use mold linker"
-    )
+    if "linux" in dev_target:
+        assert f"[target.{dev_target}]" in cargo_config, (
+            "expected generated cargo config to include Linux target settings"
+        )
+        assert 'link-arg=-fuse-ld=mold' in cargo_config, (
+            "expected generated cargo config to use mold linker for Linux"
+        )
+    else:
+        assert f"[target.{dev_target}]" not in cargo_config, (
+            "expected generated cargo config to avoid mold target blocks "
+            "for non-Linux targets"
+        )
+        assert 'link-arg=-fuse-ld=mold' not in cargo_config, (
+            "expected generated cargo config to avoid mold for non-Linux targets"
+        )
     assert "rustc-codegen-cranelift-preview" in rust_toolchain, (
         "expected generated rust-toolchain to include Cranelift component"
     )
@@ -300,6 +338,20 @@ def test_generated_tooling_contracts(
         release_workflow = (project / ".github/workflows/release.yml").read_text(
             encoding="utf-8"
         )
+        parsed_release_workflow = yaml.safe_load(release_workflow)
+        release_checkout_steps = [
+            step
+            for job in parsed_release_workflow["jobs"].values()
+            for step in job["steps"]
+            if step.get("uses", "").startswith("actions/checkout@")
+        ]
+        assert release_checkout_steps, (
+            "expected app release workflow to check out sources"
+        )
+        assert all(
+            step.get("with", {}).get("persist-credentials") is False
+            for step in release_checkout_steps
+        ), "expected release workflow checkout steps to disable credentials"
         assert (
             "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
             in release_workflow

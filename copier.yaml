@@ -72,13 +72,13 @@ flavour:
 
 license_holder:
   type: str
-  default: 'Payton McIntosh'
+  default: 'Example Maintainer'
   help: 'Your name (for the ISC licence)'
   placeholder: 'e.g. Jane Smith'
 
 license_email:
   type: str
-  default: 'pmcintosh@df12.net'
+  default: 'maintainer@example.com'
   help: 'Your email (for the ISC licence)'
   placeholder: 'e.g. jane@example.com'
 
