@@ -13,6 +13,8 @@ Example:
 
 from __future__ import annotations
 
+import os
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -152,6 +154,62 @@ def test_clippy_runs(tmp_path: Path, copier: CopierFixture) -> None:
         package_name="clippy_example",
     )
     project.run("make lint")
+
+
+@pytest.mark.parametrize(
+    ("path_has_whitaker", "expected_location"),
+    [
+        (True, "path"),
+        (False, "home"),
+    ],
+)
+def test_makefile_resolves_whitaker_fallback(
+    tmp_path: Path,
+    copier: CopierFixture,
+    path_has_whitaker: bool,
+    expected_location: str,
+) -> None:
+    """Generated lint target resolves Whitaker from PATH or user install."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="WhitakerExample",
+        package_name="whitaker_example",
+    )
+    home = tmp_path / "home"
+    path_bin = tmp_path / "path-bin"
+    user_bin = home / ".local" / "bin"
+    path_bin.mkdir(parents=True)
+    user_bin.mkdir(parents=True)
+
+    expected_whitaker = (
+        path_bin / "whitaker"
+        if path_has_whitaker
+        else user_bin / "whitaker"
+    )
+    expected_whitaker.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    expected_whitaker.chmod(0o755)
+
+    result = subprocess.run(
+        ["make", "--dry-run", "lint"],
+        cwd=project.path,
+        env={
+            **os.environ,
+            "HOME": str(home),
+            "PATH": (
+                f"{path_bin}:/usr/bin:/bin"
+                if path_has_whitaker
+                else "/usr/bin:/bin"
+            ),
+        },
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert str(expected_whitaker) in result.stdout, (
+        f"expected generated lint target to use {expected_location} Whitaker"
+    )
 
 
 @pytest.mark.parametrize("flavour", [LIB, APP])
