@@ -151,8 +151,21 @@ project:
   meaningfully named structs.
 - Where a function is returning a large error, consider using `Arc` to reduce
   the amount of data returned.
-- Write unit and behavioural tests for new functionality. Run both before and
-  after making any change.
+- Ensure that new features are validated with unit tests using `rstest` and
+  behavioural tests using `rstest-bdd` where applicable. Cover happy paths,
+  unhappy paths, and relevant edge cases.
+- Add end-to-end tests where a change affects externally observable workflows,
+  integration contracts, persistence, command-line behaviour, network
+  boundaries, UI flows, or other system-level behaviour.
+- Use property tests with `proptest` or a bounded model checker with `kani`
+  when a change introduces an invariant over a range of inputs, states,
+  orderings, or transitions. Use judgement to choose the appropriate level of
+  rigour.
+- Use an exhaustive proof with `verus` for introduced lemmas or contractual
+  business logic. Proofs must be substantive, rigorous, and well-founded, not
+  merely a restatement of the assumed property.
+- Run relevant unit, behavioural, property, model-checking, proof, and
+  end-to-end suites before and after making any change.
 - Every module **must** begin with a module level (`//!`) comment explaining the
   module's purpose and utility.
 - Document public APIs using Rustdoc comments (`///`) so documentation can be
@@ -261,6 +274,25 @@ project:
 - Use dashes (`-`) for list bullets.
 - Use GitHub-flavoured Markdown footnotes (`[^1]`) for references and
   footnotes.
+
+## Project Documentation
+
+Record design decisions in the design document. Where a decision is
+substantive, record it in an ADR document following the documentation style
+guide, then reference that ADR from the design document.
+
+{% if flavour == 'app' -%}
+Update `docs/users-guide.md` for any change to application behaviour or user
+interface that a user should know about. Document internally facing interfaces
+or practices in the relevant component architecture document. Document
+internally facing conventions or practices in `docs/developers-guide.md`.
+{% else -%}
+Update `docs/users-guide.md` for any change to behaviour or public API that a
+consumer of the library should know about. Document internally facing
+interfaces or practices in the relevant component architecture document.
+Document internally facing conventions or practices in
+`docs/developers-guide.md`.
+{% endif %}
 
 ## Additional tooling
 

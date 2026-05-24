@@ -297,7 +297,83 @@ def test_generated_tooling_contracts(
         release_workflow=release_workflow,
     )
 
+@pytest.mark.parametrize(
+    ("flavour", "expected_user_docs", "unexpected_user_docs"),
+    [
+        (
+            APP,
+            "application behaviour or user\ninterface",
+            "behaviour or public API that a\nconsumer of the library",
+        ),
+        (
+            LIB,
+            "behaviour or public API that a\nconsumer of the library",
+            "application behaviour or user\ninterface",
+        ),
+    ],
+)
+def test_generated_agent_instructions_include_quality_contracts(
+    tmp_path: Path,
+    copier: CopierFixture,
+    flavour: str,
+    expected_user_docs: str,
+    unexpected_user_docs: str,
+) -> None:
+    """Generated AGENTS.md captures testing and documentation expectations."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="AgentDocsExample",
+        package_name="agent_docs_example",
+        flavour=flavour,
+    )
+    agents = (project / "AGENTS.md").read_text(encoding="utf-8")
 
+    assert "unit tests using `rstest`" in agents, (
+        "expected AGENTS.md to require rstest unit coverage"
+    )
+    assert "behavioural tests using `rstest-bdd`" in agents, (
+        "expected AGENTS.md to require rstest-bdd behavioural coverage"
+    )
+    assert "Cover happy paths" in agents, (
+        "expected AGENTS.md to require happy-path coverage"
+    )
+    assert "unhappy paths, and relevant edge cases" in agents, (
+        "expected AGENTS.md to require happy, unhappy, and edge-case coverage"
+    )
+    assert "externally observable workflows" in agents, (
+        "expected AGENTS.md to describe when end-to-end tests are required"
+    )
+    assert "property tests with `proptest`" in agents, (
+        "expected AGENTS.md to require proptest where invariants apply"
+    )
+    assert "bounded model checker with `kani`" in agents, (
+        "expected AGENTS.md to require kani where invariants apply"
+    )
+    assert "exhaustive proof with `verus`" in agents, (
+        "expected AGENTS.md to require Verus for contractual logic"
+    )
+    assert "substantive, rigorous, and well-founded" in agents, (
+        "expected AGENTS.md to reject vacuous proof obligations"
+    )
+    assert "Record design decisions in the design document" in agents, (
+        "expected AGENTS.md to require design-decision documentation"
+    )
+    assert "ADR document following the documentation style\nguide" in agents, (
+        "expected AGENTS.md to require substantive ADRs"
+    )
+    assert expected_user_docs in agents, (
+        "expected AGENTS.md to render flavour-specific users-guide wording"
+    )
+    assert unexpected_user_docs not in agents, (
+        "expected AGENTS.md to omit the other flavour's users-guide wording"
+    )
+    assert "relevant component architecture document" in agents, (
+        "expected AGENTS.md to require component architecture documentation"
+    )
+    assert "docs/developers-guide.md" in agents, (
+        "expected AGENTS.md to require developers-guide convention updates"
+    )
 def test_generated_structured_file_snapshots(
     tmp_path: Path, copier: CopierFixture, snapshot: SnapshotAssertion
 ) -> None:
