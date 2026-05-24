@@ -2,8 +2,8 @@
 
 Writing robust, reliable, and parallelizable tests requires an intentional
 approach to handling external dependencies such as environment variables, the
-filesystem, or the system clock. Functions that directly call `std::env::var`
-or `SystemTime::now()` are difficult to test because they depend on global,
+filesystem, or the system clock. Functions that directly call `std::env::var` or
+`SystemTime::now()` are difficult to test because they depend on global,
 non-deterministic state.
 
 This leads to several problems:
@@ -18,9 +18,10 @@ This leads to several problems:
 
 The solution is a classic software design pattern: **Dependency Injection
 (DI)**. Instead of a function reaching out to the global state, its
-dependencies are provided as arguments. The `mockable` crate offers a
-convenient set of traits (`Env`, `Clock`, etc.) to implement this pattern for
-common system interactions in Rust.
+dependencies are provided as arguments. The
+[mockable](https://docs.rs/mockable/latest/mockable/) crate offers a convenient
+set of traits (`Env`, `Clock`, etc.) to implement this pattern for common
+system interactions in Rust.
 
 ______________________________________________________________________
 
@@ -32,13 +33,12 @@ First, add the crate to development dependencies in `Cargo.toml`.
 
 ```toml
 [dev-dependencies]
-mockable = { version = "0.1.4", default-features = false, features = ["clock", "mock"] }
+mockable = "0.3"
 ```
 
 ### 2. The untestable code (before)
 
-Directly calling `std::env` makes it difficult to test all logic paths
-exhaustively.
+Directly calling `std::env` makes it hard to test all logic paths.
 
 ```rust,no_run
 pub fn get_api_key() -> Option<String> {
@@ -127,8 +127,8 @@ ______________________________________________________________________
 ## 🔩 Handling other non-deterministic dependencies
 
 This dependency injection pattern also applies to other non-deterministic
-dependencies, such as the system clock. The `mockable` crate provides a `Clock`
-trait for this purpose.
+dependencies, such as the system clock. `mockable` provides a `Clock` trait for
+this purpose.
 
 ### Untestable code
 
@@ -193,7 +193,7 @@ ______________________________________________________________________
 ## 📌 Key takeaways
 
 - **The Problem is Non-Determinism:** Directly accessing global state like
-  `std::env` or `SystemTime::now` makes code difficult to test exhaustively.
+  `std::env` or `SystemTime::now` makes code hard to test.
 - **The Solution is Dependency Injection:** Pass dependencies into functions as
   arguments.
 - **Use** `mockable` **Traits:** Abstract dependencies behind traits such as
@@ -204,5 +204,6 @@ ______________________________________________________________________
   to interact with the actual system.
 - **`RealEnv` is NOT a Scope Guard:** `RealEnv` directly mutates the global
   process environment without automatic cleanup. For integration tests that
-  require modifying the live environment, consider a crate such as `temp_env`.
-  For unit tests, `MockEnv` is preferable.
+  require modifying the live environment, consider a crate such as
+  [temp_env](https://crates.io/crates/temp-env). For unit tests, `MockEnv` is
+  preferable.
