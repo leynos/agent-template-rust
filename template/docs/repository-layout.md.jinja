@@ -22,7 +22,9 @@ compact and omits build output such as `target/`.
 {% endif %}
 ├── docs/
 │   ├── contents.md
+│   ├── developers-guide.md
 │   ├── repository-layout.md
+│   ├── users-guide.md
 │   └── ...
 ├── src/
 {% if flavour == 'app' %}
@@ -57,6 +59,10 @@ compact and omits build output such as `target/`.
   design material.
 - `docs/contents.md`: Indexes the documentation set and should be updated when
   documentation files are added, renamed, or removed.
+- `docs/users-guide.md`: Explains how to use the generated project and its
+  public build and test commands.
+- `docs/developers-guide.md`: Explains the contributor workflow and local
+  tooling used to work on the generated project.
 - `docs/repository-layout.md`: Documents the repository tree and path
   responsibilities.
 {% if flavour == 'app' %}
