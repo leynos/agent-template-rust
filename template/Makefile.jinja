@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release lint fmt check-fmt markdownlint nixie
+.PHONY: help all clean test build release coverage lint fmt check-fmt markdownlint nixie
 
 {% if flavour == 'app' %}
 TARGET ?= {{ package_name }}
@@ -17,6 +17,8 @@ CARGO_FLAGS ?= --all-targets --all-features
 CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
 TEST_FLAGS ?= $(CARGO_FLAGS)
 TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
+COVERAGE_LINKER_FLAGS ?= -fuse-ld=lld
+COVERAGE_RUST_FLAGS ?= $(RUST_FLAGS) -C link-arg=$(COVERAGE_LINKER_FLAGS)
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 WHITAKER ?= $(or $(shell command -v whitaker 2>/dev/null),$(wildcard $(USER_WHITAKER)),whitaker)
@@ -37,6 +39,13 @@ test: ## Run tests with warnings treated as errors
 
 target/%/$(TARGET): ## Build binary in debug or release mode
 	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release){% if flavour == 'app' %} --bin $(TARGET){% endif %}
+
+coverage: ## Generate lcov coverage with lld for llvm-tools compatibility
+	CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang \
+		RUSTFLAGS="$(COVERAGE_RUST_FLAGS)" \
+		CFLAGS="$(COVERAGE_LINKER_FLAGS)" \
+		LDFLAGS="$(COVERAGE_LINKER_FLAGS)" \
+		$(CARGO) llvm-cov --lcov --output-path lcov.info $(TEST_FLAGS)
 
 lint: ## Run Clippy with warnings denied
 	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --no-deps

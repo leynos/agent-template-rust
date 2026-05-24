@@ -214,6 +214,7 @@ def test_generated_tooling_contracts(
     makefile = read_generated_file(project, "Makefile")
     cargo_config = read_generated_file(project, ".cargo/config.toml")
     ci_workflow = read_generated_file(project, ".github/workflows/ci.yml")
+    readme = read_generated_file(project, "README.md")
     rust_toolchain = read_generated_file(project, "rust-toolchain.toml")
     test_stub = read_generated_file(project, "tests/stub.rs")
 
@@ -244,6 +245,18 @@ def test_generated_tooling_contracts(
     assert "$(CARGO) $(TEST_CMD)" in makefile, (
         "expected generated Makefile test target to use the selected test command"
     )
+    assert "coverage: ## Generate lcov coverage with lld" in makefile, (
+        "expected generated Makefile to include an lld-backed coverage target"
+    )
+    assert "COVERAGE_LINKER_FLAGS ?= -fuse-ld=lld" in makefile, (
+        "expected generated Makefile coverage target to select lld"
+    )
+    assert 'CFLAGS="$(COVERAGE_LINKER_FLAGS)"' in makefile, (
+        "expected generated Makefile coverage target to set CFLAGS"
+    )
+    assert 'LDFLAGS="$(COVERAGE_LINKER_FLAGS)"' in makefile, (
+        "expected generated Makefile coverage target to set LDFLAGS"
+    )
     assert "$(WHITAKER) --all -- $(CARGO_FLAGS)" in makefile, (
         "expected generated Makefile lint target to run Whitaker"
     )
@@ -272,8 +285,26 @@ def test_generated_tooling_contracts(
     assert "cargo-nextest" in ci_workflow, (
         "expected generated CI workflow to install cargo-nextest"
     )
+    assert "coverage uses lld for llvm-tools compatibility" in ci_workflow, (
+        "expected generated CI workflow to document mold and lld roles"
+    )
+    assert "clang lld mold" in ci_workflow, (
+        "expected generated CI workflow to install clang, lld, and mold"
+    )
     assert "fuse-ld=lld" in ci_workflow, (
         "expected generated CI workflow coverage to use lld linker flags"
+    )
+    assert "CFLAGS: -fuse-ld=lld" in ci_workflow, (
+        "expected generated CI workflow coverage to set CFLAGS for lld"
+    )
+    assert "LDFLAGS: -fuse-ld=lld" in ci_workflow, (
+        "expected generated CI workflow coverage to set LDFLAGS for lld"
+    )
+    assert "Development builds use `mold` on Linux" in readme, (
+        "expected generated README to document mold for development builds"
+    )
+    assert "Coverage generation uses `lld`" in readme, (
+        "expected generated README to document lld for coverage"
     )
     assert "Delete this file as soon as the project has real" in test_stub, (
         "expected generated test stub to explain when to delete it"
