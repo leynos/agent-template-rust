@@ -28,13 +28,13 @@ projects:
 
 - `uv` for isolated Python test dependency execution.
 - `pytest-copier` for rendering Copier templates in tests.
-- PyYAML for parsing rendered GitHub Actions workflows in tests.
+- `PyYAML` for parsing rendered GitHub Actions workflows in tests.
 - `syrupy` for generated structured file snapshots in tests.
 - Rust and Cargo through `rustup`.
 - cargo-nextest for generated fast test execution in CI, while generated
   Makefiles still fall back to `cargo test` for contributors.
 - `mbake` for generated Makefile validation.
-- Whitaker for generated lint gates.
+- `Whitaker` for generated lint gates.
 - `clang`, `lld`, and `mold` for generated linker and coverage behaviour.
 
 The generated project itself uses Cranelift for debug code generation, Linux
