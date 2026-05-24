@@ -394,6 +394,24 @@ def assert_generated_tooling_contracts(
     release_workflow: str | None,
 ) -> None:
     """Assert generated tooling contracts from a single validator."""
+    _assert_cargo_package_contracts(package, metadata, flavour)
+    _assert_makefile_contracts(makefile)
+    _assert_cargo_config_contracts(cargo_config, dev_target, rust_toolchain)
+    _assert_ci_workflow_contracts(parsed_ci_workflow, ci_workflow, test_stub)
+    assert "Development builds use `mold` on Linux" in readme, (
+        "expected generated README to document mold for development builds"
+    )
+    assert "Coverage generation uses `lld`" in readme, (
+        "expected generated README to document lld for coverage"
+    )
+    if release_workflow is not None:
+        _assert_release_workflow_contracts(release_workflow)
+
+
+def _assert_cargo_package_contracts(
+    package: dict[str, Any], metadata: dict[str, Any], flavour: str
+) -> None:
+    """Assert generated Cargo package metadata contracts."""
     assert package.get("description") == "ToolingExample package used by template tests.", (
         "expected generated Cargo.toml to include package description"
     )
@@ -434,6 +452,9 @@ def assert_generated_tooling_contracts(
             "expected lib flavour Cargo.toml to omit binstall metadata"
         )
 
+
+def _assert_makefile_contracts(makefile: str) -> None:
+    """Assert generated Makefile tooling contracts."""
     assert "TEST_CMD :=" in makefile, (
         "expected generated Makefile to define a test command fallback"
     )
@@ -465,6 +486,11 @@ def assert_generated_tooling_contracts(
         "expected generated Makefile coverage target to log linker flags"
     )
 
+
+def _assert_cargo_config_contracts(
+    cargo_config: str, dev_target: str, rust_toolchain: str
+) -> None:
+    """Assert generated Cargo config and toolchain contracts."""
     assert 'codegen-backend = "cranelift"' in cargo_config, (
         "expected generated cargo config to enable Cranelift"
     )
@@ -491,6 +517,13 @@ def assert_generated_tooling_contracts(
         "expected generated rust-toolchain to include llvm tools component"
     )
 
+
+def _assert_ci_workflow_contracts(
+    parsed_ci_workflow: dict[str, Any],
+    ci_workflow: str,
+    test_stub: str,
+) -> None:
+    """Assert generated CI workflow and adjacent documentation contracts."""
     jobs = require_mapping(parsed_ci_workflow, "jobs", "CI workflow")
     checkout_steps = extract_checkout_steps(jobs)
     assert checkout_steps, "expected generated CI workflow to check out sources"
@@ -537,20 +570,13 @@ def assert_generated_tooling_contracts(
         "expected generated CI workflow to log coverage linker configuration"
     )
 
-    assert "Development builds use `mold` on Linux" in readme, (
-        "expected generated README to document mold for development builds"
-    )
-    assert "Coverage generation uses `lld`" in readme, (
-        "expected generated README to document lld for coverage"
-    )
-
     assert "Delete this file as soon as the project has real" in test_stub, (
         "expected generated test stub to explain when to delete it"
     )
 
-    if release_workflow is None:
-        return
 
+def _assert_release_workflow_contracts(release_workflow: str) -> None:
+    """Assert generated release workflow contracts."""
     parsed_release_workflow = parse_yaml_mapping(release_workflow, "release workflow")
     jobs = require_mapping(parsed_release_workflow, "jobs", "release workflow")
     release_checkout_steps = extract_checkout_steps(jobs)
