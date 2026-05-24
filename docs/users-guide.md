@@ -9,6 +9,8 @@ The template asks for normal project identity values such as project name,
 package name, licence holder, and contact email. It also asks for package
 metadata used in the generated `Cargo.toml`:
 
+- `flavour` selects `lib` or `app` and determines the generated structure and
+  release metadata.
 - `package_description` becomes `[package].description`.
 - `repository_url` becomes `[package].repository` and is used by generated
   app projects for cargo-binstall release URLs.
@@ -16,6 +18,7 @@ metadata used in the generated `Cargo.toml`:
 - `package_keywords` becomes `[package].keywords`.
 - `package_categories` becomes `[package].categories`.
 - `rust_nightly_date` selects the pinned nightly toolchain date.
+- `license_year` sets the copyright year in `LICENSE`.
 - `dev_target` selects the target-specific Linux linker block generated in
   `.cargo/config.toml`.
 
