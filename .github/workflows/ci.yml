@@ -48,12 +48,15 @@ jobs:
       - name: Install Whitaker
         run: |
           set -euo pipefail
+          echo "Whitaker cache hit: ${{ steps.cache-whitaker.outputs.cache-hit }}"
           if [ "${{ steps.cache-whitaker.outputs.cache-hit }}" != "true" ]; then
+            echo "Installing Whitaker installer at ${WHITAKER_INSTALLER_REV}"
             cargo install --locked \
               --git https://github.com/leynos/whitaker \
               --rev "${WHITAKER_INSTALLER_REV}" \
               whitaker-installer
           fi
           whitaker-installer --cranelift
+          echo "Whitaker binary: $(command -v whitaker || true)"
       - name: Test
         run: make test

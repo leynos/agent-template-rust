@@ -277,21 +277,25 @@ def test_generated_tooling_contracts(
     test_stub = read_generated_text(project / "tests/stub.rs")
     parsed_ci_workflow = parse_yaml_mapping(ci_workflow, "CI workflow")
 
-    assert_cargo_contracts(package, metadata, flavour)
-    assert_makefile_contracts(makefile)
-    assert_cargo_config_contracts(cargo_config, dev_target)
-    assert_toolchain_contracts(rust_toolchain)
-    assert_ci_workflow_contracts(parsed_ci_workflow, ci_workflow)
-    assert_readme_contracts(readme)
-    assert_test_stub_contracts(test_stub)
-
-    if flavour == APP:
-        release_workflow = read_generated_text(project / ".github/workflows/release.yml")
-        assert_release_workflow_contracts(release_workflow)
-    else:
-        assert "binstall" not in metadata, (
-            "expected lib flavour Cargo.toml to omit binstall metadata"
-        )
+    release_workflow = (
+        read_generated_text(project / ".github/workflows/release.yml")
+        if flavour == APP
+        else None
+    )
+    assert_generated_tooling_contracts(
+        package=package,
+        metadata=metadata,
+        flavour=flavour,
+        makefile=makefile,
+        cargo_config=cargo_config,
+        dev_target=dev_target,
+        rust_toolchain=rust_toolchain,
+        parsed_ci_workflow=parsed_ci_workflow,
+        ci_workflow=ci_workflow,
+        readme=readme,
+        test_stub=test_stub,
+        release_workflow=release_workflow,
+    )
 
 
 def test_generated_structured_file_snapshots(
@@ -374,10 +378,22 @@ def require_optional_mapping(
     return value
 
 
-def assert_cargo_contracts(
-    package: dict[str, Any], metadata: dict[str, Any], flavour: str
+def assert_generated_tooling_contracts(
+    *,
+    package: dict[str, Any],
+    metadata: dict[str, Any],
+    flavour: str,
+    makefile: str,
+    cargo_config: str,
+    dev_target: str,
+    rust_toolchain: str,
+    parsed_ci_workflow: dict[str, Any],
+    ci_workflow: str,
+    readme: str,
+    test_stub: str,
+    release_workflow: str | None,
 ) -> None:
-    """Assert generated Cargo package metadata contracts."""
+    """Assert generated tooling contracts from a single validator."""
     assert package.get("description") == "ToolingExample package used by template tests.", (
         "expected generated Cargo.toml to include package description"
     )
@@ -413,10 +429,11 @@ def assert_cargo_contracts(
         assert binstall.get("disabled-strategies") == ["quick-install", "compile"], (
             "expected app flavour binstall metadata to disable unsupported strategies"
         )
+    else:
+        assert "binstall" not in metadata, (
+            "expected lib flavour Cargo.toml to omit binstall metadata"
+        )
 
-
-def assert_makefile_contracts(makefile: str) -> None:
-    """Assert generated Makefile tooling contracts."""
     assert "TEST_CMD :=" in makefile, (
         "expected generated Makefile to define a test command fallback"
     )
@@ -448,9 +465,6 @@ def assert_makefile_contracts(makefile: str) -> None:
         "expected generated Makefile coverage target to log linker flags"
     )
 
-
-def assert_cargo_config_contracts(cargo_config: str, dev_target: str) -> None:
-    """Assert generated Cargo config linker contracts."""
     assert 'codegen-backend = "cranelift"' in cargo_config, (
         "expected generated cargo config to enable Cranelift"
     )
@@ -470,9 +484,6 @@ def assert_cargo_config_contracts(cargo_config: str, dev_target: str) -> None:
             "expected generated cargo config to avoid mold for non-Linux targets"
         )
 
-
-def assert_toolchain_contracts(rust_toolchain: str) -> None:
-    """Assert generated Rust toolchain component contracts."""
     assert "rustc-codegen-cranelift-preview" in rust_toolchain, (
         "expected generated rust-toolchain to include Cranelift component"
     )
@@ -480,11 +491,6 @@ def assert_toolchain_contracts(rust_toolchain: str) -> None:
         "expected generated rust-toolchain to include llvm tools component"
     )
 
-
-def assert_ci_workflow_contracts(
-    parsed_ci_workflow: dict[str, Any], ci_workflow: str
-) -> None:
-    """Assert generated CI workflow contracts."""
     jobs = require_mapping(parsed_ci_workflow, "jobs", "CI workflow")
     checkout_steps = [
         step
@@ -538,9 +544,6 @@ def assert_ci_workflow_contracts(
         "expected generated CI workflow to log coverage linker configuration"
     )
 
-
-def assert_readme_contracts(readme: str) -> None:
-    """Assert generated README tooling notes."""
     assert "Development builds use `mold` on Linux" in readme, (
         "expected generated README to document mold for development builds"
     )
@@ -548,16 +551,13 @@ def assert_readme_contracts(readme: str) -> None:
         "expected generated README to document lld for coverage"
     )
 
-
-def assert_test_stub_contracts(test_stub: str) -> None:
-    """Assert generated test stub guidance."""
     assert "Delete this file as soon as the project has real" in test_stub, (
         "expected generated test stub to explain when to delete it"
     )
 
+    if release_workflow is None:
+        return
 
-def assert_release_workflow_contracts(release_workflow: str) -> None:
-    """Assert generated release workflow contracts."""
     parsed_release_workflow = parse_yaml_mapping(release_workflow, "release workflow")
     jobs = require_mapping(parsed_release_workflow, "jobs", "release workflow")
     release_checkout_steps = [
