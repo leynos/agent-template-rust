@@ -13,6 +13,9 @@ categories = [{% for category in package_categories.split(',') %}"{{ category.st
 [dependencies]
 
 {% if flavour == 'app' -%}
+# The package.metadata.binstall pkg-url intentionally mixes Jinja2 values
+# rendered at project generation with single-brace cargo-binstall variables
+# substituted at install time.
 [package.metadata.binstall]
 pkg-url = "{{ repository_url }}/releases/download/v{ version }/{{ package_name }}-{ target }{ binary-ext }"
 pkg-fmt = "bin"
