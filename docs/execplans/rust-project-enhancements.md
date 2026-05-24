@@ -28,7 +28,7 @@ real functionality replaces it.
 Changes must obey the prompt and the scoped `template/AGENTS.md` guidance for
 all files under `template/`. The branch is `rust-project-enhancements`, and the
 plan file is `docs/execplans/rust-project-enhancements.md` as required by the
-repository instruction.
+repository instructions.
 
 Use the current worktree and the sibling repositories as authoritative source
 inputs. The relevant imports are `../dear-diary/.cargo/config.toml`,

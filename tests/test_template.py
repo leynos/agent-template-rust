@@ -13,6 +13,7 @@ Example:
     contract checks.
 """
 
+import tomllib
 from datetime import datetime, UTC
 from pathlib import Path
 
@@ -207,23 +208,41 @@ def test_generated_tooling_contracts(
     )
 
     cargo_toml = read_generated_file(project, "Cargo.toml")
+    cargo = tomllib.loads(cargo_toml)
+    package = cargo["package"]
+    metadata = package.get("metadata", {})
     makefile = read_generated_file(project, "Makefile")
     cargo_config = read_generated_file(project, ".cargo/config.toml")
     ci_workflow = read_generated_file(project, ".github/workflows/ci.yml")
     rust_toolchain = read_generated_file(project, "rust-toolchain.toml")
     test_stub = read_generated_file(project, "tests/stub.rs")
 
-    assert 'description = "ToolingExample package used by template tests."' in cargo_toml, (
+    assert package["description"] == "ToolingExample package used by template tests.", (
         "expected generated Cargo.toml to include package description"
     )
-    assert 'repository = "https://github.com/example/tooling_example"' in cargo_toml, (
+    assert package["repository"] == "https://github.com/example/tooling_example", (
         "expected generated Cargo.toml to include repository URL"
     )
-    assert 'license = "ISC"' in cargo_toml, (
+    assert package["homepage"] == "https://example.com/tooling_example", (
+        "expected generated Cargo.toml to include homepage URL"
+    )
+    assert package["keywords"] == ["rust", "template"], (
+        "expected generated Cargo.toml to include package keywords"
+    )
+    assert package["categories"] == ["development-tools"], (
+        "expected generated Cargo.toml to include package categories"
+    )
+    assert package["license"] == "ISC", (
         "expected generated Cargo.toml to include ISC licence"
     )
-    assert "$(CARGO) nextest run" in makefile, (
-        "expected generated Makefile to run tests with cargo-nextest"
+    assert "TEST_CMD :=" in makefile, (
+        "expected generated Makefile to define a test command fallback"
+    )
+    assert "nextest run,test" in makefile, (
+        "expected generated Makefile to fall back to cargo test without cargo-nextest"
+    )
+    assert "$(CARGO) $(TEST_CMD)" in makefile, (
+        "expected generated Makefile test target to use the selected test command"
     )
     assert "$(WHITAKER) --all -- $(CARGO_FLAGS)" in makefile, (
         "expected generated Makefile lint target to run Whitaker"
@@ -261,8 +280,20 @@ def test_generated_tooling_contracts(
     )
 
     if flavour == APP:
-        assert "[package.metadata.binstall]" in cargo_toml, (
+        binstall = metadata.get("binstall")
+        assert binstall is not None, (
             "expected app flavour Cargo.toml to include binstall metadata"
+        )
+        assert (
+            binstall["pkg-url"]
+            == "https://github.com/example/tooling_example/releases/download/"
+            "v{ version }/tooling_example-{ target }{ binary-ext }"
+        ), "expected app flavour binstall metadata to include package URL"
+        assert binstall["pkg-fmt"] == "bin", (
+            "expected app flavour binstall metadata to describe binary artifacts"
+        )
+        assert binstall["disabled-strategies"] == ["quick-install", "compile"], (
+            "expected app flavour binstall metadata to disable unsupported strategies"
         )
         release_workflow = read_generated_file(project, ".github/workflows/release.yml")
         assert (
@@ -279,6 +310,6 @@ def test_generated_tooling_contracts(
             "expected app release workflow to upload release files"
         )
     else:
-        assert "[package.metadata.binstall]" not in cargo_toml, (
+        assert "binstall" not in metadata, (
             "expected lib flavour Cargo.toml to omit binstall metadata"
         )
