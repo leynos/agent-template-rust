@@ -17,6 +17,8 @@ jobs:
       WHITAKER_INSTALLER_REV: f768c2e53c47df13658af1168a67851d388750bf
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          persist-credentials: false
       - name: Setup Rust
         uses: leynos/shared-actions/.github/actions/setup-rust@e4c6b0e200a057edf927c45c298e7ddf229b3934
       - name: Install mold linker
