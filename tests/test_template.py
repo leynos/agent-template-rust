@@ -334,6 +334,9 @@ def test_generated_tooling_contracts(
         assert "CROSS_REVISION: v0.2.5" in release_workflow, (
             "expected app release workflow to pin cross revision"
         )
+        assert "aarch64-pc-windows-gnullvm" not in release_workflow, (
+            "expected app release workflow to omit unsupported cross targets"
+        )
         assert 'key: cross-${{ env.CROSS_REVISION }}' in release_workflow, (
             "expected app release workflow to cache cross by revision"
         )
