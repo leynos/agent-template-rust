@@ -14,6 +14,7 @@ Example:
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import tomllib
 from pathlib import Path
@@ -189,17 +190,19 @@ def test_makefile_resolves_whitaker_fallback(
     )
     expected_whitaker.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     expected_whitaker.chmod(0o755)
+    make = shutil.which("make")
+    assert make is not None, "expected make to be available for generated tests"
 
     result = subprocess.run(
-        ["make", "--dry-run", "lint"],
+        [make, "--dry-run", "lint"],
         cwd=project.path,
         env={
             **os.environ,
             "HOME": str(home),
-            "PATH": (
-                f"{path_bin}:/usr/bin:/bin"
+            "PATH": os.pathsep.join(
+                [str(path_bin), "/usr/bin", "/bin"]
                 if path_has_whitaker
-                else "/usr/bin:/bin"
+                else ["/usr/bin", "/bin"]
             ),
         },
         check=True,
@@ -264,18 +267,29 @@ def test_generated_tooling_contracts(
     test_stub = (project / "tests/stub.rs").read_text(encoding="utf-8")
     parsed_ci_workflow = yaml.safe_load(ci_workflow)
 
-    checkout_steps = [
-        step
-        for job in parsed_ci_workflow["jobs"].values()
-        for step in job["steps"]
-        if step.get("uses", "").startswith("actions/checkout@")
-    ]
-    assert checkout_steps, "expected generated CI workflow to check out sources"
-    assert all(
-        step.get("with", {}).get("persist-credentials") is False
-        for step in checkout_steps
-    ), "expected generated CI checkout steps to disable credential persistence"
+    assert_cargo_contracts(package, metadata, flavour)
+    assert_makefile_contracts(makefile)
+    assert_cargo_config_contracts(cargo_config, dev_target)
+    assert_toolchain_contracts(rust_toolchain)
+    assert_ci_workflow_contracts(parsed_ci_workflow, ci_workflow)
+    assert_readme_contracts(readme)
+    assert_test_stub_contracts(test_stub)
 
+    if flavour == APP:
+        release_workflow = (project / ".github/workflows/release.yml").read_text(
+            encoding="utf-8"
+        )
+        assert_release_workflow_contracts(release_workflow)
+    else:
+        assert "binstall" not in metadata, (
+            "expected lib flavour Cargo.toml to omit binstall metadata"
+        )
+
+
+def assert_cargo_contracts(
+    package: dict[str, object], metadata: dict[str, object], flavour: str
+) -> None:
+    """Assert generated Cargo package metadata contracts."""
     assert package["description"] == "ToolingExample package used by template tests.", (
         "expected generated Cargo.toml to include package description"
     )
@@ -294,6 +308,27 @@ def test_generated_tooling_contracts(
     assert package["license"] == "ISC", (
         "expected generated Cargo.toml to include ISC licence"
     )
+
+    if flavour == APP:
+        binstall = metadata.get("binstall")
+        assert isinstance(binstall, dict), (
+            "expected app flavour Cargo.toml to include binstall metadata"
+        )
+        assert (
+            binstall["pkg-url"]
+            == "https://github.com/example/tooling_example/releases/download/"
+            "v{ version }/tooling_example-{ target }{ binary-ext }"
+        ), "expected app flavour binstall metadata to include package URL"
+        assert binstall["pkg-fmt"] == "bin", (
+            "expected app flavour binstall metadata to describe binary artifacts"
+        )
+        assert binstall["disabled-strategies"] == ["quick-install", "compile"], (
+            "expected app flavour binstall metadata to disable unsupported strategies"
+        )
+
+
+def assert_makefile_contracts(makefile: str) -> None:
+    """Assert generated Makefile tooling contracts."""
     assert "TEST_CMD :=" in makefile, (
         "expected generated Makefile to define a test command fallback"
     )
@@ -318,6 +353,10 @@ def test_generated_tooling_contracts(
     assert "$(WHITAKER) --all -- $(CARGO_FLAGS)" in makefile, (
         "expected generated Makefile lint target to run Whitaker"
     )
+
+
+def assert_cargo_config_contracts(cargo_config: str, dev_target: str) -> None:
+    """Assert generated Cargo config linker contracts."""
     assert 'codegen-backend = "cranelift"' in cargo_config, (
         "expected generated cargo config to enable Cranelift"
     )
@@ -336,12 +375,34 @@ def test_generated_tooling_contracts(
         assert 'link-arg=-fuse-ld=mold' not in cargo_config, (
             "expected generated cargo config to avoid mold for non-Linux targets"
         )
+
+
+def assert_toolchain_contracts(rust_toolchain: str) -> None:
+    """Assert generated Rust toolchain component contracts."""
     assert "rustc-codegen-cranelift-preview" in rust_toolchain, (
         "expected generated rust-toolchain to include Cranelift component"
     )
     assert "llvm-tools-preview" in rust_toolchain, (
         "expected generated rust-toolchain to include llvm tools component"
     )
+
+
+def assert_ci_workflow_contracts(
+    parsed_ci_workflow: dict[str, object], ci_workflow: str
+) -> None:
+    """Assert generated CI workflow contracts."""
+    checkout_steps = [
+        step
+        for job in parsed_ci_workflow["jobs"].values()
+        for step in job["steps"]
+        if step.get("uses", "").startswith("actions/checkout@")
+    ]
+    assert checkout_steps, "expected generated CI workflow to check out sources"
+    assert all(
+        step.get("with", {}).get("persist-credentials") is False
+        for step in checkout_steps
+    ), "expected generated CI checkout steps to disable credential persistence"
+
     assert "Cache Whitaker installation" in ci_workflow, (
         "expected generated CI workflow to cache Whitaker installation"
     )
@@ -367,66 +428,52 @@ def test_generated_tooling_contracts(
     assert "LDFLAGS: -fuse-ld=lld" in ci_workflow, (
         "expected generated CI workflow coverage to set LDFLAGS for lld"
     )
+
+
+def assert_readme_contracts(readme: str) -> None:
+    """Assert generated README tooling notes."""
     assert "Development builds use `mold` on Linux" in readme, (
         "expected generated README to document mold for development builds"
     )
     assert "Coverage generation uses `lld`" in readme, (
         "expected generated README to document lld for coverage"
     )
+
+
+def assert_test_stub_contracts(test_stub: str) -> None:
+    """Assert generated test stub guidance."""
     assert "Delete this file as soon as the project has real" in test_stub, (
         "expected generated test stub to explain when to delete it"
     )
 
-    if flavour == APP:
-        binstall = metadata.get("binstall")
-        assert binstall is not None, (
-            "expected app flavour Cargo.toml to include binstall metadata"
-        )
-        assert (
-            binstall["pkg-url"]
-            == "https://github.com/example/tooling_example/releases/download/"
-            "v{ version }/tooling_example-{ target }{ binary-ext }"
-        ), "expected app flavour binstall metadata to include package URL"
-        assert binstall["pkg-fmt"] == "bin", (
-            "expected app flavour binstall metadata to describe binary artifacts"
-        )
-        assert binstall["disabled-strategies"] == ["quick-install", "compile"], (
-            "expected app flavour binstall metadata to disable unsupported strategies"
-        )
-        release_workflow = (project / ".github/workflows/release.yml").read_text(
-            encoding="utf-8"
-        )
-        parsed_release_workflow = yaml.safe_load(release_workflow)
-        release_checkout_steps = [
-            step
-            for job in parsed_release_workflow["jobs"].values()
-            for step in job["steps"]
-            if step.get("uses", "").startswith("actions/checkout@")
-        ]
-        assert release_checkout_steps, (
-            "expected app release workflow to check out sources"
-        )
-        assert all(
-            step.get("with", {}).get("persist-credentials") is False
-            for step in release_checkout_steps
-        ), "expected release workflow checkout steps to disable credentials"
-        assert (
-            "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
-            in release_workflow
-        ), "expected app release workflow to use pinned upload-artifact action"
-        assert "CROSS_REVISION: v0.2.5" in release_workflow, (
-            "expected app release workflow to pin cross revision"
-        )
-        assert "aarch64-pc-windows-gnullvm" not in release_workflow, (
-            "expected app release workflow to omit unsupported cross targets"
-        )
-        assert 'key: cross-${{ env.CROSS_REVISION }}' in release_workflow, (
-            "expected app release workflow to cache cross by revision"
-        )
-        assert "files: |" in release_workflow, (
-            "expected app release workflow to upload release files"
-        )
-    else:
-        assert "binstall" not in metadata, (
-            "expected lib flavour Cargo.toml to omit binstall metadata"
-        )
+
+def assert_release_workflow_contracts(release_workflow: str) -> None:
+    """Assert generated release workflow contracts."""
+    parsed_release_workflow = yaml.safe_load(release_workflow)
+    release_checkout_steps = [
+        step
+        for job in parsed_release_workflow["jobs"].values()
+        for step in job["steps"]
+        if step.get("uses", "").startswith("actions/checkout@")
+    ]
+    assert release_checkout_steps, "expected app release workflow to check out sources"
+    assert all(
+        step.get("with", {}).get("persist-credentials") is False
+        for step in release_checkout_steps
+    ), "expected release workflow checkout steps to disable credentials"
+    assert (
+        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+        in release_workflow
+    ), "expected app release workflow to use pinned upload-artifact action"
+    assert "CROSS_REVISION: v0.2.5" in release_workflow, (
+        "expected app release workflow to pin cross revision"
+    )
+    assert "aarch64-pc-windows-gnullvm" not in release_workflow, (
+        "expected app release workflow to omit unsupported cross targets"
+    )
+    assert 'key: cross-${{ env.CROSS_REVISION }}' in release_workflow, (
+        "expected app release workflow to cache cross by revision"
+    )
+    assert "files: |" in release_workflow, (
+        "expected app release workflow to upload release files"
+    )

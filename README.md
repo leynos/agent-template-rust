@@ -23,7 +23,7 @@ The template requires **Copier 9.0** or later to avoid incompatibilities.
   crates.io categories, nightly date, and optional Linux development target.
 - **Fast generated tooling** including Cranelift debug code generation, Linux
   mold linking for development builds, cargo-nextest tests with a cargo-test
-  fallback, Whitaker linting, and an lld-backed coverage target.
+  fallback, Whitaker linting, and a lld-backed coverage target.
 - **Starter code** providing either a binary entry point or a library
   function depending on flavour【F:template/src/{% if flavour == APP %}main.rs{% else %}lib.rs{% endif %}.jinja†L1-L10】.
 - **GitHub CI workflow** that formats, lints, tests, and uploads
