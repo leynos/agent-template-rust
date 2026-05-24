@@ -117,8 +117,7 @@ GrepAI's `Projects` workspace is available, but `agent-template-rust` is not
 indexed there. GrepAI can still help with indexed sibling projects, and exact
 file reads are used for this template repository.
 
-The branch currently points at the same commit as `main`, so the requested
-implementation has not yet been committed.
+Branch changes have been committed and pushed as recorded below.
 
 CodeRabbit recommended changing GitHub Action pins back to version tags such
 as `actions/checkout@v6.0.2`. That is intentionally not applied because the
