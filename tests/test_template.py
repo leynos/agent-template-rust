@@ -18,10 +18,12 @@ import shutil
 import subprocess
 import tomllib
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
 from pytest_copier.plugin import CopierFixture, CopierProject
+from syrupy.assertion import SnapshotAssertion
 
 APP = "app"
 LIB = "lib"
@@ -157,18 +159,11 @@ def test_clippy_runs(tmp_path: Path, copier: CopierFixture) -> None:
     project.run("make lint")
 
 
-@pytest.mark.parametrize(
-    ("path_has_whitaker", "expected_location"),
-    [
-        (True, "path"),
-        (False, "home"),
-    ],
-)
+@pytest.mark.parametrize("whitaker_location", ["path", "home", "missing"])
 def test_makefile_resolves_whitaker_fallback(
     tmp_path: Path,
     copier: CopierFixture,
-    path_has_whitaker: bool,
-    expected_location: str,
+    whitaker_location: str,
 ) -> None:
     """Generated lint target resolves Whitaker from PATH or user install."""
     project = render_project(
@@ -180,39 +175,54 @@ def test_makefile_resolves_whitaker_fallback(
     home = tmp_path / "home"
     path_bin = tmp_path / "path-bin"
     user_bin = home / ".local" / "bin"
+    cargo = tmp_path / "cargo"
+    marker = tmp_path / "whitaker-ran"
     path_bin.mkdir(parents=True)
     user_bin.mkdir(parents=True)
+    cargo.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    cargo.chmod(0o755)
 
-    expected_whitaker = (
-        path_bin / "whitaker"
-        if path_has_whitaker
-        else user_bin / "whitaker"
-    )
-    expected_whitaker.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    expected_whitaker.chmod(0o755)
+    expected_whitaker = None
+    if whitaker_location != "missing":
+        expected_whitaker = (
+            path_bin / "whitaker"
+            if whitaker_location == "path"
+            else user_bin / "whitaker"
+        )
+        expected_whitaker.write_text(
+            f"#!/bin/sh\ntouch {marker}\nexit 0\n", encoding="utf-8"
+        )
+        expected_whitaker.chmod(0o755)
     make = shutil.which("make")
     assert make is not None, "expected make to be available for generated tests"
 
     result = subprocess.run(
-        [make, "--dry-run", "lint"],
+        [make, "lint"],
         cwd=project.path,
         env={
             **os.environ,
             "HOME": str(home),
             "PATH": os.pathsep.join(
                 [str(path_bin), "/usr/bin", "/bin"]
-                if path_has_whitaker
+                if whitaker_location == "path"
                 else ["/usr/bin", "/bin"]
             ),
+            "CARGO": str(cargo),
         },
-        check=True,
         capture_output=True,
         text=True,
     )
 
-    assert str(expected_whitaker) in result.stdout, (
-        f"expected generated lint target to use {expected_location} Whitaker"
-    )
+    if expected_whitaker is None:
+        assert result.returncode != 0, "expected lint to fail without Whitaker"
+        assert "whitaker" in result.stderr.lower(), (
+            "expected missing Whitaker failure to identify the missing tool"
+        )
+    else:
+        assert result.returncode == 0, result.stderr
+        assert marker.exists(), (
+            f"expected generated lint target to execute {whitaker_location} Whitaker"
+        )
 
 
 @pytest.mark.parametrize("flavour", [LIB, APP])
@@ -255,17 +265,16 @@ def test_generated_tooling_contracts(
     project.run("mbake validate Makefile")
     project.run("cargo metadata --format-version=1 --no-deps")
 
-    cargo_toml = (project / "Cargo.toml").read_text(encoding="utf-8")
-    cargo = tomllib.loads(cargo_toml)
-    package = cargo["package"]
-    metadata = package.get("metadata", {})
-    makefile = (project / "Makefile").read_text(encoding="utf-8")
-    cargo_config = (project / ".cargo/config.toml").read_text(encoding="utf-8")
-    ci_workflow = (project / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    readme = (project / "README.md").read_text(encoding="utf-8")
-    rust_toolchain = (project / "rust-toolchain.toml").read_text(encoding="utf-8")
-    test_stub = (project / "tests/stub.rs").read_text(encoding="utf-8")
-    parsed_ci_workflow = yaml.safe_load(ci_workflow)
+    cargo = parse_toml_file(project / "Cargo.toml")
+    package = require_mapping(cargo, "package", "Cargo.toml")
+    metadata = require_optional_mapping(package, "metadata", "Cargo.toml package")
+    makefile = read_generated_text(project / "Makefile")
+    cargo_config = read_generated_text(project / ".cargo/config.toml")
+    ci_workflow = read_generated_text(project / ".github/workflows/ci.yml")
+    readme = read_generated_text(project / "README.md")
+    rust_toolchain = read_generated_text(project / "rust-toolchain.toml")
+    test_stub = read_generated_text(project / "tests/stub.rs")
+    parsed_ci_workflow = parse_yaml_mapping(ci_workflow, "CI workflow")
 
     assert_cargo_contracts(package, metadata, flavour)
     assert_makefile_contracts(makefile)
@@ -276,9 +285,7 @@ def test_generated_tooling_contracts(
     assert_test_stub_contracts(test_stub)
 
     if flavour == APP:
-        release_workflow = (project / ".github/workflows/release.yml").read_text(
-            encoding="utf-8"
-        )
+        release_workflow = read_generated_text(project / ".github/workflows/release.yml")
         assert_release_workflow_contracts(release_workflow)
     else:
         assert "binstall" not in metadata, (
@@ -286,26 +293,103 @@ def test_generated_tooling_contracts(
         )
 
 
+def test_generated_structured_file_snapshots(
+    tmp_path: Path, copier: CopierFixture, snapshot: SnapshotAssertion
+) -> None:
+    """Generated structured tooling files match reviewed snapshots."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="SnapshotExample",
+        package_name="snapshot_example",
+        flavour=APP,
+    )
+
+    cargo_config = read_generated_text(project / ".cargo/config.toml")
+    makefile = read_generated_text(project / "Makefile")
+    ci_workflow = parse_yaml_mapping(
+        read_generated_text(project / ".github/workflows/ci.yml"), "CI workflow"
+    )
+    release_workflow = parse_yaml_mapping(
+        read_generated_text(project / ".github/workflows/release.yml"),
+        "release workflow",
+    )
+
+    assert {
+        "cargo_config": cargo_config,
+        "makefile": makefile,
+        "ci_workflow": ci_workflow,
+        "release_workflow": release_workflow,
+    } == snapshot
+
+
+def read_generated_text(path: Path) -> str:
+    """Read a generated file with assertion-focused error context."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError as error:
+        pytest.fail(f"could not read generated file {path}: {error}")
+
+
+def parse_toml_file(path: Path) -> dict[str, Any]:
+    """Parse generated TOML with assertion-focused error context."""
+    text = read_generated_text(path)
+    try:
+        parsed = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as error:
+        pytest.fail(f"could not parse generated TOML {path}: {error}")
+    return parsed
+
+
+def parse_yaml_mapping(text: str, label: str) -> dict[str, Any]:
+    """Parse generated YAML as a mapping with clear failure context."""
+    try:
+        parsed = yaml.safe_load(text)
+    except yaml.YAMLError as error:
+        pytest.fail(f"could not parse generated {label}: {error}")
+    if not isinstance(parsed, dict):
+        pytest.fail(f"expected generated {label} to parse as a mapping")
+    return parsed
+
+
+def require_mapping(mapping: dict[str, Any], key: str, label: str) -> dict[str, Any]:
+    """Return a nested mapping or fail with the missing schema path."""
+    value = mapping.get(key)
+    if not isinstance(value, dict):
+        pytest.fail(f"expected {label} to include mapping key {key!r}")
+    return value
+
+
+def require_optional_mapping(
+    mapping: dict[str, Any], key: str, label: str
+) -> dict[str, Any]:
+    """Return an optional nested mapping or an empty mapping."""
+    value = mapping.get(key, {})
+    if not isinstance(value, dict):
+        pytest.fail(f"expected {label} key {key!r} to be a mapping when present")
+    return value
+
+
 def assert_cargo_contracts(
-    package: dict[str, object], metadata: dict[str, object], flavour: str
+    package: dict[str, Any], metadata: dict[str, Any], flavour: str
 ) -> None:
     """Assert generated Cargo package metadata contracts."""
-    assert package["description"] == "ToolingExample package used by template tests.", (
+    assert package.get("description") == "ToolingExample package used by template tests.", (
         "expected generated Cargo.toml to include package description"
     )
-    assert package["repository"] == "https://github.com/example/tooling_example", (
+    assert package.get("repository") == "https://github.com/example/tooling_example", (
         "expected generated Cargo.toml to include repository URL"
     )
-    assert package["homepage"] == "https://example.com/tooling_example", (
+    assert package.get("homepage") == "https://example.com/tooling_example", (
         "expected generated Cargo.toml to include homepage URL"
     )
-    assert package["keywords"] == ["rust", "template"], (
+    assert package.get("keywords") == ["rust", "template"], (
         "expected generated Cargo.toml to include package keywords"
     )
-    assert package["categories"] == ["development-tools"], (
+    assert package.get("categories") == ["development-tools"], (
         "expected generated Cargo.toml to include package categories"
     )
-    assert package["license"] == "ISC", (
+    assert package.get("license") == "ISC", (
         "expected generated Cargo.toml to include ISC licence"
     )
 
@@ -315,14 +399,14 @@ def assert_cargo_contracts(
             "expected app flavour Cargo.toml to include binstall metadata"
         )
         assert (
-            binstall["pkg-url"]
+            binstall.get("pkg-url")
             == "https://github.com/example/tooling_example/releases/download/"
             "v{ version }/tooling_example-{ target }{ binary-ext }"
         ), "expected app flavour binstall metadata to include package URL"
-        assert binstall["pkg-fmt"] == "bin", (
+        assert binstall.get("pkg-fmt") == "bin", (
             "expected app flavour binstall metadata to describe binary artifacts"
         )
-        assert binstall["disabled-strategies"] == ["quick-install", "compile"], (
+        assert binstall.get("disabled-strategies") == ["quick-install", "compile"], (
             "expected app flavour binstall metadata to disable unsupported strategies"
         )
 
@@ -352,6 +436,12 @@ def assert_makefile_contracts(makefile: str) -> None:
     )
     assert "$(WHITAKER) --all -- $(CARGO_FLAGS)" in makefile, (
         "expected generated Makefile lint target to run Whitaker"
+    )
+    assert 'echo "Whitaker binary: $(WHITAKER)"' in makefile, (
+        "expected generated Makefile lint target to log Whitaker resolution"
+    )
+    assert 'echo "coverage linker flags: $(COVERAGE_LINKER_FLAGS)"' in makefile, (
+        "expected generated Makefile coverage target to log linker flags"
     )
 
 
@@ -388,14 +478,17 @@ def assert_toolchain_contracts(rust_toolchain: str) -> None:
 
 
 def assert_ci_workflow_contracts(
-    parsed_ci_workflow: dict[str, object], ci_workflow: str
+    parsed_ci_workflow: dict[str, Any], ci_workflow: str
 ) -> None:
     """Assert generated CI workflow contracts."""
+    jobs = require_mapping(parsed_ci_workflow, "jobs", "CI workflow")
     checkout_steps = [
         step
-        for job in parsed_ci_workflow["jobs"].values()
-        for step in job["steps"]
-        if step.get("uses", "").startswith("actions/checkout@")
+        for job in jobs.values()
+        if isinstance(job, dict)
+        for step in job.get("steps", [])
+        if isinstance(step, dict)
+        and step.get("uses", "").startswith("actions/checkout@")
     ]
     assert checkout_steps, "expected generated CI workflow to check out sources"
     assert all(
@@ -428,6 +521,18 @@ def assert_ci_workflow_contracts(
     assert "LDFLAGS: -fuse-ld=lld" in ci_workflow, (
         "expected generated CI workflow coverage to set LDFLAGS for lld"
     )
+    assert "Whitaker cache hit:" in ci_workflow, (
+        "expected generated CI workflow to log Whitaker cache status"
+    )
+    assert "Installing Whitaker installer at" in ci_workflow, (
+        "expected generated CI workflow to log Whitaker installation"
+    )
+    assert "Whitaker binary:" in ci_workflow, (
+        "expected generated CI workflow to log Whitaker binary resolution"
+    )
+    assert "Log coverage linker configuration" in ci_workflow, (
+        "expected generated CI workflow to log coverage linker configuration"
+    )
 
 
 def assert_readme_contracts(readme: str) -> None:
@@ -449,12 +554,15 @@ def assert_test_stub_contracts(test_stub: str) -> None:
 
 def assert_release_workflow_contracts(release_workflow: str) -> None:
     """Assert generated release workflow contracts."""
-    parsed_release_workflow = yaml.safe_load(release_workflow)
+    parsed_release_workflow = parse_yaml_mapping(release_workflow, "release workflow")
+    jobs = require_mapping(parsed_release_workflow, "jobs", "release workflow")
     release_checkout_steps = [
         step
-        for job in parsed_release_workflow["jobs"].values()
-        for step in job["steps"]
-        if step.get("uses", "").startswith("actions/checkout@")
+        for job in jobs.values()
+        if isinstance(job, dict)
+        for step in job.get("steps", [])
+        if isinstance(step, dict)
+        and step.get("uses", "").startswith("actions/checkout@")
     ]
     assert release_checkout_steps, "expected app release workflow to check out sources"
     assert all(

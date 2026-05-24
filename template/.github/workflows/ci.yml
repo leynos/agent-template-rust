@@ -53,15 +53,25 @@ jobs:
           key: whitaker-v2-${{ runner.os }}-${{ env.WHITAKER_INSTALLER_REV }}
       - name: Install Whitaker
         run: |
+          set -euo pipefail
+          echo "Whitaker cache hit: ${{ steps.cache-whitaker.outputs.cache-hit }}"
           if [ "${{ steps.cache-whitaker.outputs.cache-hit }}" != "true" ]; then
+            echo "Installing Whitaker installer at ${WHITAKER_INSTALLER_REV}"
             cargo install --locked \
               --git https://github.com/leynos/whitaker \
               --rev "${WHITAKER_INSTALLER_REV}" \
               whitaker-installer
           fi
           whitaker-installer --cranelift
+          echo "Whitaker binary: $(command -v whitaker || true)"
       - name: Lint
         run: make lint
+      - name: Log coverage linker configuration
+        run: |
+          echo "Coverage linker: clang"
+          echo "Coverage RUSTFLAGS: -C link-arg=-fuse-ld=lld"
+          echo "Coverage CFLAGS: -fuse-ld=lld"
+          echo "Coverage LDFLAGS: -fuse-ld=lld"
       - name: Test and Measure Coverage
         uses: leynos/shared-actions/.github/actions/generate-coverage@e4c6b0e200a057edf927c45c298e7ddf229b3934
         env:

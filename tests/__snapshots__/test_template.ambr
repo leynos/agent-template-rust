@@ -1,0 +1,405 @@
+# serializer version: 1
+# name: test_generated_structured_file_snapshots
+  dict({
+    'cargo_config': '''
+      [unstable]
+      codegen-backend = true
+      
+      [profile.dev]
+      codegen-backend = "cranelift"
+      
+      [target.x86_64-unknown-linux-gnu]
+      linker = "clang"
+      rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+  
+    ''',
+    'ci_workflow': dict({
+      'jobs': dict({
+        'build-test': dict({
+          'env': dict({
+            'BUILD_PROFILE': 'debug',
+            'CARGO_TERM_COLOR': 'always',
+            'WHITAKER_INSTALLER_REV': 'f768c2e53c47df13658af1168a67851d388750bf',
+          }),
+          'permissions': dict({
+            'contents': 'read',
+          }),
+          'runs-on': 'ubuntu-latest',
+          'steps': list([
+            dict({
+              'uses': 'actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231',
+              'with': dict({
+                'persist-credentials': False,
+              }),
+            }),
+            dict({
+              'name': 'Setup Rust',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@e4c6b0e200a057edf927c45c298e7ddf229b3934',
+            }),
+            dict({
+              'if': "runner.os == 'Linux'",
+              'name': 'Install mold linker',
+              'run': '''
+                set -euo pipefail
+                export DEBIAN_FRONTEND=noninteractive
+                # mold accelerates dev builds; coverage uses lld for llvm-tools compatibility.
+                sudo apt-get update \
+                  && sudo apt-get install --yes --no-install-recommends clang lld mold
+  
+              ''',
+            }),
+            dict({
+              'name': 'Format',
+              'run': 'make check-fmt',
+            }),
+            dict({
+              'name': 'Markdown lint',
+              'uses': 'DavidAnson/markdownlint-cli2-action@2df9e28eb87988518ef3880c34edad45d65b1668',
+              'with': dict({
+                'globs': '''
+                  **/*.md
+                  !**/target/**
+                  !**/dist/**
+  
+                ''',
+              }),
+            }),
+            dict({
+              'name': 'Setup uv',
+              'uses': 'astral-sh/setup-uv@12d13f90bc3a5a1971bebad4beb09a4dfa962e91',
+            }),
+            dict({
+              'name': 'Install test runner',
+              'run': 'cargo binstall --no-confirm cargo-nextest',
+            }),
+            dict({
+              'id': 'cache-whitaker',
+              'name': 'Cache Whitaker installation',
+              'uses': 'actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae',
+              'with': dict({
+                'key': 'whitaker-v2-${{ runner.os }}-${{ env.WHITAKER_INSTALLER_REV }}',
+                'path': '''
+                  ~/.cargo/bin/whitaker-installer
+                  ~/.local/bin/whitaker
+                  ~/.dylint_drivers
+                  ~/.local/share/whitaker
+  
+                ''',
+              }),
+            }),
+            dict({
+              'name': 'Install Whitaker',
+              'run': '''
+                set -euo pipefail
+                echo "Whitaker cache hit: ${{ steps.cache-whitaker.outputs.cache-hit }}"
+                if [ "${{ steps.cache-whitaker.outputs.cache-hit }}" != "true" ]; then
+                  echo "Installing Whitaker installer at ${WHITAKER_INSTALLER_REV}"
+                  cargo install --locked \
+                    --git https://github.com/leynos/whitaker \
+                    --rev "${WHITAKER_INSTALLER_REV}" \
+                    whitaker-installer
+                fi
+                whitaker-installer --cranelift
+                echo "Whitaker binary: $(command -v whitaker || true)"
+  
+              ''',
+            }),
+            dict({
+              'name': 'Lint',
+              'run': 'make lint',
+            }),
+            dict({
+              'name': 'Log coverage linker configuration',
+              'run': '''
+                echo "Coverage linker: clang"
+                echo "Coverage RUSTFLAGS: -C link-arg=-fuse-ld=lld"
+                echo "Coverage CFLAGS: -fuse-ld=lld"
+                echo "Coverage LDFLAGS: -fuse-ld=lld"
+  
+              ''',
+            }),
+            dict({
+              'env': dict({
+                'CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER': 'clang',
+                'CFLAGS': '-fuse-ld=lld',
+                'LDFLAGS': '-fuse-ld=lld',
+                'RUSTFLAGS': '-C link-arg=-fuse-ld=lld',
+              }),
+              'name': 'Test and Measure Coverage',
+              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@e4c6b0e200a057edf927c45c298e7ddf229b3934',
+              'with': dict({
+                'format': 'lcov',
+                'output-path': 'lcov.info',
+              }),
+            }),
+            dict({
+              'env': dict({
+                'CS_ACCESS_TOKEN': '${{ secrets.CS_ACCESS_TOKEN }}',
+              }),
+              'if': '${{ env.CS_ACCESS_TOKEN }}',
+              'name': 'Upload coverage data to CodeScene',
+              'uses': 'leynos/shared-actions/.github/actions/upload-codescene-coverage@e4c6b0e200a057edf927c45c298e7ddf229b3934',
+              'with': dict({
+                'access-token': '${{ env.CS_ACCESS_TOKEN }}',
+                'format': 'lcov',
+                'installer-checksum': '${{ vars.CODESCENE_CLI_SHA256 }}',
+              }),
+            }),
+          ]),
+        }),
+      }),
+      'name': 'CI',
+      'on': dict({
+        'pull_request': dict({
+          'types': list([
+            'opened',
+            'synchronize',
+            'reopened',
+          ]),
+        }),
+        'workflow_dispatch': None,
+      }),
+    }),
+    'makefile': '''
+      .PHONY: help all clean test build release coverage lint fmt check-fmt markdownlint nixie
+      
+      
+      TARGET ?= snapshot_example
+      
+      USER_WHITAKER := $(HOME)/.local/bin/whitaker
+      USER_BIN_PATH := $(HOME)/.cargo/bin:$(HOME)/.local/bin:$(HOME)/.bun/bin
+      CARGO ?= cargo
+      BUILD_JOBS ?=
+      RUST_FLAGS ?=
+      RUST_FLAGS := -D warnings $(RUST_FLAGS)
+      RUSTDOC_FLAGS ?=
+      RUSTDOC_FLAGS := -D warnings $(RUSTDOC_FLAGS)
+      CARGO_FLAGS ?= --all-targets --all-features
+      CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
+      TEST_FLAGS ?= $(CARGO_FLAGS)
+      TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
+      COVERAGE_LINKER_FLAGS ?= -fuse-ld=lld
+      COVERAGE_RUST_FLAGS ?= $(RUST_FLAGS) -C link-arg=$(COVERAGE_LINKER_FLAGS)
+      MDLINT ?= markdownlint-cli2
+      NIXIE ?= nixie
+      WHITAKER ?= $(or $(shell command -v whitaker 2>/dev/null),$(wildcard $(USER_WHITAKER)),whitaker)
+      
+      build: target/debug/$(TARGET) ## Build debug binary
+      release: target/release/$(TARGET) ## Build release binary
+      
+      all: check-fmt lint test ## Perform a comprehensive check of code
+      
+      clean: ## Remove build artifacts
+      	$(CARGO) clean
+      
+      test: ## Run tests with warnings treated as errors
+      	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
+      
+      
+      target/%/$(TARGET): ## Build binary in debug or release mode
+      	$(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release) --bin $(TARGET)
+      
+      coverage: ## Generate lcov coverage with lld for llvm-tools compatibility
+      	@echo "coverage linker flags: $(COVERAGE_LINKER_FLAGS)"
+      	CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang \
+      		RUSTFLAGS="$(COVERAGE_RUST_FLAGS)" \
+      		CFLAGS="$(COVERAGE_LINKER_FLAGS)" \
+      		LDFLAGS="$(COVERAGE_LINKER_FLAGS)" \
+      		$(CARGO) llvm-cov --lcov --output-path lcov.info $(TEST_FLAGS)
+      
+      lint: ## Run Clippy with warnings denied
+      	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --no-deps
+      	$(CARGO) clippy $(CLIPPY_FLAGS)
+      	@echo "Whitaker binary: $(WHITAKER)"
+      	PATH="$(USER_BIN_PATH):$(PATH)" RUSTFLAGS="$(RUST_FLAGS)" $(WHITAKER) --all -- $(CARGO_FLAGS)
+      
+      typecheck: ## Type-check without building
+      	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) check $(CARGO_FLAGS)
+      
+      fmt: ## Format Rust and Markdown sources
+      	$(CARGO) +nightly fmt --all
+      	mdformat-all
+      
+      check-fmt: ## Verify formatting
+      	$(CARGO) fmt --all -- --check
+      
+      markdownlint: ## Lint Markdown files
+      	$(MDLINT) '**/*.md'
+      
+      nixie: ## Validate Mermaid diagrams
+      	$(NIXIE) --no-sandbox
+      
+      help: ## Show available targets
+      	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
+      	awk 'BEGIN {FS=":"; printf "Available targets:\n"} {printf "  %-20s %s\n", $$1, $$2}'
+  
+    ''',
+    'release_workflow': dict({
+      'env': dict({
+        'BIN_NAME': 'snapshot_example',
+        'CROSS_REVISION': 'v0.2.5',
+      }),
+      'jobs': dict({
+        'build': dict({
+          'runs-on': 'ubuntu-latest',
+          'steps': list([
+            dict({
+              'uses': 'actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231',
+              'with': dict({
+                'persist-credentials': False,
+              }),
+            }),
+            dict({
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@e4c6b0e200a057edf927c45c298e7ddf229b3934',
+              'with': dict({
+                'toolchain': 'stable',
+              }),
+            }),
+            dict({
+              'id': 'cache-cross',
+              'name': 'Cache cross binary',
+              'uses': 'actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae',
+              'with': dict({
+                'key': 'cross-${{ env.CROSS_REVISION }}',
+                'path': '~/.cargo/bin/cross',
+              }),
+            }),
+            dict({
+              'env': dict({
+                'RUSTFLAGS': '',
+              }),
+              'name': 'Install cross',
+              'run': '''
+                if [ -x "$HOME/.cargo/bin/cross" ]; then
+                  exit 0
+                fi
+                cargo install cross --git https://github.com/cross-rs/cross --tag "${CROSS_REVISION}"
+  
+              ''',
+            }),
+            dict({
+              'name': 'Cache cargo registry',
+              'uses': 'actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae',
+              'with': dict({
+                'key': "${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}",
+                'path': '''
+                  ~/.cargo/registry
+                  ~/.cargo/git
+  
+                ''',
+                'restore-keys': '''
+                  ${{ runner.os }}-cargo-${{ matrix.target }}-
+  
+                ''',
+              }),
+            }),
+            dict({
+              'name': 'Build release binary',
+              'run': 'cross +stable build --release --target ${{ matrix.target }}',
+            }),
+            dict({
+              'name': 'Prepare artifact',
+              'run': '''
+                mkdir -p artifacts/${{ matrix.os }}-${{ matrix.arch }}
+                cp target/${{ matrix.target }}/release/${{ env.BIN_NAME }}${{ matrix.ext }} \
+                  artifacts/${{ matrix.os }}-${{ matrix.arch }}/${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }}
+                cd artifacts/${{ matrix.os }}-${{ matrix.arch }}
+                sha256sum ${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }} > \
+                  ${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }}.sha256
+  
+              ''',
+            }),
+            dict({
+              'name': 'Upload release artifact',
+              'uses': 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+              'with': dict({
+                'name': '${{ env.BIN_NAME }}-${{ matrix.os }}-${{ matrix.arch }}',
+                'path': 'artifacts/${{ matrix.os }}-${{ matrix.arch }}',
+              }),
+            }),
+          ]),
+          'strategy': dict({
+            'matrix': dict({
+              'include': list([
+                dict({
+                  'arch': 'x86_64',
+                  'ext': '',
+                  'os': 'linux',
+                  'target': 'x86_64-unknown-linux-gnu',
+                }),
+                dict({
+                  'arch': 'aarch64',
+                  'ext': '',
+                  'os': 'linux',
+                  'target': 'aarch64-unknown-linux-gnu',
+                }),
+                dict({
+                  'arch': 'x86_64',
+                  'ext': '.exe',
+                  'os': 'windows',
+                  'target': 'x86_64-pc-windows-gnu',
+                }),
+                dict({
+                  'arch': 'x86_64',
+                  'ext': '',
+                  'os': 'macos',
+                  'target': 'x86_64-apple-darwin',
+                }),
+                dict({
+                  'arch': 'aarch64',
+                  'ext': '',
+                  'os': 'macos',
+                  'target': 'aarch64-apple-darwin',
+                }),
+                dict({
+                  'arch': 'x86_64',
+                  'ext': '',
+                  'os': 'freebsd',
+                  'target': 'x86_64-unknown-freebsd',
+                }),
+              ]),
+            }),
+          }),
+          'timeout-minutes': 60,
+        }),
+        'release': dict({
+          'needs': 'build',
+          'permissions': dict({
+            'contents': 'write',
+          }),
+          'runs-on': 'ubuntu-latest',
+          'steps': list([
+            dict({
+              'uses': 'actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317',
+              'with': dict({
+                'path': 'artifacts',
+              }),
+            }),
+            dict({
+              'env': dict({
+                'GITHUB_TOKEN': '${{ secrets.GITHUB_TOKEN }}',
+              }),
+              'uses': 'softprops/action-gh-release@403a5240f3837fa857f642062e05aad6bb3391ca',
+              'with': dict({
+                'files': '''
+                  artifacts/*/*
+  
+                ''',
+                'generate_release_notes': True,
+              }),
+            }),
+          ]),
+          'timeout-minutes': 30,
+        }),
+      }),
+      'name': 'Release Binary',
+      True: dict({
+        'push': dict({
+          'tags': list([
+            'v*.*.*',
+          ]),
+        }),
+      }),
+    }),
+  })
+# ---
