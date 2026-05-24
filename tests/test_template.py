@@ -209,6 +209,7 @@ def test_makefile_resolves_whitaker_fallback(
             ),
             "CARGO": str(cargo),
         },
+        check=False,
         capture_output=True,
         text=True,
     )
@@ -320,7 +321,10 @@ def test_generated_structured_file_snapshots(
         "makefile": makefile,
         "ci_workflow": ci_workflow,
         "release_workflow": release_workflow,
-    } == snapshot
+    } == snapshot, (
+        "Snapshot mismatch for template outputs "
+        "(cargo_config, makefile, ci_workflow, release_workflow)"
+    )
 
 
 def read_generated_text(path: Path) -> str:

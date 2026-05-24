@@ -29,7 +29,7 @@ projects:
 - `uv` for isolated Python test dependency execution.
 - `pytest-copier` for rendering Copier templates in tests.
 - PyYAML for parsing rendered GitHub Actions workflows in tests.
-- syrupy for generated structured file snapshots in tests.
+- `syrupy` for generated structured file snapshots in tests.
 - Rust and Cargo through `rustup`.
 - cargo-nextest for generated fast test execution in CI, while generated
   Makefiles still fall back to `cargo test` for contributors.
