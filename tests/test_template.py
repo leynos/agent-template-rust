@@ -458,11 +458,14 @@ def assert_generated_tooling_contracts(
     assert_documentation_navigation_contracts(
         docs_contents, repository_layout, flavour
     )
-    assert "Development builds use `mold` on Linux" in readme, (
-        "expected generated README to document mold for development builds"
+    assert "[Documentation contents](docs/contents.md)" in readme, (
+        "expected generated README to link to the documentation contents"
     )
-    assert "Coverage generation uses `lld`" in readme, (
-        "expected generated README to document lld for coverage"
+    assert "[User guide](docs/users-guide.md)" in readme, (
+        "expected generated README to link to the user guide"
+    )
+    assert "[Developer guide](docs/developers-guide.md)" in readme, (
+        "expected generated README to link to the developer guide"
     )
     if release_workflow is not None:
         _assert_release_workflow_contracts(release_workflow)
