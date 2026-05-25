@@ -151,8 +151,21 @@ project:
   meaningfully named structs.
 - Where a function is returning a large error, consider using `Arc` to reduce
   the amount of data returned.
-- Write unit and behavioural tests for new functionality. Run both before and
-  after making any change.
+- Ensure that new features are validated with unit tests using `rstest` and
+  behavioural tests using `rstest-bdd` where applicable. Cover happy paths,
+  unhappy paths, and relevant edge cases.
+- Add end-to-end tests where a change affects externally observable workflows,
+  integration contracts, persistence, command-line behaviour, network
+  boundaries, UI flows, or other system-level behaviour.
+- Use property tests with `proptest` or a bounded model checker with `kani`
+  when a change introduces an invariant over a range of inputs, states,
+  orderings, or transitions. Use judgement to choose the appropriate level of
+  rigour.
+- Use an exhaustive proof with `verus` for introduced lemmas or contractual
+  business logic. Proofs must be substantive, rigorous, and well-founded, not
+  merely a restatement of the assumed property.
+- Run relevant unit, behavioural, property, model-checking, proof, and
+  end-to-end suites before and after making any change.
 - Every module **must** begin with a module level (`//!`) comment explaining the
   module's purpose and utility.
 - Document public APIs using Rustdoc comments (`///`) so documentation can be
@@ -249,6 +262,30 @@ project:
 - Consume fallible fixtures in `rstest` by **making the test return `Result`**
   and applying `?` to the fixture.
 
+### Observability
+
+- Use `tracing` for logging and diagnostics. Prefer structured
+  `tracing::{trace, debug, info, warn, error}` events and spans over
+  `println!`, `eprintln!`, or direct `log` macros. Add fields for identifiers,
+  state, and error context so downstream subscribers can filter and correlate
+  events without parsing message text.
+- Use `#[tracing::instrument]` or explicit spans around request handling,
+  command execution, retries, background jobs, and other meaningful units of
+  work. Do not hold `Span::enter()` guards across `.await`; use
+  `Instrument::instrument` or scoped synchronous spans instead.
+- Use the `metrics` crate for metric emission where usage, uptake, failure,
+  or mitigation metrics are required. Prefer `counter!` for cumulative events,
+  `gauge!` for values that rise and fall, and `histogram!` for distributions
+  such as latency or payload size.
+- Describe emitted metrics with `describe_counter!`, `describe_gauge!`, or
+  `describe_histogram!` where the unit or purpose is not obvious from the
+  metric name. Keep metric names stable and labels low-cardinality; do not put
+  user input, request IDs, paths with unbounded parameters, or raw error
+  strings into labels.
+- Libraries may emit `metrics` and `tracing` instrumentation, but must not
+  install global recorders or subscribers. Applications should initialise
+  exporters/subscribers once, as early as practical in startup.
+
 ## Markdown Guidance
 
 - Validate Markdown files using `make markdownlint`.
@@ -261,6 +298,25 @@ project:
 - Use dashes (`-`) for list bullets.
 - Use GitHub-flavoured Markdown footnotes (`[^1]`) for references and
   footnotes.
+
+## Project Documentation
+
+Record design decisions in the design document. Where a decision is
+substantive, record it in an ADR document following the documentation style
+guide, then reference that ADR from the design document.
+
+{% if flavour == 'app' -%}
+Update `docs/users-guide.md` for any change to application behaviour or user
+interface that a user should know about. Document internally facing interfaces
+or practices in the relevant component architecture document. Document
+internally facing conventions or practices in `docs/developers-guide.md`.
+{% else -%}
+Update `docs/users-guide.md` for any change to behaviour or public API that a
+consumer of the library should know about. Document internally facing
+interfaces or practices in the relevant component architecture document.
+Document internally facing conventions or practices in
+`docs/developers-guide.md`.
+{% endif %}
 
 ## Additional tooling
 

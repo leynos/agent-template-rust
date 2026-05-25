@@ -272,6 +272,8 @@ def test_generated_tooling_contracts(
     makefile = read_generated_text(project / "Makefile")
     cargo_config = read_generated_text(project / ".cargo/config.toml")
     ci_workflow = read_generated_text(project / ".github/workflows/ci.yml")
+    docs_contents = read_generated_text(project / "docs/contents.md")
+    repository_layout = read_generated_text(project / "docs/repository-layout.md")
     readme = read_generated_text(project / "README.md")
     rust_toolchain = read_generated_text(project / "rust-toolchain.toml")
     test_stub = read_generated_text(project / "tests/stub.rs")
@@ -292,6 +294,8 @@ def test_generated_tooling_contracts(
         rust_toolchain=rust_toolchain,
         parsed_ci_workflow=parsed_ci_workflow,
         ci_workflow=ci_workflow,
+        docs_contents=docs_contents,
+        repository_layout=repository_layout,
         readme=readme,
         test_stub=test_stub,
         release_workflow=release_workflow,
@@ -377,7 +381,58 @@ def require_optional_mapping(
         pytest.fail(f"expected {label} key {key!r} to be a mapping when present")
     return value
 
+def assert_documentation_navigation_contracts(
+    docs_contents: str, repository_layout: str, flavour: str
+) -> None:
+    """Assert generated documentation navigation and layout contracts."""
+    assert "[Documentation contents](contents.md)" in docs_contents, (
+        "expected generated contents file to link to itself"
+    )
+    assert "[Repository layout](repository-layout.md)" in docs_contents, (
+        "expected generated contents file to link to the layout reference"
+    )
+    assert "[Documentation style guide](documentation-style-guide.md)" in (
+        docs_contents
+    ), "expected generated contents file to link to the style guide"
+    assert "docs/contents.md" in repository_layout, (
+        "expected generated layout to document the contents file"
+    )
+    assert "docs/repository-layout.md" in repository_layout, (
+        "expected generated layout to document itself"
+    )
+    assert "Cargo.toml" in repository_layout, (
+        "expected generated layout to document Cargo metadata"
+    )
+    assert "Makefile" in repository_layout, (
+        "expected generated layout to document public command entrypoints"
+    )
+    assert "checks. - `" not in repository_layout, (
+        "expected generated layout bullets to render on separate lines"
+    )
+    assert "responsibilities. - `" not in repository_layout, (
+        "expected generated layout flavour bullets to render on separate lines"
+    )
 
+    if flavour == APP:
+        assert ".github/workflows/release.yml" in repository_layout, (
+            "expected app layout to document the release workflow"
+        )
+        assert "src/main.rs" in repository_layout, (
+            "expected app layout to document the executable entrypoint"
+        )
+        assert "src/lib.rs" not in repository_layout, (
+            "expected app layout to omit the library crate root"
+        )
+    else:
+        assert ".github/workflows/release.yml" not in repository_layout, (
+            "expected lib layout to omit the app release workflow"
+        )
+        assert "src/lib.rs" in repository_layout, (
+            "expected lib layout to document the library crate root"
+        )
+        assert "src/main.rs" not in repository_layout, (
+            "expected lib layout to omit the executable entrypoint"
+        )
 def assert_generated_tooling_contracts(
     *,
     package: dict[str, Any],
@@ -389,6 +444,8 @@ def assert_generated_tooling_contracts(
     rust_toolchain: str,
     parsed_ci_workflow: dict[str, Any],
     ci_workflow: str,
+    docs_contents: str,
+    repository_layout: str,
     readme: str,
     test_stub: str,
     release_workflow: str | None,
@@ -398,11 +455,17 @@ def assert_generated_tooling_contracts(
     _assert_makefile_contracts(makefile)
     _assert_cargo_config_contracts(cargo_config, dev_target, rust_toolchain)
     _assert_ci_workflow_contracts(parsed_ci_workflow, ci_workflow, test_stub)
-    assert "Development builds use `mold` on Linux" in readme, (
-        "expected generated README to document mold for development builds"
+    assert_documentation_navigation_contracts(
+        docs_contents, repository_layout, flavour
     )
-    assert "Coverage generation uses `lld`" in readme, (
-        "expected generated README to document lld for coverage"
+    assert "[Documentation contents](docs/contents.md)" in readme, (
+        "expected generated README to link to the documentation contents"
+    )
+    assert "[User guide](docs/users-guide.md)" in readme, (
+        "expected generated README to link to the user guide"
+    )
+    assert "[Developer guide](docs/developers-guide.md)" in readme, (
+        "expected generated README to link to the developer guide"
     )
     if release_workflow is not None:
         _assert_release_workflow_contracts(release_workflow)
@@ -589,8 +652,15 @@ def _assert_release_workflow_contracts(release_workflow: str) -> None:
         "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
         in release_workflow
     ), "expected app release workflow to use pinned upload-artifact action"
-    assert "CROSS_REVISION: v0.2.5" in release_workflow, (
-        "expected app release workflow to pin cross revision"
+    cross_revision = "88f49ff79e777bef6d3564531636ee4d3cc2f8d2"
+    assert f"CROSS_REVISION: {cross_revision}" in release_workflow, (
+        "expected app release workflow to pin cross to an immutable revision"
+    )
+    assert 'cargo install cross --git https://github.com/cross-rs/cross --rev "$' in (
+        release_workflow
+    ), "expected app release workflow to install cross by immutable revision"
+    assert "--tag" not in release_workflow, (
+        "expected app release workflow not to install cross by mutable tag"
     )
     assert "aarch64-pc-windows-gnullvm" not in release_workflow, (
         "expected app release workflow to omit unsupported cross targets"

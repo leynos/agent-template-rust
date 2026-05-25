@@ -2,20 +2,8 @@
 
 This is a generated project using [Copier](https://copier.readthedocs.io/).
 
-## Build Linkers
+## Documentation
 
-Development builds use `mold` on Linux through `.cargo/config.toml` so local
-debug builds link quickly. Coverage generation uses `lld` instead because the
-LLVM coverage tools expect LLVM-compatible linker behaviour.
-
-Install both linkers before running the full workflow locally:
-
-```sh
-sudo apt-get install clang lld mold
-```
-
-Run coverage with:
-
-```sh
-make coverage
-```
+- [Documentation contents](docs/contents.md)
+- [User guide](docs/users-guide.md)
+- [Developer guide](docs/developers-guide.md)

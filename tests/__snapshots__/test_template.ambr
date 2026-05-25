@@ -237,7 +237,7 @@
     'release_workflow': dict({
       'env': dict({
         'BIN_NAME': 'snapshot_example',
-        'CROSS_REVISION': 'v0.2.5',
+        'CROSS_REVISION': '88f49ff79e777bef6d3564531636ee4d3cc2f8d2',
       }),
       'jobs': dict({
         'build': dict({
@@ -273,7 +273,7 @@
                 if [ -x "$HOME/.cargo/bin/cross" ]; then
                   exit 0
                 fi
-                cargo install cross --git https://github.com/cross-rs/cross --tag "${CROSS_REVISION}"
+                cargo install cross --git https://github.com/cross-rs/cross --rev "${CROSS_REVISION}"
   
               ''',
             }),
@@ -294,6 +294,9 @@
               }),
             }),
             dict({
+              'env': dict({
+                'RUSTFLAGS': '',
+              }),
               'name': 'Build release binary',
               'run': 'cross +stable build --release --target ${{ matrix.target }}',
             }),
