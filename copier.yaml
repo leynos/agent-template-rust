@@ -30,6 +30,36 @@ package_name:
   help: 'Crate name for Cargo.toml (lowercase, underscores)'
   placeholder: 'e.g. my_awesome_tool'
 
+package_description:
+  type: str
+  default: 'A Rust project generated from agent-template-rust.'
+  help: 'Crates.io package description'
+  placeholder: 'e.g. Command-line tools for analysing project metadata'
+
+repository_url:
+  type: str
+  default: 'https://github.com/example/{{ package_name }}'
+  help: 'Repository URL for Cargo.toml metadata'
+  placeholder: 'e.g. https://github.com/example/my_awesome_tool'
+
+homepage_url:
+  type: str
+  default: '{{ repository_url }}'
+  help: 'Homepage URL for Cargo.toml metadata'
+  placeholder: 'e.g. https://example.com/my-awesome-tool'
+
+package_keywords:
+  type: str
+  default: 'rust,template'
+  help: 'Comma-separated crates.io keywords, up to five'
+  placeholder: 'e.g. cli,automation,tooling'
+
+package_categories:
+  type: str
+  default: 'development-tools'
+  help: 'Comma-separated crates.io categories'
+  placeholder: 'e.g. command-line-utilities,development-tools'
+
 _flavour_choices: &flavour_choices
   - lib
   - app
@@ -42,13 +72,13 @@ flavour:
 
 license_holder:
   type: str
-  default: 'Payton McIntosh'
+  default: 'Example Maintainer'
   help: 'Your name (for the ISC licence)'
   placeholder: 'e.g. Jane Smith'
 
 license_email:
   type: str
-  default: 'pmcintosh@df12.net'
+  default: 'maintainer@example.com'
   help: 'Your email (for the ISC licence)'
   placeholder: 'e.g. jane@example.com'
 
@@ -62,3 +92,9 @@ rust_nightly_date:
   default: '2025-06-10'
   help: 'Rust nightly toolchain date (YYYY-MM-DD)'
   placeholder: 'e.g. 2025-06-10'
+
+dev_target:
+  type: str
+  default: 'x86_64-unknown-linux-gnu'
+  help: 'Optional Linux target triple for mold linker config'
+  placeholder: 'e.g. x86_64-unknown-linux-gnu'

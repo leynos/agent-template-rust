@@ -1,3 +1,8 @@
 [toolchain]
 channel = "nightly-{{ rust_nightly_date }}"
-components = ["rustfmt", "clippy"]
+components = [
+  "clippy",
+  "llvm-tools-preview",
+  "rustc-codegen-cranelift-preview",
+  "rustfmt",
+]

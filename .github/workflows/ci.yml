@@ -14,26 +14,49 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       BUILD_PROFILE: debug
+      WHITAKER_INSTALLER_REV: f768c2e53c47df13658af1168a67851d388750bf
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@854baf3f4cb322d48ceececb22d4ea72fd4f84d0
-      - name: Format
-        run: make check-fmt
-      - name: Lint
-        run: make lint
-      - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@854baf3f4cb322d48ceececb22d4ea72fd4f84d0
+        uses: leynos/shared-actions/.github/actions/setup-rust@e4c6b0e200a057edf927c45c298e7ddf229b3934
+      - name: Install mold linker
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update \
+            && sudo apt-get install --yes --no-install-recommends clang lld mold
+      - name: Setup uv
+        uses: astral-sh/setup-uv@12d13f90bc3a5a1971bebad4beb09a4dfa962e91
+      - name: Install template test tools
+        run: |
+          set -euo pipefail
+          cargo binstall --no-confirm cargo-nextest
+          uv tool install mbake
+      - name: Cache Whitaker installation
+        id: cache-whitaker
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
-          output-path: lcov.info
-          format: lcov
-      - name: Upload coverage data to CodeScene
-        env:
-          CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
-        if: ${{ env.CS_ACCESS_TOKEN }}
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@854baf3f4cb322d48ceececb22d4ea72fd4f84d0
-        
-        with:
-          format: lcov
-          access-token: ${{ env.CS_ACCESS_TOKEN }}
-          installer-checksum: ${{ vars.CODESCENE_CLI_SHA256 }}
+          path: |
+            ~/.cargo/bin/whitaker-installer
+            ~/.local/bin/whitaker
+            ~/.dylint_drivers
+            ~/.local/share/whitaker
+          key: whitaker-v2-${{ runner.os }}-${{ env.WHITAKER_INSTALLER_REV }}
+      - name: Install Whitaker
+        run: |
+          set -euo pipefail
+          echo "Whitaker cache hit: ${{ steps.cache-whitaker.outputs.cache-hit }}"
+          if [ "${{ steps.cache-whitaker.outputs.cache-hit }}" != "true" ]; then
+            echo "Installing Whitaker installer at ${WHITAKER_INSTALLER_REV}"
+            cargo install --locked \
+              --git https://github.com/leynos/whitaker \
+              --rev "${WHITAKER_INSTALLER_REV}" \
+              whitaker-installer
+          fi
+          whitaker-installer --cranelift
+          echo "Whitaker binary: $(command -v whitaker || true)"
+      - name: Test
+        run: make test

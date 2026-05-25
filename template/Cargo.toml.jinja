@@ -2,8 +2,26 @@
 name = "{{ package_name }}"
 version = "0.1.0"
 edition = "2024"
+description = "{{ package_description }}"
+license = "ISC"
+repository = "{{ repository_url }}"
+homepage = "{{ homepage_url }}"
+readme = "README.md"
+keywords = [{% for keyword in package_keywords.split(',') %}"{{ keyword.strip() }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+categories = [{% for category in package_categories.split(',') %}"{{ category.strip() }}"{% if not loop.last %}, {% endif %}{% endfor %}]
 
 [dependencies]
+
+{% if flavour == 'app' -%}
+# The package.metadata.binstall pkg-url intentionally mixes Jinja2 values
+# rendered at project generation with single-brace cargo-binstall variables
+# substituted at install time.
+[package.metadata.binstall]
+pkg-url = "{{ repository_url }}/releases/download/v{ version }/{{ package_name }}-{ target }{ binary-ext }"
+pkg-fmt = "bin"
+disabled-strategies = ["quick-install", "compile"]
+
+{% endif -%}
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
