@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,8 @@ GENERATE_COVERAGE_STEP = "Test and Measure Coverage"
 
 def prepare_git_repository(project: CopierProject) -> None:
     """Initialise a rendered project as a Git repository for act."""
+    started = time.perf_counter()
+    print(f"act phase: git repository preparation started for {project.path}")
     commands = [
         ["git", "init"],
         ["git", "config", "user.email", "act@example.invalid"],
@@ -28,11 +31,26 @@ def prepare_git_repository(project: CopierProject) -> None:
         ["git", "commit", "-m", "Initial template render"],
     ]
     for command in commands:
-        subprocess.run(command, cwd=project.path, check=True, capture_output=True)
+        completed = subprocess.run(
+            command, cwd=project.path, check=False, capture_output=True, text=True
+        )
+        if completed.returncode != 0:
+            pytest.fail(
+                "act phase: git repository preparation failed during "
+                f"{' '.join(command)}\nstdout:\n{completed.stdout}\nstderr:\n"
+                f"{completed.stderr}"
+            )
+    elapsed = time.perf_counter() - started
+    print(f"act phase: git repository preparation completed in {elapsed:.3f}s")
 
 
 def run_act(project: CopierProject, *, artifact_dir: Path) -> tuple[int, str]:
     """Run the generated CI workflow through act."""
+    started = time.perf_counter()
+    phase_logs = [
+        f"act phase: setup started for {project.path}",
+        f"act phase: artifact directory {artifact_dir}",
+    ]
     artifact_dir.mkdir(parents=True, exist_ok=True)
     env = docker_environment()
     command = [
@@ -52,6 +70,10 @@ def run_act(project: CopierProject, *, artifact_dir: Path) -> tuple[int, str]:
     docker_host = container_daemon_socket(env)
     if docker_host is not None:
         command.extend(["--container-daemon-socket", docker_host])
+        phase_logs.append("act phase: using explicit container daemon socket")
+    else:
+        phase_logs.append("act phase: using act default container daemon socket")
+    phase_logs.append("act phase: workflow execution started")
     completed = subprocess.run(
         command,
         cwd=project.path,
@@ -61,7 +83,11 @@ def run_act(project: CopierProject, *, artifact_dir: Path) -> tuple[int, str]:
         check=False,
         timeout=1200,
     )
-    return completed.returncode, f"{completed.stdout}\n{completed.stderr}"
+    elapsed = time.perf_counter() - started
+    phase_logs.append(f"act phase: workflow execution completed in {elapsed:.3f}s")
+    return completed.returncode, "\n".join(
+        [*phase_logs, completed.stdout, completed.stderr]
+    )
 
 
 def iter_json_log_events(logs: str) -> list[dict[str, object]]:

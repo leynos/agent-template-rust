@@ -254,6 +254,27 @@ def test_docker_environment_preserves_valid_unix_socket(
     assert docker_environment()["DOCKER_HOST"] == docker_host
 
 
+def test_docker_environment_removes_credentials(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Do not pass inherited credentials to act subprocesses."""
+    allowed_dir = tmp_path / "run"
+    allowed_dir.mkdir()
+    socket_path = allowed_dir / "docker.sock"
+    monkeypatch.setenv("DOCKER_HOST", f"unix://{socket_path}")
+    monkeypatch.setenv("GITHUB_TOKEN", "secret-token")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret-key")
+    monkeypatch.setenv("SOME_API_KEY", "api-key")
+    monkeypatch.setattr(utilities, "local_socket_dirs", lambda: (allowed_dir,))
+
+    env = docker_environment()
+
+    assert env["DOCKER_HOST"] == f"unix://{socket_path}"
+    assert "GITHUB_TOKEN" not in env
+    assert "AWS_SECRET_ACCESS_KEY" not in env
+    assert "SOME_API_KEY" not in env
+
+
 def test_docker_environment_drops_invalid_docker_host(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

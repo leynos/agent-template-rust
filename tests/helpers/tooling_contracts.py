@@ -287,7 +287,7 @@ def _assert_cargo_package_contracts(
 
 def _assert_makefile_contracts(makefile: str, flavour: str) -> None:
     """Assert generated Makefile tooling contracts."""
-    makefile_rules = _parse_makefile_rules(makefile)
+    makefile_rules = _load_and_parse_makefile_rules(makefile)
     for target in [
         "all",
         "audit",
@@ -349,6 +349,9 @@ def _assert_makefile_contracts(makefile: str, flavour: str) -> None:
     assert "$(CARGO) metadata --no-deps --format-version 1 | python3 -c" in makefile, (
         "expected generated audit target to derive workspace metadata with python3"
     )
+    assert 'printf "Audit metadata phase: deriving workspace manifests\\n"' in (
+        makefile
+    ), "expected generated audit target to mark metadata extraction"
     assert 'printf "Auditing Rust workspace %s\\n" "$$workspace_root"' in makefile, (
         "expected generated audit target to log the derived workspace root"
     )
@@ -360,6 +363,12 @@ def _assert_makefile_contracts(makefile: str, flavour: str) -> None:
     )
     assert 'audit_flags+=(--ignore "$$advisory")' in makefile, (
         "expected generated audit target to translate ignores into cargo-audit flags"
+    )
+    assert 'printf "Audit execution phase: running cargo audit\\n"' in makefile, (
+        "expected generated audit target to mark cargo-audit execution"
+    )
+    assert "Audit failures may indicate RustSec advisories" in makefile, (
+        "expected generated audit target to document failure scenarios"
     )
     assert '(cd "$$workspace_root" && $(CARGO) audit "$${audit_flags[@]}")' in (
         makefile
@@ -551,7 +560,7 @@ def extract_checkout_steps(jobs: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _parse_makefile_rules(makefile: str) -> dict[str, list[str]]:
+def _load_and_parse_makefile_rules(makefile: str) -> dict[str, list[str]]:
     """Return generated Makefile rules parsed through make-parser."""
     target_names = set(
         re.findall(r"^([a-zA-Z][a-zA-Z_-]*):", makefile, flags=re.MULTILINE)
