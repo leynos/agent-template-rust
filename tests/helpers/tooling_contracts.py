@@ -20,7 +20,29 @@ from tests.helpers.rendering import APP
 def assert_documentation_navigation_contracts(
     docs_contents: str, repository_layout: str, flavour: str
 ) -> None:
-    """Assert generated documentation navigation and layout contracts."""
+    """Assert generated documentation navigation and layout contracts.
+
+    Parameters
+    ----------
+    docs_contents
+        Rendered ``docs/contents.md`` text from the generated project.
+    repository_layout
+        Rendered ``docs/repository-layout.md`` text from the generated project.
+    flavour
+        Generated project flavour. App projects must document executable and
+        release-workflow paths; library projects must document library paths.
+
+    Returns
+    -------
+    None
+        The helper returns ``None`` when all documentation contracts pass.
+
+    Raises
+    ------
+    AssertionError
+        Raised when generated documentation omits expected navigation links,
+        repository layout entries, or flavour-specific paths.
+    """
     assert "[Documentation contents](contents.md)" in docs_contents, (
         "expected generated contents file to link to itself"
     )
@@ -88,7 +110,56 @@ def assert_generated_tooling_contracts(
     test_stub: str,
     release_workflow: str | None,
 ) -> None:
-    """Assert generated tooling contracts from a single validator."""
+    """Assert generated tooling contracts from a single validator.
+
+    Parameters
+    ----------
+    package
+        Parsed ``Cargo.toml`` package table for the generated project.
+    metadata
+        Parsed optional ``Cargo.toml`` package metadata table.
+    flavour
+        Generated project flavour, such as ``app`` or ``lib``.
+    makefile
+        Rendered generated-project ``Makefile`` text.
+    cargo_config
+        Rendered generated-project ``.cargo/config.toml`` text.
+    dev_target
+        Development target triple selected for the rendered project.
+    rust_toolchain
+        Rendered generated-project ``rust-toolchain.toml`` text.
+    parsed_ci_workflow
+        Parsed generated CI workflow mapping.
+    ci_workflow
+        Rendered generated CI workflow text.
+    docs_contents
+        Rendered ``docs/contents.md`` text.
+    repository_layout
+        Rendered ``docs/repository-layout.md`` text.
+    readme
+        Rendered generated-project ``README.md`` text.
+    test_stub
+        Rendered generated-project test stub text.
+    release_workflow
+        Rendered release workflow text for app projects, or ``None`` for
+        library projects.
+
+    Returns
+    -------
+    None
+        The helper returns ``None`` when all generated tooling contracts pass.
+
+    Raises
+    ------
+    AssertionError
+        Raised when any generated Cargo metadata, Makefile, Cargo config, CI,
+        documentation, README, test-stub, or release-workflow contract fails.
+
+    Notes
+    -----
+    This public helper composes the private ``_assert_*`` validators so tests
+    can validate a rendered project through one contract entrypoint.
+    """
     _assert_cargo_package_contracts(package, metadata, flavour)
     _assert_makefile_contracts(makefile, flavour)
     _assert_cargo_config_contracts(cargo_config, dev_target, rust_toolchain)
@@ -110,7 +181,28 @@ def assert_generated_tooling_contracts(
 
 
 def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
-    """Assert generated CI coverage inputs used by act validation."""
+    """Assert generated CI coverage inputs used by act validation.
+
+    Parameters
+    ----------
+    ci_workflow
+        Rendered generated-project CI workflow text.
+
+    Returns
+    -------
+    None
+        The helper returns ``None`` when the coverage action contract passes.
+
+    Raises
+    ------
+    AssertionError
+        Raised when checkout credentials are persisted, the shared coverage
+        action is missing or unpinned, or coverage inputs diverge from the
+        expected ``lcov.info`` and ``lcov`` configuration.
+    pytest.fail.Exception
+        Raised by YAML parsing helpers when the workflow cannot be parsed as
+        the expected mapping structure.
+    """
     parsed_ci_workflow = parse_yaml_mapping(ci_workflow, "CI workflow")
     jobs = require_mapping(parsed_ci_workflow, "jobs", "CI workflow")
     build_test = require_mapping(jobs, "build-test", "CI workflow jobs")
@@ -436,14 +528,26 @@ def _assert_release_workflow_contracts(release_workflow: str) -> None:
 
 
 def extract_checkout_steps(jobs: dict[str, Any]) -> list[dict[str, Any]]:
-    """Return checkout steps from a parsed GitHub Actions jobs mapping."""
+    """Return checkout steps from a parsed GitHub Actions jobs mapping.
+
+    Parameters
+    ----------
+    jobs
+        Parsed GitHub Actions ``jobs`` mapping.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        Checkout step mappings whose ``uses`` value starts with
+        ``actions/checkout@``. Jobs or steps with other shapes are ignored.
+    """
     return [
         step
         for job in jobs.values()
         if isinstance(job, dict)
         for step in job.get("steps", [])
         if isinstance(step, dict)
-        and step.get("uses", "").startswith("actions/checkout@")
+        and str(step.get("uses", "")).startswith("actions/checkout@")
     ]
 
 
