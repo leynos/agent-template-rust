@@ -144,6 +144,12 @@ def test_parent_makefile_test_target_contract() -> None:
     assert "UV := $(shell command -v uvx 2>/dev/null)" in makefile, (
         "expected parent Makefile to resolve uvx before running tests"
     )
+    assert "WITH_ACT ?= 0" in makefile, (
+        "expected parent Makefile to default act validation off"
+    )
+    assert "RUN_ACT_VALIDATION=1" in makefile, (
+        "expected parent Makefile to map WITH_ACT to act validation"
+    )
     assert "uvx is required to run template tests" in makefile, (
         "expected parent Makefile to fail early with a uvx installation message"
     )

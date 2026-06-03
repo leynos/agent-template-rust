@@ -52,11 +52,11 @@ without a manually managed virtual environment:
 make test
 ```
 
-Optional local GitHub Actions validation is gated behind `RUN_ACT_VALIDATION=1`
-and requires `act` plus a Docker-compatible container runtime:
+Optional local GitHub Actions validation is gated behind `WITH_ACT=1` and
+requires `act` plus a Docker-compatible container runtime:
 
 ```bash
-RUN_ACT_VALIDATION=1 make test
+make test WITH_ACT=1
 ```
 
 Additional details are in [`docs/testing.md`](docs/testing.md).

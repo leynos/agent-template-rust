@@ -28,16 +28,17 @@ the workspace root from `cargo metadata`, ignores manifests outside workspace
 metadata, and invokes `cargo audit` once from the workspace root.
 
 Optional GitHub Actions validation runs rendered workflows through `act`. It is
-disabled by default and only runs when `RUN_ACT_VALIDATION=1` is present:
+disabled by default and only runs when `WITH_ACT=1` is present:
 
 ```sh
-RUN_ACT_VALIDATION=1 make test
+make test WITH_ACT=1
 ```
 
+The parent Makefile maps `WITH_ACT=1` to `RUN_ACT_VALIDATION=1` for pytest.
 Those checks require `act` and either Docker or Podman. They prepare rendered
 projects as temporary Git repositories, run the generated pull-request
 workflow, and assert black-box evidence for the shared coverage action and Rust
-test execution.
+test execution. Parent CI runs this act-enabled test mode.
 
 ## Required Tooling
 

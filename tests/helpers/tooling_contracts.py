@@ -306,6 +306,29 @@ def _assert_ci_workflow_contracts(
 ) -> None:
     """Assert generated CI workflow and adjacent documentation contracts."""
     jobs = require_mapping(parsed_ci_workflow, "jobs", "CI workflow")
+    assert "act-validation" in jobs, (
+        "expected generated CI workflow to include a separate act-validation job"
+    )
+    act_validation = require_mapping(jobs, "act-validation", "CI workflow jobs")
+    act_steps = require_sequence(act_validation, "steps", "CI act-validation job")
+    assert any(
+        isinstance(step, dict)
+        and isinstance(step.get("with"), dict)
+        and step["with"].get("persist-credentials") is False
+        for step in act_steps
+    ), "expected generated act-validation job checkout to disable credentials"
+    assert "ACT_VERSION: v0.2.80" in ci_workflow, (
+        "expected generated CI workflow to pin the act release"
+    )
+    assert "act_Linux_x86_64.tar.gz" in ci_workflow, (
+        "expected generated CI workflow to install the act Linux binary"
+    )
+    assert "docker info" in ci_workflow, (
+        "expected generated CI workflow to verify Docker before act validation"
+    )
+    assert "make test WITH_ACT=1" in ci_workflow, (
+        "expected generated CI workflow to run an act-enabled test gate"
+    )
     checkout_steps = extract_checkout_steps(jobs)
     assert checkout_steps, "expected generated CI workflow to check out sources"
     assert all(
