@@ -17,22 +17,15 @@ def _resolved_socket_from_docker_host(
         socket_path = Path(parsed.path).expanduser().resolve()
     except OSError:
         return None
-    if not socket_path.exists():
-        return None
     if not any(socket_path.is_relative_to(allowed_dir) for allowed_dir in allowed_dirs):
         return None
     return socket_path
 
 
-def _user_podman_socket() -> Path | None:
-    socket_path = Path(f"/run/user/{os.getuid()}/podman/podman.sock")
-    if not socket_path.exists():
-        return None
-    resolved = socket_path.resolve()
-    expected_prefix = Path(f"/run/user/{os.getuid()}").resolve()
-    if resolved.is_relative_to(expected_prefix):
-        return resolved
-    return None
+def _user_podman_socket() -> Path:
+    runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
+    runtime_path = Path(runtime_dir) if runtime_dir else Path(f"/run/user/{os.getuid()}")
+    return runtime_path.expanduser().resolve() / "podman" / "podman.sock"
 
 
 def local_socket_dirs() -> tuple[Path, ...]:
@@ -46,7 +39,7 @@ def local_socket_dirs() -> tuple[Path, ...]:
 
 def user_runtime_socket_dirs() -> tuple[Path, ...]:
     """Return user runtime roots accepted for act socket forwarding."""
-    return (Path(f"/run/user/{os.getuid()}").resolve(),)
+    return (_user_podman_socket().parent.parent,)
 
 
 def docker_environment() -> dict[str, str]:
@@ -61,17 +54,22 @@ def docker_environment() -> dict[str, str]:
             env.pop("DOCKER_HOST", None)
         else:
             env["DOCKER_HOST"] = f"unix://{socket_path}"
+        return env
     if "DOCKER_HOST" not in env:
-        socket_path = _user_podman_socket()
-        if socket_path is not None:
-            env["DOCKER_HOST"] = f"unix://{socket_path}"
+        podman_socket = _user_podman_socket()
+        if podman_socket.exists():
+            env["DOCKER_HOST"] = f"unix://{podman_socket}"
     return env
 
 
-def container_daemon_socket(env: dict[str, str]) -> str | None:
+def container_daemon_socket(env: dict[str, str] | None = None) -> str | None:
     """Return a validated ``act`` container daemon socket value."""
+    should_fallback = env is None
+    env = os.environ if env is None else env
     docker_host = env.get("DOCKER_HOST")
     if docker_host is None:
+        if should_fallback:
+            return f"unix://{_user_podman_socket()}"
         return None
     socket_path = _resolved_socket_from_docker_host(
         docker_host, user_runtime_socket_dirs()

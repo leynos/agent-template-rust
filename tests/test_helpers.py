@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, cast
 
 import pytest
 
+import tests.utilities as utilities
 from tests.helpers.generated_files import (
     parse_toml_file,
     parse_yaml_mapping,
@@ -17,6 +19,12 @@ from tests.helpers.generated_files import (
 )
 from tests.helpers.rendering import read_generated_file
 from tests.helpers.tooling_contracts import assert_ci_coverage_action_contract
+from tests.utilities import (
+    _resolved_socket_from_docker_host,
+    _user_podman_socket,
+    container_daemon_socket,
+    docker_environment,
+)
 
 
 def test_read_generated_text_converts_os_errors(tmp_path: Path) -> None:
@@ -132,6 +140,150 @@ def test_ci_coverage_action_contract_validates_edges() -> None:
                 ),
             )
         )
+
+    with pytest.raises(
+        AssertionError,
+        match="expected CI coverage format to match the CodeScene upload",
+    ):
+        assert_ci_coverage_action_contract(
+            _ci_workflow(
+                persist_credentials="false",
+                coverage_inputs=(
+                    "          output-path: lcov.info\n"
+                    "          format: cobertura\n"
+                ),
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    "docker_host",
+    [
+        "",
+        "nonsense",
+        "tcp://127.0.0.1:2375",
+        "http://localhost",
+        "unix://",
+        "unix:///etc/docker.sock",
+    ],
+)
+def test_resolved_socket_from_docker_host_rejects_malformed_or_disallowed(
+    docker_host: str, tmp_path: Path
+) -> None:
+    """Reject malformed, remote, empty, or disallowed Docker socket URLs."""
+    allowed_dir = tmp_path / "run"
+    allowed_dir.mkdir()
+
+    assert _resolved_socket_from_docker_host(docker_host, (allowed_dir,)) is None
+
+
+def test_resolved_socket_from_docker_host_accepts_allowed_unix_path(
+    tmp_path: Path,
+) -> None:
+    """Accept normalized unix socket paths under configured allowed roots."""
+    allowed_dir = tmp_path / "run"
+    allowed_dir.mkdir()
+    socket_path = allowed_dir / "docker.sock"
+
+    assert _resolved_socket_from_docker_host(
+        f"unix://{socket_path}", (allowed_dir,)
+    ) == socket_path
+
+
+def test_docker_environment_preserves_valid_unix_socket(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Preserve a valid unix Docker socket in the act subprocess environment."""
+    allowed_dir = tmp_path / "run"
+    allowed_dir.mkdir()
+    socket_path = allowed_dir / "docker.sock"
+    docker_host = f"unix://{socket_path}"
+    monkeypatch.setenv("DOCKER_HOST", docker_host)
+    monkeypatch.setattr(utilities, "local_socket_dirs", lambda: (allowed_dir,))
+
+    assert docker_environment()["DOCKER_HOST"] == docker_host
+
+
+def test_docker_environment_drops_invalid_docker_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Do not leak unsupported Docker socket URLs into act subprocesses."""
+    monkeypatch.setenv("DOCKER_HOST", "tcp://127.0.0.1:2375")
+
+    assert "DOCKER_HOST" not in docker_environment()
+
+
+def test_docker_environment_falls_back_to_user_podman_socket_when_unset(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Set the per-user Podman socket when Docker does not provide a host."""
+    runtime_dir = tmp_path / "runtime"
+    runtime_dir.mkdir()
+    podman_socket = runtime_dir / "podman" / "podman.sock"
+    podman_socket.parent.mkdir()
+    podman_socket.touch()
+    monkeypatch.delenv("DOCKER_HOST", raising=False)
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(runtime_dir))
+
+    assert docker_environment()["DOCKER_HOST"] == f"unix://{podman_socket}"
+
+
+def test_user_podman_socket_uses_xdg_runtime_dir(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Prefer XDG_RUNTIME_DIR for the user Podman socket path."""
+    runtime_dir = tmp_path / "runtime"
+    runtime_dir.mkdir()
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(runtime_dir))
+
+    assert _user_podman_socket() == runtime_dir / "podman" / "podman.sock"
+
+
+def test_user_podman_socket_falls_back_to_run_user_uid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Derive a /run/user/$UID Podman socket path when XDG_RUNTIME_DIR is absent."""
+    monkeypatch.delenv("XDG_RUNTIME_DIR", raising=False)
+
+    assert _user_podman_socket() == (
+        Path("/run") / "user" / str(os.getuid()) / "podman" / "podman.sock"
+    )
+
+
+def test_container_daemon_socket_none_for_disallowed_socket(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject disallowed Docker socket URLs for act container forwarding."""
+    monkeypatch.setenv("DOCKER_HOST", "unix:///etc/docker.sock")
+
+    assert container_daemon_socket() is None
+
+
+def test_container_daemon_socket_uses_valid_docker_host(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Return a normalized unix URL for an allowed act daemon socket."""
+    runtime_dir = tmp_path / "runtime"
+    runtime_dir.mkdir()
+    socket_path = runtime_dir / "docker.sock"
+    monkeypatch.setenv("DOCKER_HOST", f"unix://{socket_path}")
+    monkeypatch.setattr(utilities, "user_runtime_socket_dirs", lambda: (runtime_dir,))
+
+    assert container_daemon_socket() == f"unix://{socket_path}"
+
+
+def test_container_daemon_socket_falls_back_to_user_podman_when_unset(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Return the per-user Podman socket when DOCKER_HOST is unset."""
+    runtime_dir = tmp_path / "runtime"
+    runtime_dir.mkdir()
+    monkeypatch.delenv("DOCKER_HOST", raising=False)
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(runtime_dir))
+
+    assert container_daemon_socket() == (
+        f"unix://{runtime_dir / 'podman' / 'podman.sock'}"
+    )
 
 
 def test_parent_makefile_test_target_contract() -> None:
