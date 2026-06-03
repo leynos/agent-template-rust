@@ -22,6 +22,11 @@ The tests render both library and application projects, run generated public
 gates such as `make all`, validate generated Makefiles with `mbake`, and parse
 generated `Cargo.toml` files as TOML.
 
+Generated audit coverage is tested without network access by replacing Cargo
+with a fake executable. The regression verifies that `make rust-audit` derives
+the workspace root from `cargo metadata`, ignores manifests outside workspace
+metadata, and invokes `cargo audit` once from the workspace root.
+
 Optional GitHub Actions validation runs rendered workflows through `act`. It is
 disabled by default and only runs when `RUN_ACT_VALIDATION=1` is present:
 
@@ -48,6 +53,8 @@ projects:
 - cargo-nextest for generated fast test execution in CI, while generated
   Makefiles still fall back to `cargo test` for contributors.
 - `mbake` for generated Makefile validation.
+- `python3` for generated audit target workspace manifest extraction.
+- `cargo-audit` for generated dependency vulnerability checks.
 - `Whitaker` for generated lint gates.
 - `clang`, `lld`, and `mold` for generated linker and coverage behaviour.
 - `act` plus Docker or Podman for opt-in local GitHub Actions validation.

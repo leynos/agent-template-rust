@@ -232,6 +232,120 @@ pub fn doctest_regression_marker() {}
     )
 
 
+def test_makefile_rust_audit_uses_workspace_metadata(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """Generated audit target audits the metadata workspace root once."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="AuditExample",
+        package_name="audit_example",
+    )
+    for ignored in [
+        project / "target" / "ignored" / "Cargo.toml",
+        project / "node_modules" / "ignored" / "Cargo.toml",
+        project / ".venv" / "ignored" / "Cargo.toml",
+    ]:
+        ignored.parent.mkdir(parents=True)
+        ignored.write_text(
+            '[package]\nname = "ignored"\nversion = "0.0.0"\n',
+            encoding="utf-8",
+        )
+    log_path = project / "cargo-audit.log"
+    fake_cargo = _write_fake_cargo(
+        project / "bin",
+        log_path=log_path,
+        metadata=_cargo_metadata_for(project.path, [project / "Cargo.toml"]),
+    )
+    make = shutil.which("make")
+    assert make is not None, "expected make to be available for generated tests"
+
+    result = subprocess.run(
+        [make, "rust-audit", f"CARGO={fake_cargo}"],
+        cwd=project.path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert f"Auditing Rust workspace {project.path}" in output, (
+        "expected rust-audit to log the metadata-derived workspace root"
+    )
+    assert f"Workspace Rust manifest {project.path}/Cargo.toml" in output, (
+        "expected rust-audit to log workspace member manifests"
+    )
+    log = log_path.read_text(encoding="utf-8")
+    assert log == f"{project.path}|audit\n", (
+        "expected cargo audit to run once from the workspace root"
+    )
+    assert "target/ignored" not in log, (
+        "expected target manifests to be ignored when absent from metadata"
+    )
+    assert "node_modules/ignored" not in log, (
+        "expected node_modules manifests to be ignored when absent from metadata"
+    )
+    assert ".venv/ignored" not in log, (
+        "expected virtualenv manifests to be ignored when absent from metadata"
+    )
+
+
+@pytest.mark.parametrize(
+    ("audit_status", "metadata_status", "should_audit_run"),
+    [
+        (42, 0, True),
+        (0, 23, False),
+    ],
+)
+def test_makefile_rust_audit_propagates_failures(
+    tmp_path: Path,
+    copier: CopierFixture,
+    audit_status: int,
+    metadata_status: int,
+    should_audit_run: bool,
+) -> None:
+    """Generated audit target propagates metadata and audit failures."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="AuditFailureExample",
+        package_name="audit_failure_example",
+    )
+    log_path = project / "cargo-audit.log"
+    fake_cargo = _write_fake_cargo(
+        project / "bin",
+        log_path=log_path,
+        metadata=_cargo_metadata_for(project.path, [project / "Cargo.toml"]),
+        audit_status=audit_status,
+        metadata_status=metadata_status,
+    )
+    make = shutil.which("make")
+    assert make is not None, "expected make to be available for generated tests"
+
+    result = subprocess.run(
+        [make, "rust-audit", f"CARGO={fake_cargo}"],
+        cwd=project.path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0, (
+        "expected rust-audit to propagate cargo failures: "
+        f"stdout={result.stdout}, stderr={result.stderr}"
+    )
+    if should_audit_run:
+        assert log_path.read_text(encoding="utf-8") == f"{project.path}|audit\n", (
+            "expected cargo audit to run once when metadata succeeds"
+        )
+    else:
+        assert not log_path.exists(), (
+            "expected cargo audit not to run after metadata failure"
+        )
+
+
 @pytest.mark.parametrize(
     ("flavour", "dev_target"),
     [
@@ -324,3 +438,44 @@ def test_generated_structured_file_snapshots(
         "Snapshot mismatch for template outputs "
         "(cargo_config, makefile, ci_workflow, release_workflow)"
     )
+
+
+def _cargo_metadata_for(workspace: Path, manifests: list[Path]) -> str:
+    """Return minimal cargo metadata JSON for fake cargo tests."""
+    packages = ",".join(
+        f'{{"id":"fixture {index}","manifest_path":"{manifest}"}}'
+        for index, manifest in enumerate(manifests)
+    )
+    members = ",".join(f'"fixture {index}"' for index, _manifest in enumerate(manifests))
+    return (
+        f'{{"workspace_root":"{workspace}",'
+        f'"packages":[{packages}],"workspace_members":[{members}]}}'
+    )
+
+
+def _write_fake_cargo(
+    bin_dir: Path,
+    *,
+    log_path: Path,
+    metadata: str,
+    audit_status: int = 0,
+    metadata_status: int = 0,
+) -> Path:
+    """Write a fake cargo binary that records audit invocations."""
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    cargo_path = bin_dir / "cargo"
+    cargo_path.write_text(
+        "#!/usr/bin/env sh\n"
+        'if [ "$1" = metadata ]; then\n'
+        f"printf '%s\\n' '{metadata}'\n"
+        f"exit {metadata_status}\n"
+        "fi\n"
+        'if [ "$1" = nextest ] && [ "$2" = --version ]; then\n'
+        "exit 1\n"
+        "fi\n"
+        f"printf '%s|%s\\n' \"$PWD\" \"$*\" >> '{log_path}'\n"
+        f"exit {audit_status}\n",
+        encoding="utf-8",
+    )
+    cargo_path.chmod(0o755)
+    return cargo_path

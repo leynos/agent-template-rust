@@ -27,8 +27,10 @@ The generated `Makefile` exposes these public targets:
 - `make build` builds the debug target.
 - `make release` builds the release target.
 - `make coverage` writes `lcov.info` using `cargo llvm-cov` and `lld`.
+- `make audit` derives the Rust workspace root with `cargo metadata` and runs
+  `cargo audit` once from that root.
 - `make markdownlint` checks Markdown files.
 - `make nixie` validates Mermaid diagrams.
 
-Install `clang`, `lld`, and `mold` before running the full generated workflow
-locally on Linux.
+Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
+full generated workflow locally on Linux.

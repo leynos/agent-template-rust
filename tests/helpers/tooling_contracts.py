@@ -198,6 +198,7 @@ def _assert_makefile_contracts(makefile: str, flavour: str) -> None:
     makefile_rules = _parse_makefile_rules(makefile)
     for target in [
         "all",
+        "audit",
         "build",
         "check-fmt",
         "coverage",
@@ -205,10 +206,14 @@ def _assert_makefile_contracts(makefile: str, flavour: str) -> None:
         "lint",
         "markdownlint",
         "nixie",
+        "rust-audit",
         "test",
         "typecheck",
     ]:
         assert target in makefile_rules, f"expected generated Makefile target {target}"
+    assert "SHELL := bash" in makefile, (
+        "expected generated Makefile to use Bash for pipefail audit recipes"
+    )
     assert "TEST_CMD :=" in makefile, (
         "expected generated Makefile to define a test command fallback"
     )
@@ -242,6 +247,24 @@ def _assert_makefile_contracts(makefile: str, flavour: str) -> None:
     )
     assert 'echo "coverage linker flags: $(COVERAGE_LINKER_FLAGS)"' in makefile, (
         "expected generated Makefile coverage target to log linker flags"
+    )
+    assert "audit: rust-audit ## Audit dependencies for known vulnerabilities" in (
+        makefile
+    ), "expected generated Makefile to expose audit as the public audit target"
+    assert "rust-audit: ## Audit the Rust workspace for known vulnerabilities" in (
+        makefile
+    ), "expected generated Makefile to expose rust-audit implementation target"
+    assert "$(CARGO) metadata --no-deps --format-version 1 | python3 -c" in makefile, (
+        "expected generated audit target to derive workspace metadata with python3"
+    )
+    assert 'printf "Auditing Rust workspace %s\\n" "$$workspace_root"' in makefile, (
+        "expected generated audit target to log the derived workspace root"
+    )
+    assert 'printf "Workspace Rust manifest %s\\n"' in makefile, (
+        "expected generated audit target to log workspace member manifests"
+    )
+    assert '(cd "$$workspace_root" && $(CARGO) audit)' in makefile, (
+        "expected generated audit target to run cargo audit once at workspace root"
     )
 
 
@@ -299,6 +322,18 @@ def _assert_ci_workflow_contracts(
     ), "expected generated CI workflow to use the pinned shared setup-rust action"
     assert "cargo-nextest" in ci_workflow, (
         "expected generated CI workflow to install cargo-nextest"
+    )
+    assert "cargo binstall --no-confirm cargo-audit" in ci_workflow, (
+        "expected generated CI workflow to install cargo-audit"
+    )
+    assert "Setup Python for audit manifest extraction" in ci_workflow, (
+        "expected generated CI workflow to install Python for audit metadata parsing"
+    )
+    assert "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405" in (
+        ci_workflow
+    ), "expected generated CI workflow to pin setup-python for audit parsing"
+    assert "make audit" in ci_workflow, (
+        "expected generated CI workflow to run the dependency audit gate"
     )
     assert "coverage uses lld for llvm-tools compatibility" in ci_workflow, (
         "expected generated CI workflow to document mold and lld roles"
