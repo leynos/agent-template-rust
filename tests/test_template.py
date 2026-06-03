@@ -292,6 +292,45 @@ def test_makefile_rust_audit_uses_workspace_metadata(
     )
 
 
+def test_makefile_rust_audit_honours_documented_ignores(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """Generated audit target maps CARGO_AUDIT_IGNORES to cargo-audit flags."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="AuditIgnoresExample",
+        package_name="audit_ignores_example",
+    )
+    log_path = project / "cargo-audit.log"
+    fake_cargo = _write_fake_cargo(
+        project / "bin",
+        log_path=log_path,
+        metadata=_cargo_metadata_for(project.path, [project / "Cargo.toml"]),
+    )
+    make = shutil.which("make")
+    assert make is not None, "expected make to be available for generated tests"
+
+    result = subprocess.run(
+        [make, "rust-audit", f"CARGO={fake_cargo}"],
+        cwd=project.path,
+        check=False,
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "CARGO_AUDIT_IGNORES": "RUSTSEC-2017-0001 RUSTSEC-2024-9999",
+        },
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+    assert log_path.read_text(encoding="utf-8") == (
+        f"{project.path}|audit --ignore RUSTSEC-2017-0001 "
+        "--ignore RUSTSEC-2024-9999\n"
+    ), "expected documented ignores to be passed as cargo-audit --ignore flags"
+
+
 @pytest.mark.parametrize(
     ("audit_status", "metadata_status", "should_audit_run"),
     [

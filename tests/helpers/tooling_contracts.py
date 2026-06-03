@@ -263,8 +263,17 @@ def _assert_makefile_contracts(makefile: str, flavour: str) -> None:
     assert 'printf "Workspace Rust manifest %s\\n"' in makefile, (
         "expected generated audit target to log workspace member manifests"
     )
-    assert '(cd "$$workspace_root" && $(CARGO) audit)' in makefile, (
-        "expected generated audit target to run cargo audit once at workspace root"
+    assert "for advisory in $$CARGO_AUDIT_IGNORES" in makefile, (
+        "expected generated audit target to read documented cargo audit ignores"
+    )
+    assert 'audit_flags+=(--ignore "$$advisory")' in makefile, (
+        "expected generated audit target to translate ignores into cargo-audit flags"
+    )
+    assert '(cd "$$workspace_root" && $(CARGO) audit "$${audit_flags[@]}")' in (
+        makefile
+    ), (
+        "expected generated audit target to run cargo audit with translated ignores "
+        "from the workspace root"
     )
 
 
