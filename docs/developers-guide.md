@@ -13,7 +13,7 @@ make test
 ```
 
 The target uses
-`uvx --with pytest-copier --with pyyaml --with syrupy --with make-parser pytest tests/`,
+`uvx --with pytest-copier --with pyyaml --with syrupy --with make-parser --with hypothesis pytest tests/`,
 so Python test dependencies must be added to that invocation before tests
 import them. Keep long runs logged through `tee` into `/tmp`, following the
 example in `AGENTS.md`.
@@ -50,6 +50,7 @@ projects:
 - `PyYAML` for parsing rendered GitHub Actions workflows in tests.
 - `syrupy` for generated structured file snapshots in tests.
 - `make-parser` for generated Makefile structure assertions in tests.
+- `hypothesis` for generated-file schema helper property tests.
 - Rust and Cargo through `rustup`.
 - cargo-nextest for generated fast test execution in CI, while generated
   Makefiles still fall back to `cargo test` for contributors.
@@ -80,7 +81,7 @@ Reusable test support lives under `tests/helpers/`:
 
 - `tests/helpers/rendering.py` renders Copier projects and exposes generated
   project command helpers.
-- `tests/helpers/generated_files.py` centralises generated text, TOML, and YAML
+- `tests/helpers/generated_files.py` centralizes generated text, TOML, and YAML
   parsing with pytest failure messages.
 - `tests/helpers/tooling_contracts.py` contains generated Makefile, Cargo,
   documentation, CI, release, and coverage-action contract assertions.

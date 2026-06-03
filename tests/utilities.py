@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 def _resolved_socket_from_docker_host(
     docker_host: str, allowed_dirs: tuple[Path, ...]
 ) -> Path | None:
+    """Return resolved socket path from a Docker host URL or None."""
     parsed = urlparse(docker_host)
     if parsed.scheme != "unix" or parsed.netloc or not parsed.path:
         return None
@@ -23,6 +24,7 @@ def _resolved_socket_from_docker_host(
 
 
 def _user_podman_socket() -> Path:
+    """Return the current user's Podman socket path."""
     runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
     runtime_path = Path(runtime_dir) if runtime_dir else Path(f"/run/user/{os.getuid()}")
     return runtime_path.expanduser().resolve() / "podman" / "podman.sock"

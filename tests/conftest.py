@@ -39,7 +39,7 @@ def container_info_command() -> list[str] | None:
 def _runtime_info_commands() -> list[list[str]]:
     """Return available container runtime info commands in preference order."""
     commands: list[list[str]] = []
-    if container_info_command() is not None and shutil.which("docker") is not None:
+    if shutil.which("docker") is not None:
         commands.append(["docker", "info"])
     if shutil.which("podman") is not None:
         commands.append(["podman", "info"])

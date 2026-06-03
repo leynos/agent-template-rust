@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 import tests.utilities as utilities
 from tests.helpers.generated_files import (
@@ -24,6 +26,17 @@ from tests.utilities import (
     _user_podman_socket,
     container_daemon_socket,
     docker_environment,
+)
+
+json_value = st.recursive(
+    st.none()
+    | st.booleans()
+    | st.integers()
+    | st.floats(allow_nan=False, allow_infinity=False)
+    | st.text(),
+    lambda children: st.lists(children, max_size=4)
+    | st.dictionaries(st.text(), children, max_size=4),
+    max_leaves=12,
 )
 
 
@@ -93,6 +106,43 @@ def test_generated_file_schema_helpers_require_expected_shapes() -> None:
         match="expected CI build-test job to include sequence key 'steps'",
     ):
         require_sequence({"steps": {}}, "steps", "CI build-test job")
+
+
+@given(key=st.text(min_size=1), value=json_value)
+def test_require_mapping_property(key: str, value: object) -> None:
+    """Round-trip mappings and reject non-mappings for required mapping keys."""
+    mapping = {key: value}
+
+    if isinstance(value, dict):
+        assert require_mapping(mapping, key, "generated schema") == value
+    else:
+        with pytest.raises(pytest.fail.Exception):
+            require_mapping(mapping, key, "generated schema")
+
+
+@given(key=st.text(min_size=1), value=json_value)
+def test_require_optional_mapping_property(key: str, value: object) -> None:
+    """Return optional mappings, default missing keys, and reject wrong shapes."""
+    assert require_optional_mapping({}, key, "generated schema") == {}
+    mapping = {key: value}
+
+    if isinstance(value, dict):
+        assert require_optional_mapping(mapping, key, "generated schema") == value
+    else:
+        with pytest.raises(pytest.fail.Exception):
+            require_optional_mapping(mapping, key, "generated schema")
+
+
+@given(key=st.text(min_size=1), value=json_value)
+def test_require_sequence_property(key: str, value: object) -> None:
+    """Round-trip lists and reject non-lists for required sequence keys."""
+    mapping = {key: value}
+
+    if isinstance(value, list):
+        assert require_sequence(mapping, key, "generated schema") == value
+    else:
+        with pytest.raises(pytest.fail.Exception):
+            require_sequence(mapping, key, "generated schema")
 
 
 def test_read_generated_file_uses_shared_error_contract(tmp_path: Path) -> None:
@@ -303,14 +353,20 @@ def test_parent_makefile_test_target_contract() -> None:
         "expected parent Makefile to map WITH_ACT to act validation"
     )
     assert "uvx is required to run template tests" in makefile, (
-        "expected parent Makefile to fail early with a uvx installation message"
+        "expected parent Makefile test target to fail with a uvx installation message"
+    )
+    assert 'if [ -z "$(strip $(UV))" ]; then' in makefile, (
+        "expected parent Makefile to check uvx inside the test recipe"
+    )
+    assert "$(error uvx is required" not in makefile, (
+        "expected parent Makefile not to fail at parse time when uvx is missing"
     )
     assert (
         "$(UV) --with pytest-copier --with pyyaml --with syrupy --with make-parser "
-        "pytest tests/"
+        "--with hypothesis pytest tests/"
     ) in makefile, (
         "expected parent Makefile test target to run pytest through $(UV) with "
-        "pytest-copier, pyyaml, syrupy, and make-parser"
+        "pytest-copier, pyyaml, syrupy, make-parser, and hypothesis"
     )
 
 
