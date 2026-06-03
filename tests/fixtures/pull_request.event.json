@@ -1,0 +1,14 @@
+{
+  "pull_request": {
+    "number": 1,
+    "head": {
+      "ref": "act-tests"
+    }
+  },
+  "repository": {
+    "full_name": "leynos/agent-template-rust"
+  },
+  "sender": {
+    "login": "local-validation"
+  }
+}

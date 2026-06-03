@@ -43,9 +43,23 @@ linters run from the very first commit.
 
 ## Testing
 
-Install the test requirements and run `pytest` to ensure the template renders
-correctly using `pytest-copier`. Additional details are in
-[`docs/testing.md`](docs/testing.md).
+Run the parent template tests through the repository `Makefile`. Run
+`make help` to list the available parent Makefile targets. The `test` target
+uses `uvx` to provide `pytest-copier`, `PyYAML`, `syrupy`, and `make-parser`
+without a manually managed virtual environment:
+
+```bash
+make test
+```
+
+Optional local GitHub Actions validation is gated behind `RUN_ACT_VALIDATION=1`
+and requires `act` plus a Docker-compatible container runtime:
+
+```bash
+RUN_ACT_VALIDATION=1 make test
+```
+
+Additional details are in [`docs/testing.md`](docs/testing.md).
 
 User-facing generated-project behaviour is documented in
 [`docs/users-guide.md`](docs/users-guide.md). Parent-template development

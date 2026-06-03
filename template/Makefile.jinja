@@ -33,7 +33,7 @@ clean: ## Remove build artifacts
 
 test: ## Run tests with warnings treated as errors
 	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
-{% if flavour == 'lib' %}
+{% if flavour != 'app' %}
 	RUSTFLAGS="$(RUST_FLAGS)" $(CARGO) test --doc --workspace --all-features
 {% endif %}
 
