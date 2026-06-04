@@ -83,7 +83,7 @@ Reusable test support lives under `tests/helpers/`:
   project command helpers.
 - `tests/helpers/generated_files.py` centralizes generated text, TOML, and YAML
   parsing with pytest failure messages.
-- `tests/helpers/tooling_contracts.py` contains generated Makefile, Cargo,
+- `tests/helpers/tooling_contracts/` contains generated Makefile, Cargo,
   documentation, CI, release, and coverage-action contract assertions.
 
 Container-aware support for optional `act` tests lives in `tests/utilities.py`.

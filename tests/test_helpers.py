@@ -10,7 +10,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-import tests.utilities as utilities
+import tests.utilities
 from tests.helpers.generated_files import (
     parse_toml_file,
     parse_yaml_mapping,
@@ -262,7 +262,9 @@ def test_docker_environment_preserves_valid_unix_socket(
     socket_path = allowed_dir / "docker.sock"
     docker_host = f"unix://{socket_path}"
     monkeypatch.setenv("DOCKER_HOST", docker_host)
-    monkeypatch.setattr(utilities, "local_socket_dirs", lambda: (allowed_dir,))
+    monkeypatch.setattr(
+        tests.utilities, "local_socket_dirs", lambda: (allowed_dir,)
+    )
 
     assert docker_environment()["DOCKER_HOST"] == docker_host
 
@@ -278,7 +280,9 @@ def test_docker_environment_removes_credentials(
     monkeypatch.setenv("GITHUB_TOKEN", "secret-token")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret-key")
     monkeypatch.setenv("SOME_API_KEY", "api-key")
-    monkeypatch.setattr(utilities, "local_socket_dirs", lambda: (allowed_dir,))
+    monkeypatch.setattr(
+        tests.utilities, "local_socket_dirs", lambda: (allowed_dir,)
+    )
 
     env = docker_environment()
 
@@ -351,7 +355,9 @@ def test_container_daemon_socket_uses_valid_docker_host(
     runtime_dir.mkdir()
     socket_path = runtime_dir / "docker.sock"
     monkeypatch.setenv("DOCKER_HOST", f"unix://{socket_path}")
-    monkeypatch.setattr(utilities, "user_runtime_socket_dirs", lambda: (runtime_dir,))
+    monkeypatch.setattr(
+        tests.utilities, "user_runtime_socket_dirs", lambda: (runtime_dir,)
+    )
 
     assert container_daemon_socket() == f"unix://{socket_path}"
 
