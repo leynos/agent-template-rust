@@ -31,6 +31,10 @@ def test_generated_structured_file_snapshots(
     ci_workflow = parse_yaml_mapping(
         read_generated_text(project / ".github/workflows/ci.yml"), "CI workflow"
     )
+    act_workflow = parse_yaml_mapping(
+        read_generated_text(project / ".github/workflows/act-validation.yml"),
+        "act-validation workflow",
+    )
     release_workflow = parse_yaml_mapping(
         read_generated_text(project / ".github/workflows/release.yml"),
         "release workflow",
@@ -39,6 +43,7 @@ def test_generated_structured_file_snapshots(
     assert {
         "cargo_config": cargo_config,
         "makefile": makefile,
+        "act_workflow": act_workflow,
         "ci_workflow": ci_workflow,
         "release_workflow": release_workflow,
     } == snapshot, (

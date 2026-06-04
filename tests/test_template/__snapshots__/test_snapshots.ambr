@@ -1,19 +1,7 @@
 # serializer version: 1
 # name: test_generated_structured_file_snapshots
   dict({
-    'cargo_config': '''
-      [unstable]
-      codegen-backend = true
-      
-      [profile.dev]
-      codegen-backend = "cranelift"
-      
-      [target.x86_64-unknown-linux-gnu]
-      linker = "clang"
-      rustflags = ["-C", "link-arg=-fuse-ld=mold"]
-  
-    ''',
-    'ci_workflow': dict({
+    'act_workflow': dict({
       'jobs': dict({
         'act-validation': dict({
           'env': dict({
@@ -53,6 +41,33 @@
             }),
           ]),
         }),
+      }),
+      'name': 'Act Validation',
+      'on': dict({
+        'pull_request': dict({
+          'types': list([
+            'opened',
+            'synchronize',
+            'reopened',
+          ]),
+        }),
+        'workflow_dispatch': None,
+      }),
+    }),
+    'cargo_config': '''
+      [unstable]
+      codegen-backend = true
+      
+      [profile.dev]
+      codegen-backend = "cranelift"
+      
+      [target.x86_64-unknown-linux-gnu]
+      linker = "clang"
+      rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+  
+    ''',
+    'ci_workflow': dict({
+      'jobs': dict({
         'build-test': dict({
           'env': dict({
             'BUILD_PROFILE': 'debug',

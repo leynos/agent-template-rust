@@ -52,6 +52,9 @@ def assert_documentation_navigation_contracts(
     assert "Makefile" in repository_layout, (
         "expected generated layout to document public command entrypoints"
     )
+    assert ".github/workflows/act-validation.yml" in repository_layout, (
+        "expected generated layout to document the act-validation workflow"
+    )
     assert "checks. - `" not in repository_layout, (
         "expected generated layout bullets to render on separate lines"
     )

@@ -36,9 +36,13 @@ make test WITH_ACT=1
 
 The parent Makefile maps `WITH_ACT=1` to `RUN_ACT_VALIDATION=1` for pytest.
 Those checks require `act` and either Docker or Podman. They prepare rendered
-projects as temporary Git repositories, run the generated pull-request
-workflow, and assert black-box evidence for the shared coverage action and Rust
-test execution. Parent CI runs this act-enabled test mode.
+projects as temporary Git repositories, run the generated act-validation
+workflow, and assert black-box evidence for Rust test execution.
+
+Parent CI keeps Act validation in `.github/workflows/act-validation.yml`.
+The main `.github/workflows/ci.yml` workflow runs ordinary `make test` without
+`WITH_ACT=1` so the slower container-backed checks run in parallel instead of
+blocking the main test and coverage path.
 
 ## Required Tooling
 

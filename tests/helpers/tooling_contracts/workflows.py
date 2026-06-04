@@ -74,14 +74,31 @@ def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
 def _assert_ci_workflow_contracts(
     parsed_ci_workflow: dict[str, Any],
     ci_workflow: str,
+    act_workflow: str,
     test_stub: str,
 ) -> None:
     """Assert generated CI workflow and adjacent documentation contracts."""
     jobs = require_mapping(parsed_ci_workflow, "jobs", "CI workflow")
-    assert "act-validation" in jobs, (
-        "expected generated CI workflow to include a separate act-validation job"
+    assert "act-validation" not in jobs, (
+        "expected generated main CI workflow to keep act validation separate"
     )
-    act_validation = require_mapping(jobs, "act-validation", "CI workflow jobs")
+    assert "ACT_VERSION: v0.2.80" not in ci_workflow, (
+        "expected generated main CI workflow not to install act"
+    )
+    assert "act_Linux_x86_64.tar.gz" not in ci_workflow, (
+        "expected generated main CI workflow not to download act"
+    )
+    assert "make test WITH_ACT=1" not in ci_workflow, (
+        "expected generated main CI workflow not to run act validation"
+    )
+
+    parsed_act_workflow = parse_yaml_mapping(act_workflow, "act-validation workflow")
+    act_jobs = require_mapping(
+        parsed_act_workflow, "jobs", "act-validation workflow"
+    )
+    act_validation = require_mapping(
+        act_jobs, "act-validation", "act-validation workflow jobs"
+    )
     act_steps = require_sequence(act_validation, "steps", "CI act-validation job")
     assert any(
         isinstance(step, dict)
@@ -89,17 +106,17 @@ def _assert_ci_workflow_contracts(
         and step["with"].get("persist-credentials") is False
         for step in act_steps
     ), "expected generated act-validation job checkout to disable credentials"
-    assert "ACT_VERSION: v0.2.80" in ci_workflow, (
-        "expected generated CI workflow to pin the act release"
+    assert "ACT_VERSION: v0.2.80" in act_workflow, (
+        "expected generated act-validation workflow to pin the act release"
     )
-    assert "act_Linux_x86_64.tar.gz" in ci_workflow, (
-        "expected generated CI workflow to install the act Linux binary"
+    assert "act_Linux_x86_64.tar.gz" in act_workflow, (
+        "expected generated act-validation workflow to install the act Linux binary"
     )
-    assert "docker info" in ci_workflow, (
-        "expected generated CI workflow to verify Docker before act validation"
+    assert "docker info" in act_workflow, (
+        "expected generated act-validation workflow to verify Docker"
     )
-    assert "make test WITH_ACT=1" in ci_workflow, (
-        "expected generated CI workflow to run an act-enabled test gate"
+    assert "make test WITH_ACT=1" in act_workflow, (
+        "expected generated act-validation workflow to run an act-enabled test gate"
     )
     checkout_steps = extract_checkout_steps(jobs)
     assert checkout_steps, "expected generated CI workflow to check out sources"

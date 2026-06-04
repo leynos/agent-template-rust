@@ -1,4 +1,4 @@
-name: CI
+name: Act Validation
 
 on:
   pull_request:
@@ -7,11 +7,12 @@ on:
     branches: [main]
 
 jobs:
-  build-test:
+  act-validation:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     env:
+      ACT_VERSION: v0.2.80
       CARGO_TERM_COLOR: always
       BUILD_PROFILE: debug
       WHITAKER_INSTALLER_REV: f768c2e53c47df13658af1168a67851d388750bf
@@ -33,8 +34,12 @@ jobs:
       - name: Install template test tools
         run: |
           set -euo pipefail
+          curl -fsSL "https://github.com/nektos/act/releases/download/${ACT_VERSION}/act_Linux_x86_64.tar.gz" |
+            sudo tar -xz -C /usr/local/bin act
           cargo binstall --no-confirm cargo-nextest
           uv tool install mbake
+      - name: Check Docker runtime
+        run: docker info
       - name: Cache Whitaker installation
         id: cache-whitaker
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
@@ -58,5 +63,5 @@ jobs:
           fi
           whitaker-installer --cranelift
           echo "Whitaker binary: $(command -v whitaker || true)"
-      - name: Test
-        run: make test
+      - name: Test with act validation
+        run: make test WITH_ACT=1
