@@ -28,6 +28,7 @@ compact and omits build output such as `target/`.
 │   └── ...
 ├── src/
 {% if flavour == 'app' %}
+│   ├── lib.rs
 │   └── main.rs
 {% else %}
 │   └── lib.rs
@@ -66,6 +67,8 @@ compact and omits build output such as `target/`.
 - `docs/repository-layout.md`: Documents the repository tree and path
   responsibilities.
 {% if flavour == 'app' %}
+- `src/lib.rs`: Contains library support for application logic and doctested
+  examples.
 - `src/main.rs`: Contains the application entrypoint and top-level executable
   wiring.
 {% else %}

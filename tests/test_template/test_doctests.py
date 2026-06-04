@@ -6,19 +6,23 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
 from pytest_copier.plugin import CopierFixture
 
-from tests.helpers.rendering import LIB, render_project
+from tests.helpers.rendering import APP, LIB, render_project
 
 
-def test_library_make_test_runs_doctests(tmp_path: Path, copier: CopierFixture) -> None:
-    """Generated library test gate catches broken doctest examples."""
+@pytest.mark.parametrize("flavour", [LIB, APP])
+def test_make_test_runs_doctests_for_all_flavours(
+    tmp_path: Path, copier: CopierFixture, flavour: str
+) -> None:
+    """Generated test gate catches broken doctest examples for every flavour."""
     project = render_project(
         tmp_path,
         copier,
         project_name="DoctestExample",
         package_name="doctest_example",
-        flavour=LIB,
+        flavour=flavour,
     )
     lib_rs = project / "src" / "lib.rs"
     lib_rs.write_text(

@@ -66,8 +66,8 @@ def assert_documentation_navigation_contracts(
         assert "src/main.rs" in repository_layout, (
             "expected app layout to document the executable entrypoint"
         )
-        assert "src/lib.rs" not in repository_layout, (
-            "expected app layout to omit the library crate root"
+        assert "src/lib.rs" in repository_layout, (
+            "expected app layout to document the library support crate root"
         )
     else:
         assert ".github/workflows/release.yml" not in repository_layout, (

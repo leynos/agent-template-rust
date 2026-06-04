@@ -35,6 +35,9 @@ def test_template_renders_app_flavour(tmp_path: Path, copier: CopierFixture) -> 
     assert (project / "src" / "main.rs").exists(), (
         "expected src/main.rs to exist for app flavour"
     )
+    assert (project / "src" / "lib.rs").exists(), (
+        "expected src/lib.rs to exist for app flavour doctests"
+    )
     assert (project / ".github" / "workflows" / "release.yml").exists(), (
         "expected release workflow to exist for app flavour"
     )

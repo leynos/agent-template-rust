@@ -8,8 +8,6 @@ from pathlib import Path
 
 import make_parser
 
-from tests.helpers.rendering import LIB
-
 
 def _assert_makefile_contracts(makefile: str, flavour: str) -> None:
     """Assert generated Makefile tooling contracts."""
@@ -41,10 +39,9 @@ def _assert_makefile_contracts(makefile: str, flavour: str) -> None:
     assert "$(CARGO) $(TEST_CMD)" in makefile, (
         "expected generated Makefile test target to use the selected test command"
     )
-    if flavour == LIB:
-        assert "$(CARGO) test --doc --workspace --all-features" in makefile, (
-            "expected generated library Makefile test target to run doctests"
-        )
+    assert "$(CARGO) test --doc --workspace --all-features" in makefile, (
+        "expected generated Makefile test target to run doctests"
+    )
     assert "coverage: ## Generate lcov coverage with lld" in makefile, (
         "expected generated Makefile to include an lld-backed coverage target"
     )
