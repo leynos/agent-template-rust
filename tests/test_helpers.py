@@ -21,6 +21,7 @@ from tests.helpers.generated_files import (
 )
 from tests.helpers.rendering import read_generated_file
 from tests.helpers.tooling_contracts import assert_ci_coverage_action_contract
+from tests.test_github_actions_integration import xfail_known_act_runtime_limitations
 from tests.utilities import (
     _resolved_socket_from_docker_host,
     _user_podman_socket,
@@ -204,6 +205,18 @@ def test_ci_coverage_action_contract_validates_edges() -> None:
                 ),
             )
         )
+
+
+def test_act_runtime_limitations_xfail_node24_actions() -> None:
+    """Xfail act logs that show unsupported node24 action metadata."""
+    logs = (
+        "act phase: workflow execution started\n"
+        "Error: The runs.using key in action.yml must be one of: "
+        "[composite docker node12 node16 node20], got node24\n"
+    )
+
+    with pytest.raises(pytest.xfail.Exception):
+        xfail_known_act_runtime_limitations(logs)
 
 
 @pytest.mark.parametrize(

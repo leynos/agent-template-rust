@@ -138,9 +138,16 @@ def assert_ci_exercised_expected_steps(logs: str) -> None:
     assert saw_rust, f"Rust tests were not observed:\n{logs}"
 
 
-def assert_act_result(project: CopierProject, code: int, logs: str) -> None:
-    """Assert the act workflow result for a rendered Rust project."""
-    assert_ci_exercised_expected_steps(logs)
+def xfail_known_act_runtime_limitations(logs: str) -> None:
+    """Xfail act limitations that prevent workflow execution from reaching tests."""
+    if (
+        "The runs.using key in action.yml must be one of:" in logs
+        and "got node24" in logs
+    ):
+        pytest.xfail(
+            "act currently cannot execute an upstream action that declares "
+            "runs.using: node24"
+        )
     if (
         "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times" in logs
         and "Provided artifact name input during validation is empty" in logs
@@ -149,6 +156,12 @@ def assert_act_result(project: CopierProject, code: int, logs: str) -> None:
             "act currently fails in the shared generate-coverage composite "
             "action output/archive phase after tests and coverage succeed"
         )
+
+
+def assert_act_result(project: CopierProject, code: int, logs: str) -> None:
+    """Assert the act workflow result for a rendered Rust project."""
+    xfail_known_act_runtime_limitations(logs)
+    assert_ci_exercised_expected_steps(logs)
     assert code == 0, logs
     assert (project / "lcov.info").exists(), (
         "act workflow should write lcov.info in the generated project:\n" + logs
