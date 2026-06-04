@@ -140,12 +140,7 @@ def assert_ci_exercised_expected_steps(logs: str) -> None:
 
 def assert_act_result(project: CopierProject, code: int, logs: str) -> None:
     """Assert the act workflow result for a rendered Rust project."""
-    assert (project / "lcov.info").exists(), (
-        "act workflow should write lcov.info in the generated project"
-    )
     assert_ci_exercised_expected_steps(logs)
-    if code == 0:
-        return
     if (
         "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times" in logs
         and "Provided artifact name input during validation is empty" in logs
@@ -155,6 +150,9 @@ def assert_act_result(project: CopierProject, code: int, logs: str) -> None:
             "action output/archive phase after tests and coverage succeed"
         )
     assert code == 0, logs
+    assert (project / "lcov.info").exists(), (
+        "act workflow should write lcov.info in the generated project:\n" + logs
+    )
 
 
 @pytest.mark.act
