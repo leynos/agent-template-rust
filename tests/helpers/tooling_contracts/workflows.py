@@ -60,7 +60,7 @@ def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
     assert (
         coverage_step.get("uses")
         == "leynos/shared-actions/.github/actions/generate-coverage"
-        "@e4c6b0e200a057edf927c45c298e7ddf229b3934"
+        "@455d9ed03477c0026da96c2541ca26569a74acac"
     ), "expected CI to use the pinned shared coverage action"
     coverage_inputs = require_mapping(coverage_step, "with", "coverage step")
     assert coverage_inputs.get("output-path") == "lcov.info", (
@@ -152,7 +152,7 @@ def _assert_ci_workflow_contracts(
     )
     assert (
         "leynos/shared-actions/.github/actions/setup-rust"
-        "@e4c6b0e200a057edf927c45c298e7ddf229b3934" in ci_workflow
+        "@455d9ed03477c0026da96c2541ca26569a74acac" in ci_workflow
     ), "expected generated CI workflow to use the pinned shared setup-rust action"
     assert "cargo-nextest" in ci_workflow, (
         "expected generated CI workflow to install cargo-nextest"

@@ -21,7 +21,7 @@
             }),
             dict({
               'name': 'Setup Rust',
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@e4c6b0e200a057edf927c45c298e7ddf229b3934',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@455d9ed03477c0026da96c2541ca26569a74acac',
             }),
             dict({
               'name': 'Install act',
@@ -87,7 +87,7 @@
             }),
             dict({
               'name': 'Setup Rust',
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@e4c6b0e200a057edf927c45c298e7ddf229b3934',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@455d9ed03477c0026da96c2541ca26569a74acac',
             }),
             dict({
               'if': "runner.os == 'Linux'",
@@ -203,7 +203,7 @@
                 'RUSTFLAGS': '-C link-arg=-fuse-ld=lld',
               }),
               'name': 'Test and Measure Coverage',
-              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@e4c6b0e200a057edf927c45c298e7ddf229b3934',
+              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@455d9ed03477c0026da96c2541ca26569a74acac',
               'with': dict({
                 'format': 'lcov',
                 'output-path': 'lcov.info',
@@ -215,7 +215,7 @@
               }),
               'if': '${{ env.CS_ACCESS_TOKEN }}',
               'name': 'Upload coverage data to CodeScene',
-              'uses': 'leynos/shared-actions/.github/actions/upload-codescene-coverage@e4c6b0e200a057edf927c45c298e7ddf229b3934',
+              'uses': 'leynos/shared-actions/.github/actions/upload-codescene-coverage@455d9ed03477c0026da96c2541ca26569a74acac',
               'with': dict({
                 'access-token': '${{ env.CS_ACCESS_TOKEN }}',
                 'format': 'lcov',
@@ -351,7 +351,7 @@
               }),
             }),
             dict({
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@e4c6b0e200a057edf927c45c298e7ddf229b3934',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@455d9ed03477c0026da96c2541ca26569a74acac',
               'with': dict({
                 'toolchain': 'stable',
               }),

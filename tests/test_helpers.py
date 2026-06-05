@@ -421,6 +421,6 @@ jobs:
         with:
           persist-credentials: {persist_credentials}
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@e4c6b0e200a057edf927c45c298e7ddf229b3934
+        uses: leynos/shared-actions/.github/actions/generate-coverage@455d9ed03477c0026da96c2541ca26569a74acac
         with:
 {coverage_inputs}"""
