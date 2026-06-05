@@ -124,6 +124,28 @@ def _assert_ci_workflow_contracts(
         step.get("with", {}).get("persist-credentials") is False
         for step in checkout_steps
     ), "expected generated CI checkout steps to disable credential persistence"
+    build_test = require_mapping(jobs, "build-test", "CI workflow jobs")
+    steps = require_sequence(build_test, "steps", "CI build-test job")
+    rust_tool_install_step_names = [
+        "Install test runner",
+        "Install cargo-audit",
+        "Install Whitaker",
+    ]
+    for step_name in rust_tool_install_step_names:
+        matching_steps = [
+            step
+            for step in steps
+            if isinstance(step, dict) and step.get("name") == step_name
+        ]
+        assert len(matching_steps) == 1, (
+            f"expected generated CI to include one {step_name} step"
+        )
+        rust_tool_env = require_mapping(
+            matching_steps[0], "env", f"{step_name} step"
+        )
+        assert rust_tool_env.get("RUSTFLAGS") == "", (
+            f"expected generated CI {step_name} step to clear inherited RUSTFLAGS"
+        )
 
     assert "Cache Whitaker installation" in ci_workflow, (
         "expected generated CI workflow to cache Whitaker installation"
