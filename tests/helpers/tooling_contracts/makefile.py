@@ -9,7 +9,7 @@ from pathlib import Path
 import make_parser
 
 
-def _assert_makefile_contracts(makefile: str, flavour: str) -> None:
+def _assert_makefile_contracts(makefile: str) -> None:
     """Assert generated Makefile tooling contracts."""
     makefile_rules = _load_and_parse_makefile_rules(makefile)
     for target in [

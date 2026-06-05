@@ -89,7 +89,7 @@ def assert_generated_tooling_contracts(
     can validate a rendered project through one contract entrypoint.
     """
     _assert_cargo_package_contracts(package, metadata, flavour)
-    _assert_makefile_contracts(makefile, flavour)
+    _assert_makefile_contracts(makefile)
     _assert_cargo_config_contracts(cargo_config, dev_target, rust_toolchain)
     _assert_ci_workflow_contracts(
         parsed_ci_workflow, ci_workflow, act_workflow, test_stub

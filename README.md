@@ -60,7 +60,7 @@ make test WITH_ACT=1
 ```
 
 Parent and generated-project CI run this mode in a separate
-`act-validation.yml` workflow so container-backed workflow checks run in
+`act-validation.yml` workflow, so container-backed workflow checks run in
 parallel with the normal test and coverage workflow.
 
 ## Generated Quality Gate Flow

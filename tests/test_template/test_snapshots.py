@@ -48,5 +48,5 @@ def test_generated_structured_file_snapshots(
         "release_workflow": release_workflow,
     } == snapshot, (
         "Snapshot mismatch for template outputs "
-        "(cargo_config, makefile, ci_workflow, release_workflow)"
+        "(cargo_config, makefile, act_workflow, ci_workflow, release_workflow)"
     )

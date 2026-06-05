@@ -90,14 +90,14 @@ Reusable test support lives under `tests/helpers/`:
 - `tests/helpers/tooling_contracts/` contains generated Makefile, Cargo,
   documentation, CI, release, and coverage-action contract assertions.
 - `tests/conftest.py` provides the session-scoped `act_ready` fixture, which
-  skips act-dependent tests unless `RUN_ACT_VALIDATION=1` is set and a
-  container runtime is reachable.
+  skips act-dependent tests unless `RUN_ACT_VALIDATION=1` is set and at least
+  one container runtime is reachable.
 - `tests/test_github_actions_integration.py` renders a project, initialises it
-  as a Git repository, runs the generated workflow through `act`, and asserts
-  workflow step evidence.
+  as a Git repository, runs the generated act-validation workflow through
+  `act`, and asserts black-box Rust test evidence from JSON event logs.
 - `tests/test_parent_ci.py` asserts that parent main CI keeps act validation
-  separate and that `.github/workflows/act-validation.yml` carries the act pin,
-  Docker runtime check, and `make test WITH_ACT=1` invocation.
+  separate and that `.github/workflows/act-validation.yml` carries act
+  pinning and installation, the Docker runtime check, and `make test WITH_ACT=1`.
 
 Container-aware support for optional `act` tests lives in `tests/utilities.py`.
 Direct helper edge-case tests live in `tests/test_helpers.py`; rendered project

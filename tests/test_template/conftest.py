@@ -30,7 +30,11 @@ def cargo_metadata_for() -> Callable[[Path, list[Path]], str]:
 
 @pytest.fixture
 def write_fake_cargo() -> Callable[..., Path]:
-    """Return a factory that writes a fake cargo binary."""
+    """Return a factory that writes a fake cargo binary.
+
+    ``Callable[..., Path]`` is intentional because the factory accepts
+    keyword-only status overrides in addition to the required path arguments.
+    """
 
     def factory(
         bin_dir: Path,
