@@ -173,7 +173,13 @@ project:
   behavioural tests using `rstest-bdd` where applicable. Cover happy paths,
   unhappy paths, and relevant edge cases.
 - Add snapshot tests using `insta` where multivariant output format consistency
-  is relevant to the requirements.
+  is relevant to the requirements. Snapshots must capture meaningful,
+  reviewer-useful contracts rather than generic dumps of broad objects. Keep
+  snapshots focused on stable output boundaries, pair them with semantic
+  assertions for business rules and schema contracts, and normalize
+  nondeterministic fields before snapshotting. Do not accept brittle snapshots
+  that churn after unrelated changes; update snapshots only after confirming a
+  snapshot failure identifies a real contract change.
 - Add end-to-end tests where a change affects externally observable workflows,
   integration contracts, persistence, command-line behaviour, network
   boundaries, UI flows, or other system-level behaviour.

@@ -1,0 +1,1 @@
+"""Rendered template test package."""
