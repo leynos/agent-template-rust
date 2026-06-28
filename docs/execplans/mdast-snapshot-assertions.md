@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: IMPLEMENTING
+Status: COMPLETE
 
 ## Purpose / Big Picture
 
@@ -182,6 +182,11 @@ normalized mdast JSON is equal.
   `make test 2>&1 | tee /tmp/test-agent-template-rust-mdast-snapshot-assertions-full.out`;
   result was 52 passed and 1 skipped in 121.45 seconds.
 - [x] Run formatting, linting, and test gates sequentially with `/tmp` logs.
+- [x] 2026-06-28: Committed parent mdast snapshot coverage in `8d2c02c` and
+  generated Rust-project mdast snapshot coverage in `0c0e924`.
+- [x] 2026-06-28: Ran `coderabbit review --agent` after each major milestone.
+  Both the parent snapshot milestone and generated snapshot milestone completed
+  with 0 findings.
 - [x] Commit the approved implementation changes after gates pass.
 
 ## Surprises & Discoveries
@@ -363,3 +368,13 @@ Generated Rust projects use `markdown = 1.0.0`, `serde_json`, and
 `insta = 1.48.0` to parse and snapshot selected documentation files. Generated
 repository-layout snapshots are split by flavour so app-only paths remain part
 of the semantic contract.
+
+The implemented behavior is observable in two places. In the parent template
+repository, `tests/test_template/test_documentation_snapshots.py` renders a
+project and snapshots normalized mdast JSON for `docs/contents.md` and
+`docs/repository-layout.md` with syrupy. In generated projects,
+`tests/documentation_snapshots.rs` parses the rendered documentation with
+`markdown-rs`, removes source-position metadata through `serde_json`, and
+compares `insta` JSON snapshots. The final full validation was
+`make test 2>&1 | tee /tmp/test-agent-template-rust-mdast-snapshot-assertions-full.out`,
+which passed with 52 tests and 1 skip.
