@@ -1,0 +1,671 @@
+---
+source: tests/documentation_snapshots.rs
+expression: "parse_markdown_semantics_or_panic(include_str!(\"../docs/repository-layout.md\"))"
+---
+{
+  "children": [
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Repository layout"
+        }
+      ],
+      "depth": 1,
+      "type": "heading"
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "This document describes the generated {{ project_name }} repository layout. It is the canonical reference for where source code, tests, configuration, automation, and long-lived documentation belong."
+        }
+      ],
+      "type": "paragraph"
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Top-level tree"
+        }
+      ],
+      "depth": 2,
+      "type": "heading"
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "The tree below shows the generated repository structure. It is intentionally compact and omits build output such as"
+        },
+        {
+          "type": "inlineCode",
+          "value": "target/"
+        },
+        {
+          "type": "text",
+          "value": "."
+        }
+      ],
+      "type": "paragraph"
+    },
+    {
+      "lang": "plaintext",
+      "type": "code",
+      "value": ".\n├── .cargo/\n│   └── config.toml\n├── .github/\n│   ├── dependabot.yml\n│   └── workflows/\n│       ├── act-validation.yml\n│       ├── ci.yml\n\n├── docs/\n│   ├── contents.md\n│   ├── developers-guide.md\n│   ├── repository-layout.md\n│   ├── users-guide.md\n│   └── ...\n├── src/\n\n│   └── lib.rs\n\n├── tests/\n│   └── stub.rs\n├── AGENTS.md\n├── Cargo.toml\n├── LICENSE\n├── Makefile\n├── README.md\n├── clippy.toml\n├── codecov.yml\n└── rust-toolchain.toml"
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Path responsibilities"
+        }
+      ],
+      "depth": 2,
+      "type": "heading"
+    },
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": ".cargo/config.toml"
+                },
+                {
+                  "type": "text",
+                  "value": ": Configures Cargo defaults for local development, including Linux linker and code-generation settings."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": ".github/dependabot.yml"
+                },
+                {
+                  "type": "text",
+                  "value": ": Configures automated dependency update checks."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": ".github/workflows/act-validation.yml"
+                },
+                {
+                  "type": "text",
+                  "value": ": Runs the generated workflow validation through"
+                },
+                {
+                  "type": "inlineCode",
+                  "value": "act"
+                },
+                {
+                  "type": "text",
+                  "value": "separately from main CI."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": ".github/workflows/ci.yml"
+                },
+                {
+                  "type": "text",
+                  "value": ": Runs the generated project's continuous integration checks."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "docs/"
+                },
+                {
+                  "type": "text",
+                  "value": ": Holds long-lived reference documentation, guides, style rules, and design material."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "docs/contents.md"
+                },
+                {
+                  "type": "text",
+                  "value": ": Indexes the documentation set and should be updated when documentation files are added, renamed, or removed."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "docs/users-guide.md"
+                },
+                {
+                  "type": "text",
+                  "value": ": Explains how to use the generated project and its public build and test commands."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "docs/developers-guide.md"
+                },
+                {
+                  "type": "text",
+                  "value": ": Explains the contributor workflow and local tooling used to work on the generated project."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "docs/repository-layout.md"
+                },
+                {
+                  "type": "text",
+                  "value": ": Documents the repository tree and path responsibilities."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "src/lib.rs"
+                },
+                {
+                  "type": "text",
+                  "value": ": Contains the library crate root and exported public API surface."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "tests/"
+                },
+                {
+                  "type": "text",
+                  "value": ": Holds integration and behavioural tests that exercise public behaviour."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "tests/stub.rs"
+                },
+                {
+                  "type": "text",
+                  "value": ": Keeps the generated test directory valid until real tests replace it."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "AGENTS.md"
+                },
+                {
+                  "type": "text",
+                  "value": ": Provides repository-specific working instructions for agents and contributors."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "Cargo.toml"
+                },
+                {
+                  "type": "text",
+                  "value": ": Defines package metadata, dependencies, lint policy, and Cargo configuration."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "LICENSE"
+                },
+                {
+                  "type": "text",
+                  "value": ": Records the project licence text."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "Makefile"
+                },
+                {
+                  "type": "text",
+                  "value": ": Provides the public build, lint, test, coverage, and documentation validation commands."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "README.md"
+                },
+                {
+                  "type": "text",
+                  "value": ": Introduces the project and gives the shortest useful getting-started path."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "clippy.toml"
+                },
+                {
+                  "type": "text",
+                  "value": ": Configures Clippy lint behaviour that is not expressed directly in"
+                },
+                {
+                  "type": "inlineCode",
+                  "value": "Cargo.toml"
+                },
+                {
+                  "type": "text",
+                  "value": "."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "codecov.yml"
+                },
+                {
+                  "type": "text",
+                  "value": ": Configures coverage reporting behaviour."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "inlineCode",
+                  "value": "rust-toolchain.toml"
+                },
+                {
+                  "type": "text",
+                  "value": ": Pins the Rust toolchain channel and required components."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        }
+      ],
+      "ordered": false,
+      "spread": true,
+      "type": "list"
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Ownership boundaries"
+        }
+      ],
+      "depth": 2,
+      "type": "heading"
+    },
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Keep generated source code under"
+                },
+                {
+                  "type": "inlineCode",
+                  "value": "src/"
+                },
+                {
+                  "type": "text",
+                  "value": ". Add modules below"
+                },
+                {
+                  "type": "inlineCode",
+                  "value": "src/"
+                },
+                {
+                  "type": "text",
+                  "value": "when a feature grows beyond a small entrypoint or crate root."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Keep black-box integration tests and externally observable workflow tests under"
+                },
+                {
+                  "type": "inlineCode",
+                  "value": "tests/"
+                },
+                {
+                  "type": "text",
+                  "value": "."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Keep reusable documentation under"
+                },
+                {
+                  "type": "inlineCode",
+                  "value": "docs/"
+                },
+                {
+                  "type": "text",
+                  "value": ". Update"
+                },
+                {
+                  "type": "inlineCode",
+                  "value": "docs/contents.md"
+                },
+                {
+                  "type": "text",
+                  "value": "whenever a documentation file is added, renamed, or removed."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Keep build and validation entrypoints in"
+                },
+                {
+                  "type": "inlineCode",
+                  "value": "Makefile"
+                },
+                {
+                  "type": "text",
+                  "value": "; prefer adding or extending a Make target over documenting an ad hoc command."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Keep continuous integration workflow changes under"
+                },
+                {
+                  "type": "inlineCode",
+                  "value": ".github/workflows/"
+                },
+                {
+                  "type": "text",
+                  "value": "and dependency-update policy under"
+                },
+                {
+                  "type": "inlineCode",
+                  "value": ".github/dependabot.yml"
+                },
+                {
+                  "type": "text",
+                  "value": "."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Do not commit generated build output such as"
+                },
+                {
+                  "type": "inlineCode",
+                  "value": "target/"
+                },
+                {
+                  "type": "text",
+                  "value": ", coverage artefacts, or local editor state."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        }
+      ],
+      "ordered": false,
+      "spread": false,
+      "type": "list"
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Updating this document"
+        }
+      ],
+      "depth": 2,
+      "type": "heading"
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Update this document when the repository gains a new top-level directory, a new long-lived documentation category, a new workflow file, or a changed ownership boundary that would otherwise make the tree misleading."
+        }
+      ],
+      "type": "paragraph"
+    }
+  ],
+  "type": "root"
+}

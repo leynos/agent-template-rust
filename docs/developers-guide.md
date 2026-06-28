@@ -13,7 +13,7 @@ make test
 ```
 
 The target uses
-`uvx --with pytest-copier --with pyyaml --with syrupy --with make-parser --with hypothesis pytest tests/`,
+`uvx --with pytest-copier --with pyyaml --with syrupy --with make-parser --with hypothesis --with mdast pytest tests/`,
 so Python test dependencies must be added to that invocation before tests
 import them. Keep long runs logged through `tee` into `/tmp`, following the
 example in `AGENTS.md`.
@@ -21,6 +21,13 @@ example in `AGENTS.md`.
 The tests render both library and application projects, run generated public
 gates such as `make all`, validate generated Makefiles with `mbake`, and parse
 generated `Cargo.toml` files as TOML.
+
+Documentation snapshot tests parse Markdown files into normalized mdast JSON
+before comparing snapshots. The normalization removes parser source positions
+and treats soft line wrapping as formatting noise, while preserving document
+structure such as headings, links, lists, tables, inline code, and code blocks.
+Markdown formatting remains covered separately by `markdownlint-cli2` and
+`mdtablefix`.
 
 Generated audit coverage is tested without network access by replacing Cargo
 with a fake executable. The regression verifies that `make rust-audit` derives
@@ -55,6 +62,7 @@ projects:
 - `syrupy` for generated structured file snapshots in tests.
 - `make-parser` for generated Makefile structure assertions in tests.
 - `hypothesis` for generated-file schema helper property tests.
+- `mdast` for parent documentation semantic snapshot tests.
 - Rust and Cargo through `rustup`.
 - cargo-nextest for generated fast test execution in CI, while generated
   Makefiles still fall back to `cargo test` for contributors.
@@ -87,6 +95,8 @@ Reusable test support lives under `tests/helpers/`:
   project command helpers.
 - `tests/helpers/generated_files.py` centralizes generated text, TOML, and YAML
   parsing with pytest failure messages.
+- `tests/helpers/markdown_semantics.py` parses Markdown as normalized mdast JSON
+  for semantic documentation snapshots.
 - `tests/helpers/tooling_contracts/` contains generated Makefile, Cargo,
   documentation, CI, release, and coverage-action contract assertions.
 - `tests/conftest.py` provides the session-scoped `act_ready` fixture, which

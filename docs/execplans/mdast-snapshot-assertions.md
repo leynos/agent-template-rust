@@ -157,13 +157,32 @@ normalized mdast JSON is equal.
   generated `tests/test_template/__snapshots__/test_documentation_snapshots.ambr`,
   and reran the focused parent gate with `--with mdast`; result was 3 passed,
   19 deselected.
-- [ ] Establish failing generated-project tests for normalized mdast snapshots.
+- [x] 2026-06-28: Established the generated red test by adding
+  `template/tests/documentation_snapshots.rs` without declaring its
+  dev-dependencies. After one formatting-only correction, the focused generated
+  gate
+  `uvx --with pytest-copier --with pyyaml --with syrupy --with make-parser
+  --with hypothesis --with mdast pytest tests/test_template/test_tooling_contracts.py
+  -x 2>&1 | tee /tmp/test-mdast-snapshot-assertions-generated-red-2.out`
+  failed during generated `make all` with unresolved `serde_json`, `insta`,
+  and `markdown` crates.
 - [x] Implement parent-repository mdast normalization and snapshot assertions.
-- [ ] Implement generated Rust-project mdast normalization and snapshot
+- [x] 2026-06-28: Implemented generated Rust-project mdast normalization,
+  `insta` JSON snapshots, and Rust dev-dependencies. The focused generated
+  gate passed across lib, app, and alternate-target lib variants:
+  `uvx --with pytest-copier --with pyyaml --with syrupy --with make-parser
+  --with hypothesis --with mdast pytest tests/test_template/test_tooling_contracts.py
+  2>&1 | tee /tmp/test-mdast-snapshot-assertions-generated-green-6.out`;
+  result was 3 passed.
+- [x] Implement generated Rust-project mdast normalization and snapshot
   assertions.
-- [ ] Update documentation for the new semantic snapshot contract.
-- [ ] Run formatting, linting, and test gates sequentially with `/tmp` logs.
-- [ ] Commit the approved implementation changes after gates pass.
+- [x] Update documentation for the new semantic snapshot contract.
+- [x] 2026-06-28: Ran the full parent gate after parent and generated
+  implementation:
+  `make test 2>&1 | tee /tmp/test-agent-template-rust-mdast-snapshot-assertions-full.out`;
+  result was 52 passed and 1 skipped in 121.45 seconds.
+- [x] Run formatting, linting, and test gates sequentially with `/tmp` logs.
+- [x] Commit the approved implementation changes after gates pass.
 
 ## Surprises & Discoveries
 
@@ -195,6 +214,17 @@ which describes itself as CommonMark compliant with ASTs and extensions and
 offers a `json` feature backed by `serde`. `insta = 1.48.0` is the current
 snapshot crate version and has a `json` feature for JSON snapshots.
 
+The Rust `markdown::to_mdast` API returns `markdown::message::Message` on
+failure, and that message type does not implement `std::error::Error`.
+Generated tests must convert it explicitly at the helper boundary rather than
+using `?` directly into `Box<dyn Error>`.
+
+Generated repository-layout documentation differs between library and
+application flavours. A single rendered `insta` snapshot cannot cover both
+flavours; generated tests now choose `docs_repository_layout_lib` or
+`docs_repository_layout_app` based on whether the rendered layout mentions the
+release workflow.
+
 ## Decision Log
 
 Use normalized mdast JSON as the documentation snapshot contract rather than
@@ -223,6 +253,11 @@ Markdown extensions enabled through `ParseOptions`. Declare it in the parent
 `markdown = { version = "1.0.0", features = ["json"] }`, `serde_json`, and
 `insta = { version = "1.48.0", features = ["json"] }` for generated-project
 documentation snapshot tests.
+
+Use separate generated repository-layout snapshots for library and application
+flavours. This preserves flavour-specific documentation semantics rather than
+normalizing away public files such as `.github/workflows/release.yml` and
+`src/main.rs`.
 
 ## Implementation Plan
 
@@ -321,3 +356,10 @@ This section is intentionally empty in the draft. During implementation, record
 the final parser choices, snapshot files added or changed, gates run, log
 paths, commit hashes, and any lessons about parser compatibility or snapshot
 scope.
+
+Parent mdast snapshot assertions are implemented with Python `mdast` and
+stored in `tests/test_template/__snapshots__/test_documentation_snapshots.ambr`.
+Generated Rust projects use `markdown = 1.0.0`, `serde_json`, and
+`insta = 1.48.0` to parse and snapshot selected documentation files. Generated
+repository-layout snapshots are split by flavour so app-only paths remain part
+of the semantic contract.

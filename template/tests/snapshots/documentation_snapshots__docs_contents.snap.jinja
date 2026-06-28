@@ -1,0 +1,330 @@
+---
+source: tests/documentation_snapshots.rs
+expression: "parse_markdown_semantics_or_panic(include_str!(\"../docs/contents.md\"))"
+---
+{
+  "children": [
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Documentation contents"
+        }
+      ],
+      "depth": 1,
+      "type": "heading"
+    },
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "Documentation contents"
+            }
+          ],
+          "type": "link",
+          "url": "contents.md"
+        },
+        {
+          "type": "text",
+          "value": "is the index for {{ project_name }}'s documentation set."
+        }
+      ],
+      "type": "paragraph"
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Project guides"
+        }
+      ],
+      "depth": 2,
+      "type": "heading"
+    },
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "User guide"
+                    }
+                  ],
+                  "type": "link",
+                  "url": "users-guide.md"
+                },
+                {
+                  "type": "text",
+                  "value": "explains how to use the generated project and its public build and test commands."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Developer guide"
+                    }
+                  ],
+                  "type": "link",
+                  "url": "developers-guide.md"
+                },
+                {
+                  "type": "text",
+                  "value": "explains the local workflow and implementation tooling for contributors."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Repository layout"
+                    }
+                  ],
+                  "type": "link",
+                  "url": "repository-layout.md"
+                },
+                {
+                  "type": "text",
+                  "value": "explains the generated project's top-level files, directories, and ownership boundaries."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Documentation style guide"
+                    }
+                  ],
+                  "type": "link",
+                  "url": "documentation-style-guide.md"
+                },
+                {
+                  "type": "text",
+                  "value": "defines the spelling, structure, Markdown, Architecture Decision Record (ADR), Request for Comments (RFC), and roadmap conventions used by this documentation set."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        }
+      ],
+      "ordered": false,
+      "spread": false,
+      "type": "list"
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Rust reference material"
+        }
+      ],
+      "depth": 2,
+      "type": "heading"
+    },
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Reliable testing in Rust via dependency injection"
+                    }
+                  ],
+                  "type": "link",
+                  "url": "reliable-testing-in-rust-via-dependency-injection.md"
+                },
+                {
+                  "type": "text",
+                  "value": "explains how to keep tests deterministic by injecting environment, clock, filesystem, and other external dependencies."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Rust doctest Don't Repeat Yourself guide"
+                    }
+                  ],
+                  "type": "link",
+                  "url": "rust-doctest-dry-guide.md"
+                },
+                {
+                  "type": "text",
+                  "value": "explains how to write maintainable, executable Rust documentation examples."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Rust testing with"
+                    },
+                    {
+                      "type": "inlineCode",
+                      "value": "rstest"
+                    },
+                    {
+                      "type": "text",
+                      "value": "fixtures"
+                    }
+                  ],
+                  "type": "link",
+                  "url": "rust-testing-with-rstest-fixtures.md"
+                },
+                {
+                  "type": "text",
+                  "value": "explains fixture-based, parameterized, and asynchronous testing with"
+                },
+                {
+                  "type": "inlineCode",
+                  "value": "rstest"
+                },
+                {
+                  "type": "text",
+                  "value": "."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        }
+      ],
+      "ordered": false,
+      "spread": false,
+      "type": "list"
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Engineering practice"
+        }
+      ],
+      "depth": 2,
+      "type": "heading"
+    },
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Complexity antipatterns and refactoring strategies"
+                    }
+                  ],
+                  "type": "link",
+                  "url": "complexity-antipatterns-and-refactoring-strategies.md"
+                },
+                {
+                  "type": "text",
+                  "value": "explains cognitive complexity, the bumpy-road antipattern, and refactoring approaches for maintainable code."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Scripting standards"
+                    }
+                  ],
+                  "type": "link",
+                  "url": "scripting-standards.md"
+                },
+                {
+                  "type": "text",
+                  "value": "explains the preferred Python scripting stack, command execution patterns, and test expectations for helper scripts."
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "spread": false,
+          "type": "listItem"
+        }
+      ],
+      "ordered": false,
+      "spread": false,
+      "type": "list"
+    }
+  ],
+  "type": "root"
+}

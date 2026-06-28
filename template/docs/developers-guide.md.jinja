@@ -17,6 +17,15 @@ The main `.github/workflows/ci.yml` workflow deliberately does not run
 `make test WITH_ACT=1`; the separate Act workflow runs those slower
 container-backed checks in parallel.
 
+Documentation snapshot tests live in `tests/documentation_snapshots.rs`. They
+parse selected Markdown files into normalized mdast JSON before comparing
+`insta` snapshots, so line wrapping and table alignment changes do not churn
+semantic snapshots. Markdown formatting is still checked by `make markdownlint`
+and formatted by `make fmt`. When a documentation meaning or structure change
+is intentional, update the affected `tests/snapshots/*.snap` files with
+`INSTA_UPDATE=always cargo test --test documentation_snapshots`, then review
+the JSON diff before committing it.
+
 ## Tooling
 
 Development builds use Cranelift for debug code generation. On Linux targets,
@@ -26,6 +35,10 @@ LLVM-compatible linker behaviour.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
 full generated workflow locally on Linux.
+
+The documentation snapshot tests use the `markdown`, `serde_json`, and `insta`
+dev-dependencies declared in `Cargo.toml`; no Node or npm Markdown snapshot
+pipeline is required.
 
 ### Security audit ignores
 
