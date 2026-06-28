@@ -403,10 +403,10 @@ def test_parent_makefile_test_target_contract() -> None:
     )
     assert (
         "$(UV) --with pytest-copier --with pyyaml --with syrupy --with make-parser "
-        "--with hypothesis pytest tests/"
+        "--with hypothesis --with mdast pytest tests/"
     ) in makefile, (
         "expected parent Makefile test target to run pytest through $(UV) with "
-        "pytest-copier, pyyaml, syrupy, make-parser, and hypothesis"
+        "pytest-copier, pyyaml, syrupy, make-parser, hypothesis, and mdast"
     )
 
 

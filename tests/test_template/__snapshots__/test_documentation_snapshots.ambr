@@ -1,0 +1,1069 @@
+# serializer version: 1
+# name: test_generated_documentation_semantic_snapshots
+  dict({
+    'docs/contents.md': dict({
+      'children': list([
+        dict({
+          'children': list([
+            dict({
+              'type': 'text',
+              'value': 'Documentation contents',
+            }),
+          ]),
+          'depth': 1,
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'type': 'text',
+                  'value': 'Documentation contents',
+                }),
+              ]),
+              'type': 'link',
+              'url': 'contents.md',
+            }),
+            dict({
+              'type': 'text',
+              'value': " is the index for DocumentationSnapshotExample's documentation set.",
+            }),
+          ]),
+          'type': 'paragraph',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'type': 'text',
+              'value': 'Project guides',
+            }),
+          ]),
+          'depth': 2,
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'children': list([
+                        dict({
+                          'type': 'text',
+                          'value': 'User guide',
+                        }),
+                      ]),
+                      'type': 'link',
+                      'url': 'users-guide.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ' explains how to use the generated project and its public build and test commands.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'children': list([
+                        dict({
+                          'type': 'text',
+                          'value': 'Developer guide',
+                        }),
+                      ]),
+                      'type': 'link',
+                      'url': 'developers-guide.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ' explains the local workflow and implementation tooling for contributors.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'children': list([
+                        dict({
+                          'type': 'text',
+                          'value': 'Repository layout',
+                        }),
+                      ]),
+                      'type': 'link',
+                      'url': 'repository-layout.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': " explains the generated project's top-level files, directories, and ownership boundaries.",
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'children': list([
+                        dict({
+                          'type': 'text',
+                          'value': 'Documentation style guide',
+                        }),
+                      ]),
+                      'type': 'link',
+                      'url': 'documentation-style-guide.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ' defines the spelling, structure, Markdown, Architecture Decision Record (ADR), Request for Comments (RFC), and roadmap conventions used by this documentation set.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+          ]),
+          'ordered': False,
+          'spread': False,
+          'type': 'list',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'type': 'text',
+              'value': 'Rust reference material',
+            }),
+          ]),
+          'depth': 2,
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'children': list([
+                        dict({
+                          'type': 'text',
+                          'value': 'Reliable testing in Rust via dependency injection',
+                        }),
+                      ]),
+                      'type': 'link',
+                      'url': 'reliable-testing-in-rust-via-dependency-injection.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ' explains how to keep tests deterministic by injecting environment, clock, filesystem, and other external dependencies.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'children': list([
+                        dict({
+                          'type': 'text',
+                          'value': "Rust doctest Don't Repeat Yourself guide",
+                        }),
+                      ]),
+                      'type': 'link',
+                      'url': 'rust-doctest-dry-guide.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ' explains how to write maintainable, executable Rust documentation examples.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'children': list([
+                        dict({
+                          'type': 'text',
+                          'value': 'Rust testing with ',
+                        }),
+                        dict({
+                          'type': 'inlineCode',
+                          'value': 'rstest',
+                        }),
+                        dict({
+                          'type': 'text',
+                          'value': ' fixtures',
+                        }),
+                      ]),
+                      'type': 'link',
+                      'url': 'rust-testing-with-rstest-fixtures.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ' explains fixture-based, parameterized, and asynchronous testing with ',
+                    }),
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'rstest',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': '.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+          ]),
+          'ordered': False,
+          'spread': False,
+          'type': 'list',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'type': 'text',
+              'value': 'Engineering practice',
+            }),
+          ]),
+          'depth': 2,
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'children': list([
+                        dict({
+                          'type': 'text',
+                          'value': 'Complexity antipatterns and refactoring strategies',
+                        }),
+                      ]),
+                      'type': 'link',
+                      'url': 'complexity-antipatterns-and-refactoring-strategies.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ' explains cognitive complexity, the bumpy-road antipattern, and refactoring approaches for maintainable code.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'children': list([
+                        dict({
+                          'type': 'text',
+                          'value': 'Scripting standards',
+                        }),
+                      ]),
+                      'type': 'link',
+                      'url': 'scripting-standards.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ' explains the preferred Python scripting stack, command execution patterns, and test expectations for helper scripts.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+          ]),
+          'ordered': False,
+          'spread': False,
+          'type': 'list',
+        }),
+      ]),
+      'type': 'root',
+    }),
+    'docs/repository-layout.md': dict({
+      'children': list([
+        dict({
+          'children': list([
+            dict({
+              'type': 'text',
+              'value': 'Repository layout',
+            }),
+          ]),
+          'depth': 1,
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'type': 'text',
+              'value': 'This document describes the generated DocumentationSnapshotExample repository layout. It is the canonical reference for where source code, tests, configuration, automation, and long-lived documentation belong.',
+            }),
+          ]),
+          'type': 'paragraph',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'type': 'text',
+              'value': 'Top-level tree',
+            }),
+          ]),
+          'depth': 2,
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'type': 'text',
+              'value': 'The tree below shows the generated repository structure. It is intentionally compact and omits build output such as ',
+            }),
+            dict({
+              'type': 'inlineCode',
+              'value': 'target/',
+            }),
+            dict({
+              'type': 'text',
+              'value': '.',
+            }),
+          ]),
+          'type': 'paragraph',
+        }),
+        dict({
+          'lang': 'plaintext',
+          'type': 'code',
+          'value': '''
+            .
+            ├── .cargo/
+            │   └── config.toml
+            ├── .github/
+            │   ├── dependabot.yml
+            │   └── workflows/
+            │       ├── act-validation.yml
+            │       ├── ci.yml
+            
+            │       └── release.yml
+            
+            ├── docs/
+            │   ├── contents.md
+            │   ├── developers-guide.md
+            │   ├── repository-layout.md
+            │   ├── users-guide.md
+            │   └── ...
+            ├── src/
+            
+            │   ├── lib.rs
+            │   └── main.rs
+            
+            ├── tests/
+            │   └── stub.rs
+            ├── AGENTS.md
+            ├── Cargo.toml
+            ├── LICENSE
+            ├── Makefile
+            ├── README.md
+            ├── clippy.toml
+            ├── codecov.yml
+            └── rust-toolchain.toml
+          ''',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'type': 'text',
+              'value': 'Path responsibilities',
+            }),
+          ]),
+          'depth': 2,
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': '.cargo/config.toml',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Configures Cargo defaults for local development, including Linux linker and code-generation settings.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': '.github/dependabot.yml',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Configures automated dependency update checks.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': '.github/workflows/act-validation.yml',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Runs the generated workflow validation through ',
+                    }),
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'act',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ' separately from main CI.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': '.github/workflows/ci.yml',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ": Runs the generated project's continuous integration checks.",
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': '.github/workflows/release.yml',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Builds and publishes binary release artefacts for the application flavour.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'docs/',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Holds long-lived reference documentation, guides, style rules, and design material.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'docs/contents.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Indexes the documentation set and should be updated when documentation files are added, renamed, or removed.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'docs/users-guide.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Explains how to use the generated project and its public build and test commands.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'docs/developers-guide.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Explains the contributor workflow and local tooling used to work on the generated project.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'docs/repository-layout.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Documents the repository tree and path responsibilities.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'src/lib.rs',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Contains library support for application logic and doctested examples.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'src/main.rs',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Contains the application entrypoint and top-level executable wiring.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'tests/',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Holds integration and behavioural tests that exercise public behaviour.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'tests/stub.rs',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Keeps the generated test directory valid until real tests replace it.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'AGENTS.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Provides repository-specific working instructions for agents and contributors.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'Cargo.toml',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Defines package metadata, dependencies, lint policy, and Cargo configuration.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'LICENSE',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Records the project licence text.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'Makefile',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Provides the public build, lint, test, coverage, and documentation validation commands.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'README.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Introduces the project and gives the shortest useful getting-started path.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'clippy.toml',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Configures Clippy lint behaviour that is not expressed directly in ',
+                    }),
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'Cargo.toml',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': '.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'codecov.yml',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Configures coverage reporting behaviour.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'rust-toolchain.toml',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ': Pins the Rust toolchain channel and required components.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+          ]),
+          'ordered': False,
+          'spread': True,
+          'type': 'list',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'type': 'text',
+              'value': 'Ownership boundaries',
+            }),
+          ]),
+          'depth': 2,
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'text',
+                      'value': 'Keep generated source code under ',
+                    }),
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'src/',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': '. Add modules below ',
+                    }),
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'src/',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ' when a feature grows beyond a small entrypoint or crate root.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'text',
+                      'value': 'Keep black-box integration tests and externally observable workflow tests under ',
+                    }),
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'tests/',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': '.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'text',
+                      'value': 'Keep reusable documentation under ',
+                    }),
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'docs/',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': '. Update ',
+                    }),
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'docs/contents.md',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ' whenever a documentation file is added, renamed, or removed.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'text',
+                      'value': 'Keep build and validation entrypoints in ',
+                    }),
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'Makefile',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': '; prefer adding or extending a Make target over documenting an ad hoc command.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'text',
+                      'value': 'Keep continuous integration workflow changes under ',
+                    }),
+                    dict({
+                      'type': 'inlineCode',
+                      'value': '.github/workflows/',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ' and dependency-update policy under ',
+                    }),
+                    dict({
+                      'type': 'inlineCode',
+                      'value': '.github/dependabot.yml',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': '.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'type': 'text',
+                      'value': 'Do not commit generated build output such as ',
+                    }),
+                    dict({
+                      'type': 'inlineCode',
+                      'value': 'target/',
+                    }),
+                    dict({
+                      'type': 'text',
+                      'value': ', coverage artefacts, or local editor state.',
+                    }),
+                  ]),
+                  'type': 'paragraph',
+                }),
+              ]),
+              'spread': False,
+              'type': 'listItem',
+            }),
+          ]),
+          'ordered': False,
+          'spread': False,
+          'type': 'list',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'type': 'text',
+              'value': 'Updating this document',
+            }),
+          ]),
+          'depth': 2,
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'type': 'text',
+              'value': 'Update this document when the repository gains a new top-level directory, a new long-lived documentation category, a new workflow file, or a changed ownership boundary that would otherwise make the tree misleading.',
+            }),
+          ]),
+          'type': 'paragraph',
+        }),
+      ]),
+      'type': 'root',
+    }),
+  })
+# ---

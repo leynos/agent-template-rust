@@ -5,7 +5,7 @@ This ExecPlan (execution plan) is a living document. The sections
 `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
 proceeds.
 
-Status: DRAFT
+Status: IMPLEMENTING
 
 ## Purpose / Big Picture
 
@@ -132,10 +132,33 @@ normalized mdast JSON is equal.
 - [x] 2026-06-28: Ran `make test 2>&1 | tee
   /tmp/test-agent-template-rust-mdast-snapshot-assertions-plan.out`; result was
   50 passed and 1 skipped.
-- [ ] Obtain explicit user approval for implementation.
-- [ ] Establish failing parent-repository tests for normalized mdast snapshots.
+- [x] 2026-06-28: Received explicit user approval to implement the planned
+  functionality and began execution.
+- [x] 2026-06-28: Removed the `Plan: ` prefix from PR #43 and renamed the
+  Lody session to `Validate documentation snapshots with mdast JSON`.
+- [x] 2026-06-28: Inventoried snapshot and documentation assertion surfaces.
+  The only existing syrupy snapshot test is
+  `tests/test_template/test_snapshots.py`, covering generated tooling files.
+  Existing generated documentation assertions live in
+  `tests/helpers/tooling_contracts/documentation.py` and are raw string
+  contract checks rather than semantic snapshots. No generated-project
+  `insta` documentation snapshot tests currently exist.
+- [x] 2026-06-28: Established the parent red test by adding
+  `tests/test_template/test_documentation_snapshots.py` before the helper
+  existed. The focused run
+  `uvx --with pytest-copier --with pyyaml --with syrupy --with make-parser
+  --with hypothesis pytest tests/test_template -k 'snapshot or documentation'
+  2>&1 | tee /tmp/test-mdast-snapshot-assertions-focused-parent-red.out`
+  failed during collection with `ModuleNotFoundError:
+  tests.helpers.markdown_semantics`.
+- [x] 2026-06-28: Implemented the parent mdast helper in
+  `tests/helpers/markdown_semantics.py`, declared `mdast` in the parent
+  `Makefile` uvx dependency list, updated the parent Makefile contract test,
+  generated `tests/test_template/__snapshots__/test_documentation_snapshots.ambr`,
+  and reran the focused parent gate with `--with mdast`; result was 3 passed,
+  19 deselected.
 - [ ] Establish failing generated-project tests for normalized mdast snapshots.
-- [ ] Implement parent-repository mdast normalization and snapshot assertions.
+- [x] Implement parent-repository mdast normalization and snapshot assertions.
 - [ ] Implement generated Rust-project mdast normalization and snapshot
   assertions.
 - [ ] Update documentation for the new semantic snapshot contract.
@@ -161,6 +184,17 @@ generated structured file snapshots. That wording will need to remain true for
 tooling snapshots while new wording explains mdast JSON snapshots for
 documentation semantics.
 
+Python package discovery found a `mdast` package that emits unified-style
+mdast dictionaries and supports opt-in GitHub Flavoured Markdown extensions
+for tables, task-list items, footnotes, strikethrough, and autolink literals.
+Those extension flags must be enabled explicitly; otherwise tables and
+task-list checkboxes are parsed as plain paragraph or text content.
+
+Rust crate discovery found `markdown = 1.0.0`, the Rust `markdown-rs` crate,
+which describes itself as CommonMark compliant with ASTs and extensions and
+offers a `json` feature backed by `serde`. `insta = 1.48.0` is the current
+snapshot crate version and has a `json` feature for JSON snapshots.
+
 ## Decision Log
 
 Use normalized mdast JSON as the documentation snapshot contract rather than
@@ -182,6 +216,13 @@ Keep raw tooling-file snapshots out of scope unless they are documentation
 snapshots. Existing snapshots for `Makefile`, `.cargo/config.toml`, and
 GitHub Actions workflows validate structured tooling output, not Markdown
 documentation semantics.
+
+Use Python `mdast` for the parent pytest helper, with GitHub Flavoured
+Markdown extensions enabled through `ParseOptions`. Declare it in the parent
+`Makefile` `uvx --with ...` invocation before importing it in tests. Use Rust
+`markdown = { version = "1.0.0", features = ["json"] }`, `serde_json`, and
+`insta = { version = "1.48.0", features = ["json"] }` for generated-project
+documentation snapshot tests.
 
 ## Implementation Plan
 
