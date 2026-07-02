@@ -137,10 +137,12 @@
               'env': dict({
                 'RUSTFLAGS': '',
               }),
+              'if': "github.actor != 'dependabot[bot]'",
               'name': 'Install cargo-audit',
               'run': 'cargo binstall --no-confirm cargo-audit',
             }),
             dict({
+              'if': "github.actor != 'dependabot[bot]'",
               'name': 'Setup Python for audit manifest extraction',
               'uses': 'actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405',
               'with': dict({
@@ -182,6 +184,7 @@
               ''',
             }),
             dict({
+              'if': "github.actor != 'dependabot[bot]'",
               'name': 'Audit dependencies',
               'run': 'make audit',
             }),
