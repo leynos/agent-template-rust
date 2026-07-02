@@ -11,7 +11,6 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 7
-      semver-major-days: 14
 
   # Enable version updates for pip (template test harness requirements)
   - package-ecosystem: "pip"
