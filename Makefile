@@ -1,4 +1,4 @@
-.PHONY: help spelling test
+.PHONY: help check-fmt fmt lint spelling typecheck test
 
 MAKEFLAGS += --no-print-directory
 
@@ -7,13 +7,27 @@ TYPOS_VERSION ?= 1.48.0
 TYPOS := uv tool run typos@$(TYPOS_VERSION)
 WITH_ACT ?= 0
 ACT_TEST_ENV = $(if $(filter 1 true yes on,$(WITH_ACT)),RUN_ACT_VALIDATION=1,)
+PYTEST_DEPS = --with pytest-copier --with pyyaml --with syrupy --with make-parser --with hypothesis
+MYPY_DEPS = $(PYTEST_DEPS) --with types-PyYAML
 
 test: ## Run template tests
 	@if [ -z "$(strip $(UV))" ]; then \
 		echo "uvx is required to run template tests. Install uv from https://docs.astral.sh/uv/getting-started/installation/" >&2; \
 		exit 1; \
 	fi
-	$(ACT_TEST_ENV) $(UV) --with pytest-copier --with pyyaml --with syrupy --with make-parser --with hypothesis pytest tests/
+	$(ACT_TEST_ENV) $(UV) $(PYTEST_DEPS) pytest tests/
+
+check-fmt: ## Verify parent Python formatting
+	$(UV) --with ruff ruff format --check tests/
+
+fmt: ## Format parent Python tests
+	$(UV) --with ruff ruff format tests/
+
+lint: ## Lint parent Python tests
+	$(UV) --with ruff ruff check tests/
+
+typecheck: ## Type-check parent Python tests
+	$(UV) --with mypy $(MYPY_DEPS) mypy tests/
 
 spelling: ## Enforce en-GB-oxendict spelling in parent and template prose
 	uv run scripts/generate_typos_config.py

@@ -35,8 +35,10 @@ json_value = st.recursive(
     | st.integers()
     | st.floats(allow_nan=False, allow_infinity=False)
     | st.text(),
-    lambda children: st.lists(children, max_size=4)
-    | st.dictionaries(st.text(), children, max_size=4),
+    lambda children: (
+        st.lists(children, max_size=4)
+        | st.dictionaries(st.text(), children, max_size=4)
+    ),
     max_leaves=12,
 )
 
@@ -216,8 +218,7 @@ def test_ci_coverage_action_contract_validates_edges() -> None:
             _ci_workflow(
                 persist_credentials="false",
                 coverage_inputs=(
-                    "          output-path: lcov.info\n"
-                    "          format: cobertura\n"
+                    "          output-path: lcov.info\n          format: cobertura\n"
                 ),
             )
         )
@@ -264,9 +265,10 @@ def test_resolved_socket_from_docker_host_accepts_allowed_unix_path(
     allowed_dir.mkdir()
     socket_path = allowed_dir / "docker.sock"
 
-    assert _resolved_socket_from_docker_host(
-        f"unix://{socket_path}", (allowed_dir,)
-    ) == socket_path
+    assert (
+        _resolved_socket_from_docker_host(f"unix://{socket_path}", (allowed_dir,))
+        == socket_path
+    )
 
 
 def test_docker_environment_preserves_valid_unix_socket(
@@ -278,9 +280,7 @@ def test_docker_environment_preserves_valid_unix_socket(
     socket_path = allowed_dir / "docker.sock"
     docker_host = f"unix://{socket_path}"
     monkeypatch.setenv("DOCKER_HOST", docker_host)
-    monkeypatch.setattr(
-        utilities, "local_socket_dirs", lambda: (allowed_dir,)
-    )
+    monkeypatch.setattr(utilities, "local_socket_dirs", lambda: (allowed_dir,))
 
     assert docker_environment()["DOCKER_HOST"] == docker_host
 
@@ -296,9 +296,7 @@ def test_docker_environment_removes_credentials(
     monkeypatch.setenv("GITHUB_TOKEN", "secret-token")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret-key")
     monkeypatch.setenv("SOME_API_KEY", "api-key")
-    monkeypatch.setattr(
-        utilities, "local_socket_dirs", lambda: (allowed_dir,)
-    )
+    monkeypatch.setattr(utilities, "local_socket_dirs", lambda: (allowed_dir,))
 
     env = docker_environment()
 
@@ -371,9 +369,7 @@ def test_container_daemon_socket_uses_valid_docker_host(
     runtime_dir.mkdir()
     socket_path = runtime_dir / "docker.sock"
     monkeypatch.setenv("DOCKER_HOST", f"unix://{socket_path}")
-    monkeypatch.setattr(
-        utilities, "user_runtime_socket_dirs", lambda: (runtime_dir,)
-    )
+    monkeypatch.setattr(utilities, "user_runtime_socket_dirs", lambda: (runtime_dir,))
 
     assert container_daemon_socket() == f"unix://{socket_path}"
 
@@ -396,8 +392,8 @@ def test_parent_makefile_test_target_contract() -> None:
     """Validate the parent repository ``test`` target command contract."""
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
-    assert ".PHONY: help spelling test" in makefile, (
-        "expected parent Makefile to mark help, spelling, and test as phony targets"
+    assert ".PHONY: help check-fmt fmt lint spelling typecheck test" in makefile, (
+        "expected parent Makefile to mark all public gate targets phony"
     )
     assert "UV := $(shell command -v uvx 2>/dev/null)" in makefile, (
         "expected parent Makefile to resolve uvx before running tests"
@@ -417,12 +413,18 @@ def test_parent_makefile_test_target_contract() -> None:
     assert "$(error uvx is required" not in makefile, (
         "expected parent Makefile not to fail at parse time when uvx is missing"
     )
-    assert (
-        "$(UV) --with pytest-copier --with pyyaml --with syrupy --with make-parser "
-        "--with hypothesis pytest tests/"
-    ) in makefile, (
+    assert ("$(ACT_TEST_ENV) $(UV) $(PYTEST_DEPS) pytest tests/") in makefile, (
         "expected parent Makefile test target to run pytest through $(UV) with "
-        "pytest-copier, pyyaml, syrupy, make-parser, and hypothesis"
+        "the shared pytest dependency list"
+    )
+    assert "$(UV) --with ruff ruff format --check tests/" in makefile, (
+        "expected parent Makefile check-fmt target to run ruff format checks"
+    )
+    assert "$(UV) --with ruff ruff check tests/" in makefile, (
+        "expected parent Makefile lint target to run ruff lint checks"
+    )
+    assert "$(UV) --with mypy $(MYPY_DEPS) mypy tests/" in makefile, (
+        "expected parent Makefile typecheck target to run mypy"
     )
 
 

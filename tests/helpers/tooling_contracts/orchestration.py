@@ -94,9 +94,7 @@ def assert_generated_tooling_contracts(
     _assert_ci_workflow_contracts(
         parsed_ci_workflow, ci_workflow, act_workflow, test_stub
     )
-    assert_documentation_navigation_contracts(
-        docs_contents, repository_layout, flavour
-    )
+    assert_documentation_navigation_contracts(docs_contents, repository_layout, flavour)
     assert "[Documentation contents](docs/contents.md)" in readme, (
         "expected generated README to link to the documentation contents"
     )

@@ -5,4 +5,3 @@ generated file parsing, rendering helpers, and generated tooling contract
 assertions. Fixtures remain in :mod:`tests.conftest`, while container-aware
 runtime helpers remain in :mod:`tests.utilities`.
 """
-

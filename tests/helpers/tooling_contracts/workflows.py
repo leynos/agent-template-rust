@@ -181,9 +181,7 @@ def _assert_ci_workflow_contracts(
     )
 
     parsed_act_workflow = parse_yaml_mapping(act_workflow, "act-validation workflow")
-    act_jobs = require_mapping(
-        parsed_act_workflow, "jobs", "act-validation workflow"
-    )
+    act_jobs = require_mapping(parsed_act_workflow, "jobs", "act-validation workflow")
     act_validation = require_mapping(
         act_jobs, "act-validation", "act-validation workflow jobs"
     )
@@ -228,9 +226,7 @@ def _assert_ci_workflow_contracts(
         assert len(matching_steps) == 1, (
             f"expected generated CI to include one {step_name} step"
         )
-        rust_tool_env = require_mapping(
-            matching_steps[0], "env", f"{step_name} step"
-        )
+        rust_tool_env = require_mapping(matching_steps[0], "env", f"{step_name} step")
         assert rust_tool_env.get("RUSTFLAGS") == "", (
             f"expected generated CI {step_name} step to clear inherited RUSTFLAGS"
         )
@@ -352,7 +348,7 @@ def _assert_release_workflow_contracts(release_workflow: str) -> None:
     assert "aarch64-pc-windows-gnullvm" not in release_workflow, (
         "expected app release workflow to omit unsupported cross targets"
     )
-    assert 'key: cross-${{ env.CROSS_REVISION }}' in release_workflow, (
+    assert "key: cross-${{ env.CROSS_REVISION }}" in release_workflow, (
         "expected app release workflow to cache cross by revision"
     )
     assert "files: |" in release_workflow, (

@@ -11,9 +11,7 @@ from tests.helpers.rendering import APP, LIB, render_project
 
 
 @pytest.mark.parametrize("flavour", [LIB, APP])
-def test_template_compiles(
-    tmp_path: Path, copier: CopierFixture, flavour: str
-) -> None:
+def test_template_compiles(tmp_path: Path, copier: CopierFixture, flavour: str) -> None:
     """Generated project compiles with cargo check."""
     project = render_project(
         tmp_path,

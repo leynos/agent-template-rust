@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -52,7 +53,9 @@ def _resolved_socket_from_docker_host(
 def _user_podman_socket() -> Path:
     """Return the current user's Podman socket path."""
     runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
-    runtime_path = Path(runtime_dir) if runtime_dir else Path(f"/run/user/{os.getuid()}")
+    runtime_path = (
+        Path(runtime_dir) if runtime_dir else Path(f"/run/user/{os.getuid()}")
+    )
     return runtime_path.expanduser().resolve() / "podman" / "podman.sock"
 
 
@@ -97,7 +100,7 @@ def docker_environment() -> dict[str, str]:
     return env
 
 
-def container_daemon_socket(env: dict[str, str] | None = None) -> str | None:
+def container_daemon_socket(env: Mapping[str, str] | None = None) -> str | None:
     """Return a validated ``act`` container daemon socket value."""
     should_fallback = env is None
     env = os.environ if env is None else env
