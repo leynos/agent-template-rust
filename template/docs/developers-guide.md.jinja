@@ -34,3 +34,30 @@ RustSec advisories that affect unused or tooling-only dependency paths. Keep
 each ignore tied to a documented runtime impact analysis, and remove it when
 the affected dependency leaves the graph or the project starts using the
 advised runtime path.
+{% if en_gb_oxendict %}
+## Spelling gate
+
+Markdown prose is checked for en-GB-oxendict (Oxford "-ize") spelling with
+[`typos`](https://github.com/crate-ci/typos). The gate has two layers:
+
+- `typos.toml` is generated configuration: the `en-gb` locale corrects
+  American spellings, and a generated `extend-words` table restores the
+  Oxford `-ize` forms the locale would otherwise reject. Never edit its
+  entries by hand.
+- `scripts/generate_typos_config.py` is the single source of truth. To add
+  a new Oxford `-ize` stem, accept a word verbatim, or ignore a pattern,
+  edit its `STEMS`, `EXTRA_ACCEPTED_WORDS`, or `extend-ignore-re` lists and
+  regenerate with `python3 scripts/generate_typos_config.py`.
+
+`make spellcheck` first runs the generator's `--check` mode, which parses
+the generated document (failing fast on duplicate keys), asserts the entry
+count, and fails on drift between `typos.toml` and the generator. It then
+runs `typos` over the Markdown files at the version pinned by the Makefile
+`TYPOS_VERSION` variable through `uv tool run`, so local runs and CI use
+the same version. `make markdownlint` depends on `make spellcheck`, and CI
+runs it as a dedicated step.
+
+Quoted APIs and identifiers keep their upstream spelling; put them in
+backticks or fenced code blocks, which the spelling gate ignores, rather
+than adding word-level exceptions.
+{% endif %}

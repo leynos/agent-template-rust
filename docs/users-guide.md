@@ -21,6 +21,9 @@ metadata used in the generated `Cargo.toml`:
 - `license_year` sets the copyright year in `LICENSE`.
 - `dev_target` selects the target-specific Linux linker block generated in
   `.cargo/config.toml`.
+- `en_gb_oxendict` (default `true`) adds an en-GB-oxendict (Oxford "-ize")
+  spelling gate: a generated `typos.toml`, its generator script, a
+  `make spellcheck` target wired into `make markdownlint`, and a CI step.
 
 ## Generated Tooling
 
@@ -48,7 +51,10 @@ The generated `Makefile` exposes these public targets:
 - `make coverage` writes `lcov.info` using `cargo llvm-cov` and `lld`.
 - `make audit` derives the Rust workspace root with `cargo metadata` and runs
   `cargo audit` once from that root.
-- `make markdownlint` checks Markdown files.
+- `make markdownlint` checks Markdown files. When `en_gb_oxendict` is
+  enabled it also runs `make spellcheck`, which checks `typos.toml` for
+  drift from its generator and enforces en-GB-oxendict spelling with
+  `typos`.
 - `make nixie` validates Mermaid diagrams.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the

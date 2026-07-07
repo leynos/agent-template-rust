@@ -21,9 +21,10 @@ def render_project(
     flavour: str = LIB,
     license_year: int | None = 2026,
     dev_target: str = "x86_64-unknown-linux-gnu",
+    en_gb_oxendict: bool = True,
 ) -> CopierProject:
     """Render a generated Rust project with publishable metadata."""
-    answers: dict[str, str | int] = {
+    answers: dict[str, str | int | bool] = {
         "project_name": project_name,
         "package_name": package_name,
         "package_description": f"{project_name} package used by template tests.",
@@ -35,6 +36,7 @@ def render_project(
         "license_email": f"{package_name}@example.com",
         "flavour": flavour,
         "dev_target": dev_target,
+        "en_gb_oxendict": en_gb_oxendict,
     }
     if license_year is not None:
         answers["license_year"] = license_year

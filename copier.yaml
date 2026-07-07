@@ -98,3 +98,8 @@ dev_target:
   default: 'x86_64-unknown-linux-gnu'
   help: 'Optional Linux target triple for mold linker config'
   placeholder: 'e.g. x86_64-unknown-linux-gnu'
+
+en_gb_oxendict:
+  type: bool
+  default: true
+  help: 'Enforce en-GB Oxford ("-ize") spelling in documentation via a typos gate?'
