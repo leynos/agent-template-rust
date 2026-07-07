@@ -20,6 +20,7 @@ def render_project(
     package_name: str,
     flavour: str = LIB,
     enable_polonius: bool | None = None,
+    en_gb_oxendict: bool = True,
     license_year: int | None = 2026,
     dev_target: str = "x86_64-unknown-linux-gnu",
 ) -> CopierProject:
@@ -40,6 +41,9 @@ def render_project(
     enable_polonius : bool | None
         Explicit Polonius selection. ``None`` omits the answer so Copier uses
         the flavour-based default; a Boolean overrides that default.
+    en_gb_oxendict : bool
+        Explicit spelling-gate selection. Defaults to the template's enabled
+        state and can be disabled to verify that renders omit every trace.
     license_year : int | None
         Copyright year. ``None`` omits the answer so Copier uses its default.
     dev_target : str
@@ -62,6 +66,7 @@ def render_project(
         "license_email": f"{package_name}@example.com",
         "flavour": flavour,
         "dev_target": dev_target,
+        "en_gb_oxendict": en_gb_oxendict,
     }
     if enable_polonius is not None:
         answers["enable_polonius"] = enable_polonius
