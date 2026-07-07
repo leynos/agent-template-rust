@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release coverage lint fmt check-fmt markdownlint nixie audit rust-audit
+.PHONY: help all clean test build release coverage lint fmt check-fmt markdownlint nixie audit rust-audit{% if en_gb_oxendict %} spellcheck{% endif %}
 
 SHELL := bash
 
@@ -23,6 +23,13 @@ COVERAGE_LINKER_FLAGS ?= -fuse-ld=lld
 COVERAGE_RUST_FLAGS ?= $(RUST_FLAGS) -C link-arg=$(COVERAGE_LINKER_FLAGS)
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
+{% if en_gb_oxendict %}
+# Single source of truth for the typos version; CI consumes it through the
+# spellcheck target, so the Makefile and CI cannot drift apart.
+TYPOS_VERSION ?= 1.48.0
+TYPOS = uv tool run typos@$(TYPOS_VERSION)
+MD_FILES_FIND = find . -type f -name '*.md' -not -path './target/*' -not -path './node_modules/*' -print0
+{% endif %}
 WHITAKER ?= $(or $(shell command -v whitaker 2>/dev/null),$(wildcard $(USER_WHITAKER)),whitaker)
 
 build: target/debug/$(TARGET) ## Build debug binary
@@ -64,8 +71,17 @@ fmt: ## Format Rust and Markdown sources
 check-fmt: ## Verify formatting
 	$(CARGO) fmt --all -- --check
 
+{% if en_gb_oxendict %}
+markdownlint: spellcheck ## Lint Markdown files and enforce en-GB-oxendict spelling
+	$(MDLINT) '**/*.md'
+
+spellcheck: ## Check typos.toml drift and enforce en-GB-oxendict spelling
+	python3 scripts/generate_typos_config.py --check
+	$(MD_FILES_FIND) | xargs -0 $(TYPOS) --config typos.toml --force-exclude
+{% else %}
 markdownlint: ## Lint Markdown files
 	$(MDLINT) '**/*.md'
+{% endif %}
 
 nixie: ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox

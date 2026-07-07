@@ -30,6 +30,10 @@ The generated `Makefile` exposes these public targets:
 - `make audit` derives the Rust workspace root with `cargo metadata` and runs
   `cargo audit` once from that root.
 - `make markdownlint` checks Markdown files.
+{%- if en_gb_oxendict %} It also runs `make spellcheck`.
+- `make spellcheck` checks `typos.toml` for drift from its generator and
+  enforces en-GB-oxendict spelling over Markdown files with `typos`.
+{%- endif %}
 - `make nixie` validates Mermaid diagrams.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the

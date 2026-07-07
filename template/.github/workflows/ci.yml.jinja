@@ -1,3 +1,4 @@
+{% raw %}
 name: CI
 
 'on':
@@ -39,7 +40,9 @@ jobs:
             !**/dist/**
       - name: Setup uv
         uses: astral-sh/setup-uv@12d13f90bc3a5a1971bebad4beb09a4dfa962e91
-      - name: Install test runner
+{% endraw %}{% if en_gb_oxendict %}      - name: Spelling (typos)
+        run: make spellcheck
+{% endif %}{% raw %}      - name: Install test runner
         env:
           RUSTFLAGS: ""
         run: cargo binstall --no-confirm cargo-nextest
@@ -105,3 +108,4 @@ jobs:
           format: lcov
           access-token: ${{ env.CS_ACCESS_TOKEN }}
           installer-checksum: ${{ vars.CODESCENE_CLI_SHA256 }}
+{% endraw %}
