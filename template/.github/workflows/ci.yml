@@ -64,12 +64,13 @@ jobs:
       - name: Install Whitaker
         env:
           RUSTFLAGS: ""
+          WHITAKER_CACHE_HIT: ${{ steps.cache-whitaker.outputs.cache-hit }}
         run: |
           set -euo pipefail
-          echo "Whitaker cache hit: ${{ steps.cache-whitaker.outputs.cache-hit }}"
-          if [ "${{ steps.cache-whitaker.outputs.cache-hit }}" != "true" ]; then
+          echo "Whitaker cache hit: ${WHITAKER_CACHE_HIT}"
+          if [ "${WHITAKER_CACHE_HIT}" != "true" ]; then
             echo "Installing whitaker-installer ${WHITAKER_INSTALLER_VERSION}"
-            cargo binstall --no-confirm \
+            cargo binstall --no-confirm --locked \
               whitaker-installer@"${WHITAKER_INSTALLER_VERSION}"
           fi
           whitaker-installer --cranelift
