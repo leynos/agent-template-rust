@@ -72,7 +72,7 @@
           'env': dict({
             'BUILD_PROFILE': 'debug',
             'CARGO_TERM_COLOR': 'always',
-            'WHITAKER_INSTALLER_REV': 'f768c2e53c47df13658af1168a67851d388750bf',
+            'WHITAKER_INSTALLER_VERSION': '0.2.5',
           }),
           'permissions': dict({
             'contents': 'read',
@@ -147,7 +147,7 @@
               'name': 'Cache Whitaker installation',
               'uses': 'actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae',
               'with': dict({
-                'key': 'whitaker-v2-${{ runner.os }}-${{ env.WHITAKER_INSTALLER_REV }}',
+                'key': 'whitaker-v3-${{ runner.os }}-${{ env.WHITAKER_INSTALLER_VERSION }}',
                 'path': '''
                   ~/.cargo/bin/whitaker-installer
                   ~/.local/bin/whitaker
@@ -160,17 +160,16 @@
             dict({
               'env': dict({
                 'RUSTFLAGS': '',
+                'WHITAKER_CACHE_HIT': '${{ steps.cache-whitaker.outputs.cache-hit }}',
               }),
               'name': 'Install Whitaker',
               'run': '''
                 set -euo pipefail
-                echo "Whitaker cache hit: ${{ steps.cache-whitaker.outputs.cache-hit }}"
-                if [ "${{ steps.cache-whitaker.outputs.cache-hit }}" != "true" ]; then
-                  echo "Installing Whitaker installer at ${WHITAKER_INSTALLER_REV}"
-                  cargo install --locked \
-                    --git https://github.com/leynos/whitaker \
-                    --rev "${WHITAKER_INSTALLER_REV}" \
-                    whitaker-installer
+                echo "Whitaker cache hit: ${WHITAKER_CACHE_HIT}"
+                if [ "${WHITAKER_CACHE_HIT}" != "true" ]; then
+                  echo "Installing whitaker-installer ${WHITAKER_INSTALLER_VERSION}"
+                  cargo binstall --no-confirm --locked \
+                    whitaker-installer@"${WHITAKER_INSTALLER_VERSION}"
                 fi
                 whitaker-installer --cranelift
                 echo "Whitaker binary: $(command -v whitaker || true)"

@@ -187,7 +187,7 @@ def _assert_ci_workflow_contracts(
     assert "Whitaker cache hit:" in ci_workflow, (
         "expected generated CI workflow to log Whitaker cache status"
     )
-    assert "Installing Whitaker installer at" in ci_workflow, (
+    assert "Installing whitaker-installer" in ci_workflow, (
         "expected generated CI workflow to log Whitaker installation"
     )
     assert "Whitaker binary:" in ci_workflow, (
