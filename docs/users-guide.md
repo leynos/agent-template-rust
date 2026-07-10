@@ -38,7 +38,7 @@ tools expect LLVM-compatible linker behaviour.
 
 The generated `Makefile` exposes these public targets:
 
-- `make all` runs formatting checks, linting, and tests.
+- `make all` runs formatting checks, linting, tests, and spelling checks.
 - `make check-fmt` verifies Rust formatting.
 - `make lint` runs rustdoc, Clippy, and Whitaker with warnings denied.
 - `make test` runs `cargo nextest run` when cargo-nextest is installed and
@@ -48,7 +48,11 @@ The generated `Makefile` exposes these public targets:
 - `make coverage` writes `lcov.info` using `cargo llvm-cov` and `lld`.
 - `make audit` derives the Rust workspace root with `cargo metadata` and runs
   `cargo audit` once from that root.
-- `make markdownlint` checks Markdown files.
+- `make markdownlint` checks Markdown files and enforces en-GB-oxendict
+  spelling through the pinned `typos` release.
+- `make spelling` refreshes the shared Oxford dictionary when its published
+  source is newer than the ignored local cache, generates `typos.toml`, and
+  checks Markdown prose.
 - `make nixie` validates Mermaid diagrams.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the

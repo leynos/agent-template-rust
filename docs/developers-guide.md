@@ -22,6 +22,24 @@ The tests render both library and application projects, run generated public
 gates such as `make all`, validate generated Makefiles with `mbake`, and parse
 generated `Cargo.toml` files as TOML.
 
+## Shared Oxford Spelling Gate
+
+Both the template repository and rendered projects enforce en-GB-oxendict
+Markdown spelling with `typos` 1.48.0. The tracked `typos.toml` is generated;
+never edit its entries manually. Put a verified product name, upstream term, or
+repository-specific correction in `typos.local.toml`, then run:
+
+```sh
+uv run scripts/generate_typos_config.py
+```
+
+The generator collects the shared dictionary from
+`leynos/agent-helper-scripts` into the ignored local cache only when the remote
+source is newer. It validates and atomically replaces that cache, retains a
+newer local copy, and supports offline reuse once populated. `make spelling`
+regenerates the tracked configuration before checking maintained Markdown and
+rendered Markdown templates.
+
 Generated audit coverage is tested without network access by replacing Cargo
 with a fake executable. The regression verifies that `make rust-audit` derives
 the workspace root from `cargo metadata`, ignores manifests outside workspace
@@ -92,7 +110,7 @@ Reusable test support lives under `tests/helpers/`:
 - `tests/conftest.py` provides the session-scoped `act_ready` fixture, which
   skips act-dependent tests unless `RUN_ACT_VALIDATION=1` is set and at least
   one container runtime is reachable.
-- `tests/test_github_actions_integration.py` renders a project, initialises it
+- `tests/test_github_actions_integration.py` renders a project, initializes it
   as a Git repository, runs the generated act-validation workflow through
   `act`, and asserts black-box Rust test evidence from JSON event logs.
 - `tests/test_parent_ci.py` asserts that parent main CI keeps act validation

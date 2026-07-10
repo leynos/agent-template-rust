@@ -24,13 +24,14 @@ def test_parent_ci_runs_template_tests_without_act_enabled() -> None:
     assert "run: make test" in workflow, (
         "expected parent main CI to run ordinary template tests"
     )
+    assert "run: make spelling" in workflow, (
+        "expected parent main CI to enforce spelling before template tests"
+    )
 
 
 def test_parent_act_validation_runs_template_tests_with_act_enabled() -> None:
     """Validate parent act workflow runs the act-enabled parent test gate."""
-    workflow = Path(".github/workflows/act-validation.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = Path(".github/workflows/act-validation.yml").read_text(encoding="utf-8")
 
     assert "ACT_VERSION: v0.2.80" in workflow, (
         "expected parent act workflow to pin the act release used for workflow tests"

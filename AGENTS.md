@@ -27,6 +27,17 @@ The repository Makefile exposes the expected entrypoint:
 make test
 ```
 
+Markdown spelling is enforced separately with the pinned `typos` release:
+
+```sh
+make spelling
+```
+
+The tracked `typos.toml` is generated from the estate-wide shared dictionary
+and `typos.local.toml`. Add only narrow product-name, upstream-term, or fixture
+exceptions to the local overlay, then regenerate with
+`uv run scripts/generate_typos_config.py`.
+
 That target currently runs:
 
 ```sh
@@ -59,3 +70,5 @@ make test 2>&1 | tee /tmp/test-agent-template-rust-$(git branch --show-current).
 ```
 
 Review the log before committing if the terminal output is truncated.
+
+Run `make spelling` after changing Markdown or Markdown templates.

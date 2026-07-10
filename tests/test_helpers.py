@@ -380,8 +380,8 @@ def test_parent_makefile_test_target_contract() -> None:
     """Validate the parent repository ``test`` target command contract."""
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
-    assert ".PHONY: help test" in makefile, (
-        "expected parent Makefile to mark help and test as phony targets"
+    assert ".PHONY: help spelling test" in makefile, (
+        "expected parent Makefile to mark help, spelling, and test as phony targets"
     )
     assert "UV := $(shell command -v uvx 2>/dev/null)" in makefile, (
         "expected parent Makefile to resolve uvx before running tests"
