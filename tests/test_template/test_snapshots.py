@@ -28,6 +28,7 @@ def test_generated_structured_file_snapshots(
 
     cargo_config = read_generated_text(project / ".cargo/config.toml")
     makefile = read_generated_text(project / "Makefile")
+    makefile_snapshot = makefile.replace("\t", "\\t")
     ci_workflow = parse_yaml_mapping(
         read_generated_text(project / ".github/workflows/ci.yml"), "CI workflow"
     )
@@ -42,7 +43,7 @@ def test_generated_structured_file_snapshots(
 
     assert {
         "cargo_config": cargo_config,
-        "makefile": makefile,
+        "makefile": makefile_snapshot,
         "act_workflow": act_workflow,
         "ci_workflow": ci_workflow,
         "release_workflow": release_workflow,

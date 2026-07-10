@@ -23,6 +23,7 @@ def _assert_makefile_contracts(makefile: str) -> None:
         "markdownlint",
         "nixie",
         "rust-audit",
+        "spelling",
         "test",
         "typecheck",
     ]:
@@ -56,6 +57,15 @@ def _assert_makefile_contracts(makefile: str) -> None:
     )
     assert "$(WHITAKER) --all -- $(CARGO_FLAGS)" in makefile, (
         "expected generated Makefile lint target to run Whitaker"
+    )
+    assert "TYPOS_VERSION ?= 1.48.0" in makefile, (
+        "expected generated Makefile to pin the spelling tool version"
+    )
+    assert "+$(MAKE) spelling" in makefile, (
+        "expected generated comprehensive and Markdown gates to enforce spelling"
+    )
+    assert "uv run scripts/generate_typos_config.py" in makefile, (
+        "expected generated spelling gate to refresh the shared dictionary"
     )
     assert 'echo "Whitaker binary: $(WHITAKER)"' in makefile, (
         "expected generated Makefile lint target to log Whitaker resolution"

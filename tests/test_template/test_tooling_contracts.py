@@ -49,14 +49,18 @@ def test_generated_tooling_contracts(
     makefile = read_generated_text(project / "Makefile")
     cargo_config = read_generated_text(project / ".cargo/config.toml")
     ci_workflow = read_generated_text(project / ".github/workflows/ci.yml")
-    act_workflow = read_generated_text(
-        project / ".github/workflows/act-validation.yml"
-    )
+    act_workflow = read_generated_text(project / ".github/workflows/act-validation.yml")
     docs_contents = read_generated_text(project / "docs/contents.md")
     repository_layout = read_generated_text(project / "docs/repository-layout.md")
     readme = read_generated_text(project / "README.md")
     rust_toolchain = read_generated_text(project / "rust-toolchain.toml")
     test_stub = read_generated_text(project / "tests/stub.rs")
+    typos_config = read_generated_text(project / "typos.toml")
+    typos_overlay = read_generated_text(project / "typos.local.toml")
+    spelling_generator = read_generated_text(
+        project / "scripts/generate_typos_config.py"
+    )
+    spelling_core = read_generated_text(project / "scripts/typos_rollout.py")
     parsed_ci_workflow = parse_yaml_mapping(ci_workflow, "CI workflow")
 
     release_workflow = (
@@ -81,3 +85,7 @@ def test_generated_tooling_contracts(
         test_stub=test_stub,
         release_workflow=release_workflow,
     )
+    assert '[default]\nlocale = "en-gb"' in typos_config
+    assert 'accepted = ["Flavored", "mold"]' in typos_overlay
+    assert "DEFAULT_BASE_URL" in spelling_generator
+    assert "_local_cache_is_current" in spelling_core

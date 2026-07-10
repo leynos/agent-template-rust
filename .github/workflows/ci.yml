@@ -30,6 +30,8 @@ jobs:
             && sudo apt-get install --yes --no-install-recommends clang lld mold
       - name: Setup uv
         uses: astral-sh/setup-uv@c5680ec91f7b9b91406fab4ded5d45245abf7b67
+      - name: Check spelling
+        run: make spelling
       - name: Install template test tools
         run: |
           set -euo pipefail
