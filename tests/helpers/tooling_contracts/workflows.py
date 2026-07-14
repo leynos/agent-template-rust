@@ -1,13 +1,30 @@
-"""Assert rendered GitHub Actions contracts for generated Rust projects."""
+"""Assert rendered GitHub Actions contracts for generated Rust projects.
+
+Shared-actions ``uses:`` refs are asserted by shape (correct reusable-workflow
+or action path, pinned to a full 40-hex commit SHA), not by exact SHA value.
+Dependabot owns bumping the pinned SHA; these contracts must not fail in
+lockstep with routine bump PRs.
+"""
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from tests.helpers.generated_files import (
     parse_yaml_mapping,
     require_mapping,
     require_sequence,
+)
+
+_GENERATE_COVERAGE_USES_RE = re.compile(
+    r"^leynos/shared-actions/\.github/actions/generate-coverage@[0-9a-f]{40}$"
+)
+_UPLOAD_CODESCENE_COVERAGE_USES_RE = re.compile(
+    r"^leynos/shared-actions/\.github/actions/upload-codescene-coverage@[0-9a-f]{40}$"
+)
+_SETUP_RUST_USES_TEXT_RE = re.compile(
+    r"leynos/shared-actions/\.github/actions/setup-rust@[0-9a-f]{40}"
 )
 
 
@@ -57,11 +74,11 @@ def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
     ]
     assert len(coverage_steps) == 1, "expected one shared coverage action step"
     coverage_step = coverage_steps[0]
-    assert (
-        coverage_step.get("uses")
-        == "leynos/shared-actions/.github/actions/generate-coverage"
-        "@927edd45ae77be4251a8a18ca9eb5613a2e32cbd"
-    ), "expected CI to use the pinned shared coverage action"
+    coverage_uses = str(coverage_step.get("uses", ""))
+    assert _GENERATE_COVERAGE_USES_RE.match(coverage_uses), (
+        "expected CI to use the shared coverage action pinned to a full "
+        f"40-hex commit SHA, got {coverage_uses!r}"
+    )
     coverage_inputs = require_mapping(coverage_step, "with", "coverage step")
     assert coverage_inputs.get("output-path") == "lcov.info", (
         "expected CI coverage output path to match the act assertion"
@@ -132,11 +149,11 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
     assert len(upload_steps) == 1, (
         "expected coverage-main.yml to upload coverage to CodeScene"
     )
-    assert (
-        upload_steps[0].get("uses")
-        == "leynos/shared-actions/.github/actions/upload-codescene-coverage"
-        "@927edd45ae77be4251a8a18ca9eb5613a2e32cbd"
-    ), "expected coverage-main.yml to pin the shared upload action"
+    upload_uses = str(upload_steps[0].get("uses", ""))
+    assert _UPLOAD_CODESCENE_COVERAGE_USES_RE.match(upload_uses), (
+        "expected coverage-main.yml to use the shared upload action pinned "
+        f"to a full 40-hex commit SHA, got {upload_uses!r}"
+    )
     assert upload_steps[0].get("if") == "env.CS_ACCESS_TOKEN != ''", (
         "expected coverage-main.yml upload to skip cleanly without a token"
     )
@@ -221,10 +238,10 @@ def _assert_ci_workflow_contracts(
     assert "Cache Whitaker installation" in ci_workflow, (
         "expected generated CI workflow to cache Whitaker installation"
     )
-    assert (
-        "leynos/shared-actions/.github/actions/setup-rust"
-        "@927edd45ae77be4251a8a18ca9eb5613a2e32cbd" in ci_workflow
-    ), "expected generated CI workflow to use the pinned shared setup-rust action"
+    assert _SETUP_RUST_USES_TEXT_RE.search(ci_workflow), (
+        "expected generated CI workflow to use the shared setup-rust action "
+        "pinned to a full 40-hex commit SHA"
+    )
     build_test_checkout = [
         step
         for step in steps
