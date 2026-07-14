@@ -93,9 +93,14 @@ Keep generated-project behaviour in `template/` and prove it from parent tests
 under `tests/`. Prefer assertions that render a real project and run public
 generated commands over checks that only inspect template source text.
 
-GitHub Actions in both parent and generated workflows are SHA-pinned. When an
-action revision changes, update the rendered workflow assertions that lock the
-pin.
+GitHub Actions in both parent and generated workflows are SHA-pinned.
+Dependabot owns bumping `leynos/shared-actions` pins in both the parent
+workflows and the templates it renders; rendered workflow assertions in
+`tests/helpers/tooling_contracts/workflows.py` check the *shape* of a
+shared-actions `uses:` ref (correct path, pinned to a full 40-hex commit SHA)
+rather than the exact SHA value, so a routine Dependabot bump does not fail
+the contract. See `template/docs/developers-guide.md.jinja`'s "Workflow pins
+and Dependabot" section for the policy that generated projects inherit.
 
 ## Test Helper Layout
 
