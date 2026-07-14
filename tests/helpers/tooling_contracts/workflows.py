@@ -60,7 +60,7 @@ def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
     assert (
         coverage_step.get("uses")
         == "leynos/shared-actions/.github/actions/generate-coverage"
-        "@455d9ed03477c0026da96c2541ca26569a74acac"
+        "@927edd45ae77be4251a8a18ca9eb5613a2e32cbd"
     ), "expected CI to use the pinned shared coverage action"
     coverage_inputs = require_mapping(coverage_step, "with", "coverage step")
     assert coverage_inputs.get("output-path") == "lcov.info", (
@@ -68,6 +68,77 @@ def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
     )
     assert coverage_inputs.get("format") == "lcov", (
         "expected CI coverage format to match the CodeScene upload"
+    )
+    assert coverage_inputs.get("with-ratchet") == "true", (
+        "expected CI coverage step to enable the coverage ratchet"
+    )
+
+
+def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
+    """Assert the generated ``coverage-main.yml`` push-and-upload contract.
+
+    Parameters
+    ----------
+    coverage_main_workflow
+        Rendered generated-project ``coverage-main.yml`` workflow text.
+
+    Returns
+    -------
+    None
+        The helper returns ``None`` when the coverage-main contract passes.
+
+    Raises
+    ------
+    AssertionError
+        Raised when the workflow does not trigger on push to main and
+        ``workflow_dispatch``, omits the pinned shared coverage action, fails
+        to guard the CodeScene upload on ``CS_ACCESS_TOKEN``, or drops the
+        ratchet baseline that pull-request runs compare against.
+    pytest.fail.Exception
+        Raised by YAML parsing helpers when the workflow cannot be parsed as
+        the expected mapping structure.
+    """
+    parsed = parse_yaml_mapping(coverage_main_workflow, "coverage-main workflow")
+    triggers = require_mapping(parsed, "on", "coverage-main workflow")
+    push = require_mapping(triggers, "push", "coverage-main workflow on")
+    assert push.get("branches") == ["main"], (
+        "expected coverage-main.yml to upload on push to main"
+    )
+    assert "workflow_dispatch" in triggers, (
+        "expected coverage-main.yml to allow workflow_dispatch; automerge "
+        "GITHUB_TOKEN pushes do not fire push-event workflows"
+    )
+    jobs = require_mapping(parsed, "jobs", "coverage-main workflow")
+    coverage_upload = require_mapping(jobs, "coverage-upload", "coverage-main jobs")
+    steps = require_sequence(coverage_upload, "steps", "coverage-main job")
+    coverage_steps = [
+        step
+        for step in steps
+        if isinstance(step, dict) and step.get("name") == "Test and Measure Coverage"
+    ]
+    assert len(coverage_steps) == 1, (
+        "expected coverage-main.yml to generate coverage once"
+    )
+    coverage_inputs = require_mapping(coverage_steps[0], "with", "coverage-main step")
+    assert coverage_inputs.get("with-ratchet") == "true", (
+        "expected coverage-main.yml to advance the ratchet baseline"
+    )
+    upload_steps = [
+        step
+        for step in steps
+        if isinstance(step, dict)
+        and "upload-codescene-coverage" in str(step.get("uses", ""))
+    ]
+    assert len(upload_steps) == 1, (
+        "expected coverage-main.yml to upload coverage to CodeScene"
+    )
+    assert (
+        upload_steps[0].get("uses")
+        == "leynos/shared-actions/.github/actions/upload-codescene-coverage"
+        "@927edd45ae77be4251a8a18ca9eb5613a2e32cbd"
+    ), "expected coverage-main.yml to pin the shared upload action"
+    assert upload_steps[0].get("if") == "env.CS_ACCESS_TOKEN != ''", (
+        "expected coverage-main.yml upload to skip cleanly without a token"
     )
 
 
@@ -152,8 +223,37 @@ def _assert_ci_workflow_contracts(
     )
     assert (
         "leynos/shared-actions/.github/actions/setup-rust"
-        "@455d9ed03477c0026da96c2541ca26569a74acac" in ci_workflow
+        "@927edd45ae77be4251a8a18ca9eb5613a2e32cbd" in ci_workflow
     ), "expected generated CI workflow to use the pinned shared setup-rust action"
+    build_test_checkout = [
+        step
+        for step in steps
+        if isinstance(step, dict)
+        and str(step.get("uses", "")).startswith("actions/checkout@")
+    ]
+    assert build_test_checkout, "expected generated CI build-test checkout step"
+    assert all(
+        step.get("with", {}).get("fetch-depth") == 0 for step in build_test_checkout
+    ), (
+        "expected generated CI coverage checkout to fetch full history "
+        "(fetch-depth: 0) so CodeScene's changed-line gate can reach the "
+        "merge base once the deferred gate is wired"
+    )
+    upload_steps = [
+        step
+        for step in steps
+        if isinstance(step, dict)
+        and "upload-codescene-coverage" in str(step.get("uses", ""))
+    ]
+    assert not upload_steps, (
+        "expected the generated pull-request CI job to omit the CodeScene "
+        "upload step; uploads belong in coverage-main.yml, and mode: check "
+        "awaits per-project gate enablement"
+    )
+    assert "Deferred CodeScene coverage gate" in ci_workflow, (
+        "expected generated CI workflow to document the deferred CodeScene "
+        "coverage gate"
+    )
     assert "cargo-nextest" in ci_workflow, (
         "expected generated CI workflow to install cargo-nextest"
     )

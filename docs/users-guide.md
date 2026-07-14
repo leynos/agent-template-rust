@@ -21,6 +21,12 @@ metadata used in the generated `Cargo.toml`:
 - `license_year` sets the copyright year in `LICENSE`.
 - `dev_target` selects the target-specific Linux linker block generated in
   `.cargo/config.toml`.
+- `codescene_project_id` is the CodeScene project id for the coverage gate. It
+  defaults to empty, and every CodeScene step degrades gracefully while it is
+  unset: the guarded upload in `coverage-main.yml` skips without a token, and
+  the pull-request workflow leaves the changed-line `mode: check` gate deferred
+  in a documented comment. Fill it in (and set the `CS_ACCESS_TOKEN` secret)
+  once the repository is onboarded to CodeScene.
 
 ## Generated Tooling
 

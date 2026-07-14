@@ -165,9 +165,25 @@ def test_ci_coverage_action_contract_validates_edges() -> None:
     assert_ci_coverage_action_contract(
         _ci_workflow(
             persist_credentials="false",
-            coverage_inputs="          output-path: lcov.info\n          format: lcov\n",
+            coverage_inputs=(
+                "          output-path: lcov.info\n          format: lcov\n"
+                "          with-ratchet: 'true'\n"
+            ),
         )
     )
+
+    with pytest.raises(
+        AssertionError,
+        match="expected CI coverage step to enable the coverage ratchet",
+    ):
+        assert_ci_coverage_action_contract(
+            _ci_workflow(
+                persist_credentials="false",
+                coverage_inputs=(
+                    "          output-path: lcov.info\n          format: lcov\n"
+                ),
+            )
+        )
 
     with pytest.raises(
         AssertionError,
@@ -421,6 +437,6 @@ jobs:
         with:
           persist-credentials: {persist_credentials}
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@455d9ed03477c0026da96c2541ca26569a74acac
+        uses: leynos/shared-actions/.github/actions/generate-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd
         with:
 {coverage_inputs}"""
