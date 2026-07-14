@@ -21,7 +21,7 @@
             }),
             dict({
               'name': 'Setup Rust',
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@455d9ed03477c0026da96c2541ca26569a74acac',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
             }),
             dict({
               'name': 'Install act',
@@ -82,12 +82,13 @@
             dict({
               'uses': 'actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231',
               'with': dict({
+                'fetch-depth': 0,
                 'persist-credentials': False,
               }),
             }),
             dict({
               'name': 'Setup Rust',
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@455d9ed03477c0026da96c2541ca26569a74acac',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
             }),
             dict({
               'if': "runner.os == 'Linux'",
@@ -206,23 +207,11 @@
                 'RUSTFLAGS': '-C link-arg=-fuse-ld=lld',
               }),
               'name': 'Test and Measure Coverage',
-              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@455d9ed03477c0026da96c2541ca26569a74acac',
+              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
               'with': dict({
                 'format': 'lcov',
                 'output-path': 'lcov.info',
-              }),
-            }),
-            dict({
-              'env': dict({
-                'CS_ACCESS_TOKEN': '${{ secrets.CS_ACCESS_TOKEN }}',
-              }),
-              'if': '${{ env.CS_ACCESS_TOKEN }}',
-              'name': 'Upload coverage data to CodeScene',
-              'uses': 'leynos/shared-actions/.github/actions/upload-codescene-coverage@455d9ed03477c0026da96c2541ca26569a74acac',
-              'with': dict({
-                'access-token': '${{ env.CS_ACCESS_TOKEN }}',
-                'format': 'lcov',
-                'installer-checksum': '${{ vars.CODESCENE_CLI_SHA256 }}',
+                'with-ratchet': 'true',
               }),
             }),
           ]),
@@ -235,6 +224,98 @@
             'opened',
             'synchronize',
             'reopened',
+          ]),
+        }),
+        'workflow_dispatch': None,
+      }),
+    }),
+    'coverage_main_workflow': dict({
+      'jobs': dict({
+        'coverage-upload': dict({
+          'env': dict({
+            'BUILD_PROFILE': 'debug',
+            'CARGO_TERM_COLOR': 'always',
+          }),
+          'permissions': dict({
+            'contents': 'read',
+          }),
+          'runs-on': 'ubuntu-latest',
+          'steps': list([
+            dict({
+              'uses': 'actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231',
+              'with': dict({
+                'persist-credentials': False,
+              }),
+            }),
+            dict({
+              'name': 'Setup Rust',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
+            }),
+            dict({
+              'if': "runner.os == 'Linux'",
+              'name': 'Install mold linker',
+              'run': '''
+                set -euo pipefail
+                export DEBIAN_FRONTEND=noninteractive
+                # mold accelerates dev builds; coverage uses lld for llvm-tools compatibility.
+                sudo apt-get update \
+                  && sudo apt-get install --yes --no-install-recommends clang lld mold
+  
+              ''',
+            }),
+            dict({
+              'env': dict({
+                'RUSTFLAGS': '',
+              }),
+              'name': 'Install test runner',
+              'run': 'cargo binstall --no-confirm cargo-nextest',
+            }),
+            dict({
+              'name': 'Log coverage linker configuration',
+              'run': '''
+                echo "Coverage linker: clang"
+                echo "Coverage RUSTFLAGS: -C link-arg=-fuse-ld=lld"
+                echo "Coverage CFLAGS: -fuse-ld=lld"
+                echo "Coverage LDFLAGS: -fuse-ld=lld"
+  
+              ''',
+            }),
+            dict({
+              'env': dict({
+                'CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER': 'clang',
+                'CFLAGS': '-fuse-ld=lld',
+                'LDFLAGS': '-fuse-ld=lld',
+                'RUSTFLAGS': '-C link-arg=-fuse-ld=lld',
+              }),
+              'name': 'Test and Measure Coverage',
+              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
+              'with': dict({
+                'format': 'lcov',
+                'output-path': 'lcov.info',
+                'with-ratchet': 'true',
+              }),
+            }),
+            dict({
+              'env': dict({
+                'CS_ACCESS_TOKEN': '${{ secrets.CS_ACCESS_TOKEN }}',
+              }),
+              'if': "env.CS_ACCESS_TOKEN != ''",
+              'name': 'Upload coverage data to CodeScene',
+              'uses': 'leynos/shared-actions/.github/actions/upload-codescene-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
+              'with': dict({
+                'access-token': '${{ env.CS_ACCESS_TOKEN }}',
+                'format': 'lcov',
+                'installer-checksum': '${{ vars.CODESCENE_CLI_SHA256 }}',
+              }),
+            }),
+          ]),
+        }),
+      }),
+      'name': 'Coverage (main)',
+      'on': dict({
+        'push': dict({
+          'branches': list([
+            'main',
           ]),
         }),
         'workflow_dispatch': None,
@@ -312,7 +393,6 @@
       markdownlint: ## Lint Markdown files
       \t$(MDLINT) '**/*.md'
       \t+$(MAKE) spelling
-
       spelling: ## Enforce en-GB-oxendict spelling in Markdown prose
       \tuv run scripts/generate_typos_config.py
       \tfind . -type f -name '*.md' -not -path './target/*' -print0 | \
@@ -364,7 +444,7 @@
               }),
             }),
             dict({
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@455d9ed03477c0026da96c2541ca26569a74acac',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
               'with': dict({
                 'toolchain': 'stable',
               }),

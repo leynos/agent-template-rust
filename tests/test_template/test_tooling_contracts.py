@@ -15,7 +15,10 @@ from tests.helpers.generated_files import (
     require_optional_mapping,
 )
 from tests.helpers.rendering import APP, LIB, render_project
-from tests.helpers.tooling_contracts import assert_generated_tooling_contracts
+from tests.helpers.tooling_contracts import (
+    assert_coverage_main_workflow_contract,
+    assert_generated_tooling_contracts,
+)
 
 
 @pytest.mark.parametrize(
@@ -50,6 +53,9 @@ def test_generated_tooling_contracts(
     cargo_config = read_generated_text(project / ".cargo/config.toml")
     ci_workflow = read_generated_text(project / ".github/workflows/ci.yml")
     act_workflow = read_generated_text(project / ".github/workflows/act-validation.yml")
+    coverage_main_workflow = read_generated_text(
+        project / ".github/workflows/coverage-main.yml"
+    )
     docs_contents = read_generated_text(project / "docs/contents.md")
     repository_layout = read_generated_text(project / "docs/repository-layout.md")
     readme = read_generated_text(project / "README.md")
@@ -85,6 +91,7 @@ def test_generated_tooling_contracts(
         test_stub=test_stub,
         release_workflow=release_workflow,
     )
+    assert_coverage_main_workflow_contract(coverage_main_workflow)
     assert '[default]\nlocale = "en-gb"' in typos_config
     assert 'accepted = ["Flavored", "mold"]' in typos_overlay
     assert "DEFAULT_BASE_URL" in spelling_generator

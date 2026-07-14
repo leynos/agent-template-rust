@@ -1,3 +1,4 @@
+{% set codescene_project_url = 'https://api.codescene.io/v2/projects/' ~ (codescene_project_id if codescene_project_id else '<project-id>') %}{% raw %}
 name: CI
 
 'on':
@@ -17,9 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
         with:
+          # fetch-depth: 0 so CodeScene's `cs-coverage check` can reach the
+          # pull request's merge base once the deferred gate below is wired.
+          fetch-depth: 0
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@455d9ed03477c0026da96c2541ca26569a74acac
+        uses: leynos/shared-actions/.github/actions/setup-rust@927edd45ae77be4251a8a18ca9eb5613a2e32cbd
       - name: Install mold linker
         if: runner.os == 'Linux'
         run: |
@@ -88,7 +92,7 @@ jobs:
           echo "Coverage CFLAGS: -fuse-ld=lld"
           echo "Coverage LDFLAGS: -fuse-ld=lld"
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@455d9ed03477c0026da96c2541ca26569a74acac
+        uses: leynos/shared-actions/.github/actions/generate-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd
         env:
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: clang
           RUSTFLAGS: -C link-arg=-fuse-ld=lld
@@ -97,12 +101,25 @@ jobs:
         with:
           output-path: lcov.info
           format: lcov
-      - name: Upload coverage data to CodeScene
-        env:
-          CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
-        if: ${{ env.CS_ACCESS_TOKEN }}
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@455d9ed03477c0026da96c2541ca26569a74acac
-        with:
-          format: lcov
-          access-token: ${{ env.CS_ACCESS_TOKEN }}
-          installer-checksum: ${{ vars.CODESCENE_CLI_SHA256 }}
+          with-ratchet: 'true'
+      # Deferred CodeScene coverage gate (mode: check):
+      # The changed-line gate is intentionally NOT wired here yet.
+      # `cs-coverage check` fails on any CodeScene project whose configuration
+      # lacks a `gates` section — a CodeScene-side, per-project setting, not a
+      # CI defect. This generated repository has no upload step on pull
+      # requests, so the coverage rollup cannot be poisoned by a timed-out
+      # check. Once the repository is onboarded to CodeScene coverage and its
+      # project gate is enabled, add a guarded step referencing the project
+      # URL{% endraw %} {{ codescene_project_url }}{% raw %}:
+      #     - name: Check coverage against CodeScene gates
+      #       env:
+      #         CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
+      #       if: env.CS_ACCESS_TOKEN != ''
+      #       uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd
+      #       with:
+      #         format: lcov
+      #         mode: check
+      #         project-url: {% endraw %}{{ codescene_project_url }}{% raw %}
+      #         access-token: ${{ env.CS_ACCESS_TOKEN }}
+      #         installer-checksum: ${{ vars.CODESCENE_CLI_SHA256 }}
+{% endraw %}

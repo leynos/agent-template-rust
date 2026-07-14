@@ -73,6 +73,16 @@ flavour:
   default: lib
   help: 'What type of project? (lib = reusable library, app = executable binary)'
 
+codescene_project_id:
+  type: str
+  default: ''
+  help: >-
+    CodeScene project id for the coverage gate (numeric, e.g. 68298). Leave
+    empty until this repository is onboarded to CodeScene; the coverage
+    upload and deferred check degrade gracefully (the guard skips) while it
+    is unset, and the id can be filled in later with `copier update`.
+  placeholder: 'e.g. 68298'
+
 license_holder:
   type: str
   default: 'Example Maintainer'
