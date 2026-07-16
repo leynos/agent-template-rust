@@ -14,6 +14,7 @@ from tests.helpers.tooling_contracts.documentation import (
 from tests.helpers.tooling_contracts.makefile import _assert_makefile_contracts
 from tests.helpers.tooling_contracts.workflows import (
     _assert_ci_workflow_contracts,
+    _assert_mutation_workflow_contracts,
     _assert_release_workflow_contracts,
 )
 
@@ -30,6 +31,7 @@ def assert_generated_tooling_contracts(
     parsed_ci_workflow: dict[str, Any],
     ci_workflow: str,
     act_workflow: str,
+    mutation_workflow: str,
     docs_contents: str,
     repository_layout: str,
     readme: str,
@@ -60,6 +62,8 @@ def assert_generated_tooling_contracts(
         Rendered generated CI workflow text.
     act_workflow
         Rendered generated act-validation workflow text.
+    mutation_workflow
+        Rendered generated mutation-testing workflow text.
     docs_contents
         Rendered ``docs/contents.md`` text.
     repository_layout
@@ -94,6 +98,7 @@ def assert_generated_tooling_contracts(
     _assert_ci_workflow_contracts(
         parsed_ci_workflow, ci_workflow, act_workflow, test_stub
     )
+    _assert_mutation_workflow_contracts(mutation_workflow)
     assert_documentation_navigation_contracts(
         docs_contents, repository_layout, flavour
     )

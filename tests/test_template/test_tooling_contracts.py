@@ -56,6 +56,9 @@ def test_generated_tooling_contracts(
     coverage_main_workflow = read_generated_text(
         project / ".github/workflows/coverage-main.yml"
     )
+    mutation_workflow = read_generated_text(
+        project / ".github/workflows/mutation-testing.yml"
+    )
     docs_contents = read_generated_text(project / "docs/contents.md")
     repository_layout = read_generated_text(project / "docs/repository-layout.md")
     readme = read_generated_text(project / "README.md")
@@ -85,6 +88,7 @@ def test_generated_tooling_contracts(
         parsed_ci_workflow=parsed_ci_workflow,
         ci_workflow=ci_workflow,
         act_workflow=act_workflow,
+        mutation_workflow=mutation_workflow,
         docs_contents=docs_contents,
         repository_layout=repository_layout,
         readme=readme,

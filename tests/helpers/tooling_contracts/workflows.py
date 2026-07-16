@@ -324,7 +324,63 @@ def _assert_ci_workflow_contracts(
         "expected generated test stub to explain when to delete it"
     )
 
+def _assert_mutation_workflow_contracts(mutation_workflow: str) -> None:
+    """Assert generated mutation-testing workflow contracts.
 
+    Parameters
+    ----------
+    mutation_workflow
+        Rendered generated-project mutation-testing workflow text.
+
+    Returns
+    -------
+    None
+        The helper returns ``None`` when the mutation workflow contract passes.
+
+    Raises
+    ------
+    AssertionError
+        Raised when the reusable workflow reference, root or job permissions,
+        ``extra-args`` baseline, or setup-command package installation diverge
+        from the expected contract.
+    pytest.fail.Exception
+        Raised by YAML parsing helpers when the workflow cannot be parsed as
+        the expected mapping structure.
+
+    Notes
+    -----
+    The pinned reusable-workflow SHA is intentionally not asserted; Dependabot
+    owns that reference and bumps it independently of this contract.
+    """
+    parsed = parse_yaml_mapping(mutation_workflow, "mutation-testing workflow")
+    assert parsed.get("permissions") == {}, (
+        "expected mutation-testing workflow root permissions to grant no scopes"
+    )
+    jobs = require_mapping(parsed, "jobs", "mutation-testing workflow")
+    mutation = require_mapping(jobs, "mutation", "mutation-testing workflow jobs")
+    assert str(mutation.get("uses", "")).startswith(
+        "leynos/shared-actions/.github/workflows/mutation-cargo.yml@"
+    ), "expected mutation job to call the shared mutation-cargo reusable workflow"
+    permissions = require_mapping(mutation, "permissions", "mutation job")
+    assert permissions == _MUTATION_JOB_PERMISSIONS, (
+        "expected mutation job permissions to stay scoped to "
+        "contents: read and id-token: write"
+    )
+    inputs = require_mapping(mutation, "with", "mutation job")
+    assert inputs.get("extra-args") == "--all-features", (
+        "expected mutation job to mirror the CI --all-features test baseline"
+    )
+    setup_commands = inputs.get("setup-commands")
+    assert isinstance(setup_commands, str), (
+        "expected mutation job setup-commands to be a string"
+    )
+    assert "apt-get install" in setup_commands, (
+        "expected mutation job setup-commands to install packages via apt-get"
+    )
+    for package in _MUTATION_SETUP_PACKAGES:
+        assert package in setup_commands, (
+            f"expected mutation job setup-commands to install {package}"
+        )
 def _assert_release_workflow_contracts(release_workflow: str) -> None:
     """Assert generated release workflow contracts."""
     parsed_release_workflow = parse_yaml_mapping(release_workflow, "release workflow")
