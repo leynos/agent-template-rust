@@ -9,6 +9,7 @@ lockstep with routine bump PRs.
 from __future__ import annotations
 
 import re
+import shlex
 from typing import Any
 
 from tests.helpers.generated_files import (
@@ -324,43 +325,86 @@ def _assert_ci_workflow_contracts(
         "expected generated test stub to explain when to delete it"
     )
 
-def _assert_mutation_workflow_contracts(mutation_workflow: str) -> None:
-    """Assert generated mutation-testing workflow contracts.
+
+_MUTATION_JOB_PERMISSIONS = {"contents": "read", "id-token": "write"}
+_MUTATION_SETUP_PACKAGES = ("clang", "lld", "mold")
+_MUTATION_REUSABLE_WORKFLOW = (
+    "leynos/shared-actions/.github/workflows/mutation-cargo.yml"
+)
+
+
+def _extract_apt_install_packages(setup_commands: str) -> list[str]:
+    """Return packages passed to the setup-commands ``apt-get install`` call.
 
     Parameters
     ----------
-    mutation_workflow
-        Rendered generated-project mutation-testing workflow text.
+    setup_commands
+        Setup-commands shell script from the mutation job ``with`` inputs.
 
     Returns
     -------
-    None
-        The helper returns ``None`` when the mutation workflow contract passes.
-
-    Raises
-    ------
-    AssertionError
-        Raised when the reusable workflow reference, root or job permissions,
-        ``extra-args`` baseline, or setup-command package installation diverge
-        from the expected contract.
-    pytest.fail.Exception
-        Raised by YAML parsing helpers when the workflow cannot be parsed as
-        the expected mapping structure.
-
-    Notes
-    -----
-    The pinned reusable-workflow SHA is intentionally not asserted; Dependabot
-    owns that reference and bumps it independently of this contract.
+    list[str]
+        Non-flag arguments supplied to ``apt-get install``, following any
+        backslash line continuations, or an empty list when no install command
+        is present.
     """
+    lines = setup_commands.splitlines()
+    marker = "apt-get install"
+    for index, line in enumerate(lines):
+        marker_at = line.find(marker)
+        if marker_at == -1:
+            continue
+        segment = line[marker_at + len(marker) :]
+        cursor = index
+        while cursor < len(lines) and lines[cursor].rstrip().endswith("\\"):
+            segment = segment.rstrip().removesuffix("\\")
+            cursor += 1
+            if cursor < len(lines):
+                segment += " " + lines[cursor]
+        try:
+            tokens = shlex.split(segment)
+        except ValueError:
+            tokens = segment.split()
+        return [token for token in tokens if not token.startswith("-")]
+    return []
+
+
+def _assert_mutation_workflow_contracts(mutation_workflow: str) -> None:
+    """Assert generated mutation-testing workflow contracts."""
     parsed = parse_yaml_mapping(mutation_workflow, "mutation-testing workflow")
     assert parsed.get("permissions") == {}, (
         "expected mutation-testing workflow root permissions to grant no scopes"
     )
+    triggers = require_mapping(parsed, "on", "mutation-testing workflow")
+    schedule = require_sequence(triggers, "schedule", "mutation-testing workflow on")
+    assert any(
+        isinstance(entry, dict) and entry.get("cron") for entry in schedule
+    ), "expected mutation-testing workflow to define a scheduled cron trigger"
+    assert "workflow_dispatch" in triggers, (
+        "expected mutation-testing workflow to support manual workflow_dispatch"
+    )
+    concurrency = require_mapping(parsed, "concurrency", "mutation-testing workflow")
+    assert concurrency.get("group"), (
+        "expected mutation-testing workflow to define a concurrency group"
+    )
+    assert concurrency.get("cancel-in-progress") is False, (
+        "expected mutation-testing workflow to queue runs "
+        "(concurrency.cancel-in-progress: false)"
+    )
     jobs = require_mapping(parsed, "jobs", "mutation-testing workflow")
     mutation = require_mapping(jobs, "mutation", "mutation-testing workflow jobs")
-    assert str(mutation.get("uses", "")).startswith(
-        "leynos/shared-actions/.github/workflows/mutation-cargo.yml@"
-    ), "expected mutation job to call the shared mutation-cargo reusable workflow"
+    uses = str(mutation.get("uses", ""))
+    pinned_prefix = f"{_MUTATION_REUSABLE_WORKFLOW}@"
+    assert uses.startswith(pinned_prefix), (
+        "expected mutation job to call the shared mutation-cargo reusable workflow"
+    )
+    # Assert the ref is pinned to a full commit SHA rather than a mutable tag or
+    # branch; the specific SHA is owned by Dependabot and deliberately not
+    # hard-coded here, so the contract survives dependency bumps.
+    ref = uses[len(pinned_prefix) :]
+    assert re.fullmatch(r"[0-9a-f]{40}", ref), (
+        "expected mutation job to pin the reusable workflow to a full commit SHA"
+    )
     permissions = require_mapping(mutation, "permissions", "mutation job")
     assert permissions == _MUTATION_JOB_PERMISSIONS, (
         "expected mutation job permissions to stay scoped to "
@@ -374,13 +418,17 @@ def _assert_mutation_workflow_contracts(mutation_workflow: str) -> None:
     assert isinstance(setup_commands, str), (
         "expected mutation job setup-commands to be a string"
     )
-    assert "apt-get install" in setup_commands, (
+    installed_packages = _extract_apt_install_packages(setup_commands)
+    assert installed_packages, (
         "expected mutation job setup-commands to install packages via apt-get"
     )
     for package in _MUTATION_SETUP_PACKAGES:
-        assert package in setup_commands, (
-            f"expected mutation job setup-commands to install {package}"
+        assert package in installed_packages, (
+            "expected mutation job setup-commands apt-get install to include "
+            f"{package}"
         )
+
+
 def _assert_release_workflow_contracts(release_workflow: str) -> None:
     """Assert generated release workflow contracts."""
     parsed_release_workflow = parse_yaml_mapping(release_workflow, "release workflow")
