@@ -27,6 +27,8 @@ _UPLOAD_CODESCENE_COVERAGE_USES_RE = re.compile(
 _SETUP_RUST_USES_TEXT_RE = re.compile(
     r"leynos/shared-actions/\.github/actions/setup-rust@[0-9a-f]{40}"
 )
+_SETUP_PYTHON_USES_TEXT_RE = re.compile(r"actions/setup-python@[0-9a-f]{40}")
+_UPLOAD_ARTIFACT_USES_TEXT_RE = re.compile(r"actions/upload-artifact@[0-9a-f]{40}")
 
 
 def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
@@ -281,9 +283,10 @@ def _assert_ci_workflow_contracts(
     assert "Setup Python for audit manifest extraction" in ci_workflow, (
         "expected generated CI workflow to install Python for audit metadata parsing"
     )
-    assert "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405" in (
-        ci_workflow
-    ), "expected generated CI workflow to pin setup-python for audit parsing"
+    assert _SETUP_PYTHON_USES_TEXT_RE.search(ci_workflow), (
+        "expected generated CI workflow to use the setup-python action "
+        "pinned to a full 40-hex commit SHA"
+    )
     assert "make audit" in ci_workflow, (
         "expected generated CI workflow to run the dependency audit gate"
     )
@@ -393,16 +396,14 @@ def _assert_mutation_workflow_contracts(mutation_workflow: str) -> None:
     )
     jobs = require_mapping(parsed, "jobs", "mutation-testing workflow")
     mutation = require_mapping(jobs, "mutation", "mutation-testing workflow jobs")
-    uses = str(mutation.get("uses", ""))
+    mutation_uses = str(mutation.get("uses", ""))
     pinned_prefix = f"{_MUTATION_REUSABLE_WORKFLOW}@"
-    assert uses.startswith(pinned_prefix), (
+    assert mutation_uses.startswith(pinned_prefix), (
         "expected mutation job to call the shared mutation-cargo reusable workflow"
     )
-    # Assert the ref is pinned to a full commit SHA rather than a mutable tag or
-    # branch; the specific SHA is owned by Dependabot and deliberately not
-    # hard-coded here, so the contract survives dependency bumps.
-    ref = uses[len(pinned_prefix) :]
-    assert re.fullmatch(r"[0-9a-f]{40}", ref), (
+    # The specific SHA is owned by Dependabot and deliberately not hard-coded, so
+    # the contract survives dependency bumps while requiring an immutable pin.
+    assert re.fullmatch(r"[0-9a-f]{40}", mutation_uses[len(pinned_prefix) :]), (
         "expected mutation job to pin the reusable workflow to a full commit SHA"
     )
     permissions = require_mapping(mutation, "permissions", "mutation job")
@@ -439,10 +440,10 @@ def _assert_release_workflow_contracts(release_workflow: str) -> None:
         step.get("with", {}).get("persist-credentials") is False
         for step in release_checkout_steps
     ), "expected release workflow checkout steps to disable credentials"
-    assert (
-        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
-        in release_workflow
-    ), "expected app release workflow to use pinned upload-artifact action"
+    assert _UPLOAD_ARTIFACT_USES_TEXT_RE.search(release_workflow), (
+        "expected app release workflow to use the upload-artifact action "
+        "pinned to a full 40-hex commit SHA"
+    )
     cross_revision = "88f49ff79e777bef6d3564531636ee4d3cc2f8d2"
     assert f"CROSS_REVISION: {cross_revision}" in release_workflow, (
         "expected app release workflow to pin cross to an immutable revision"
