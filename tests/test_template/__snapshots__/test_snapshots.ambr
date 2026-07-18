@@ -21,7 +21,7 @@
             }),
             dict({
               'name': 'Setup Rust',
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
             }),
             dict({
               'name': 'Install act',
@@ -88,7 +88,7 @@
             }),
             dict({
               'name': 'Setup Rust',
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
             }),
             dict({
               'if': "runner.os == 'Linux'",
@@ -207,7 +207,7 @@
                 'RUSTFLAGS': '-C link-arg=-fuse-ld=lld',
               }),
               'name': 'Test and Measure Coverage',
-              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
+              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
               'with': dict({
                 'format': 'lcov',
                 'output-path': 'lcov.info',
@@ -249,7 +249,7 @@
             }),
             dict({
               'name': 'Setup Rust',
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
             }),
             dict({
               'if': "runner.os == 'Linux'",
@@ -288,7 +288,7 @@
                 'RUSTFLAGS': '-C link-arg=-fuse-ld=lld',
               }),
               'name': 'Test and Measure Coverage',
-              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
+              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
               'with': dict({
                 'format': 'lcov',
                 'output-path': 'lcov.info',
@@ -301,7 +301,7 @@
               }),
               'if': "env.CS_ACCESS_TOKEN != ''",
               'name': 'Upload coverage data to CodeScene',
-              'uses': 'leynos/shared-actions/.github/actions/upload-codescene-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
+              'uses': 'leynos/shared-actions/.github/actions/upload-codescene-coverage@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
               'with': dict({
                 'access-token': '${{ env.CS_ACCESS_TOKEN }}',
                 'format': 'lcov',
@@ -444,7 +444,7 @@
               }),
             }),
             dict({
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@927edd45ae77be4251a8a18ca9eb5613a2e32cbd',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
               'with': dict({
                 'toolchain': 'stable',
               }),
