@@ -35,7 +35,7 @@ jobs:
       - name: Install template test tools
         run: |
           set -euo pipefail
-          cargo binstall --no-confirm cargo-nextest
+          cargo binstall --no-confirm --locked cargo-nextest
           uv tool install mbake
       - name: Cache Whitaker installation
         id: cache-whitaker

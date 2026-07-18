@@ -48,7 +48,7 @@ jobs:
       - name: Install test runner
         env:
           RUSTFLAGS: ""
-        run: cargo binstall --no-confirm cargo-nextest
+        run: cargo binstall --no-confirm --locked cargo-nextest
       - name: Install cargo-audit
         env:
           RUSTFLAGS: ""
