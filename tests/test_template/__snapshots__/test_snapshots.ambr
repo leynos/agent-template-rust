@@ -72,7 +72,7 @@
           'env': dict({
             'BUILD_PROFILE': 'debug',
             'CARGO_TERM_COLOR': 'always',
-            'WHITAKER_INSTALLER_VERSION': '0.2.5',
+            'WHITAKER_INSTALLER_VERSION': '0.2.6',
           }),
           'permissions': dict({
             'contents': 'read',
@@ -131,7 +131,7 @@
                 'RUSTFLAGS': '',
               }),
               'name': 'Install test runner',
-              'run': 'cargo binstall --no-confirm cargo-nextest',
+              'run': 'cargo binstall --no-confirm --locked cargo-nextest',
             }),
             dict({
               'env': dict({
@@ -268,7 +268,7 @@
                 'RUSTFLAGS': '',
               }),
               'name': 'Install test runner',
-              'run': 'cargo binstall --no-confirm cargo-nextest',
+              'run': 'cargo binstall --no-confirm --locked cargo-nextest',
             }),
             dict({
               'name': 'Log coverage linker configuration',
