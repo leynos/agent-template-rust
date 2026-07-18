@@ -12,11 +12,10 @@ Run the public parent gate:
 make test
 ```
 
-The target uses
-`uvx --with pytest-copier --with pyyaml --with syrupy --with make-parser --with hypothesis pytest tests/`,
-so Python test dependencies must be added to that invocation before tests
-import them. Keep long runs logged through `tee` into `/tmp`, following the
-example in `AGENTS.md`.
+The target uses `uvx --with pytest-copier --with pyyaml --with syrupy --with
+make-parser --with hypothesis pytest tests/`, so Python test dependencies must
+be added to that invocation before tests import them. Keep long runs logged
+through `tee` into `/tmp`, following the example in `AGENTS.md`.
 
 The tests render both library and application projects, run generated public
 gates such as `make all`, validate generated Makefiles with `mbake`, and parse
@@ -44,6 +43,13 @@ Generated audit coverage is tested without network access by replacing Cargo
 with a fake executable. The regression verifies that `make rust-audit` derives
 the workspace root from `cargo metadata`, ignores manifests outside workspace
 metadata, and invokes `cargo audit` once from the workspace root.
+
+Generated CI skips the `cargo-audit` install, Python setup, and `make audit`
+steps when `github.actor` is `dependabot[bot]`. That keeps whole-lockfile
+advisories from blocking unrelated Dependabot PRs while leaving the audit gate
+in place for human PRs. The compensating control is
+`template/.github/workflows/audit.yml`, which runs weekly and can also be
+triggered manually.
 
 Optional GitHub Actions validation runs rendered workflows through `act`. It is
 disabled by default and only runs when `WITH_ACT=1` is present:
