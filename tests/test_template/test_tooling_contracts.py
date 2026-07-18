@@ -52,6 +52,7 @@ def test_generated_tooling_contracts(
     makefile = read_generated_text(project / "Makefile")
     cargo_config = read_generated_text(project / ".cargo/config.toml")
     ci_workflow = read_generated_text(project / ".github/workflows/ci.yml")
+    audit_workflow = read_generated_text(project / ".github/workflows/audit.yml")
     act_workflow = read_generated_text(project / ".github/workflows/act-validation.yml")
     coverage_main_workflow = read_generated_text(
         project / ".github/workflows/coverage-main.yml"
@@ -84,6 +85,7 @@ def test_generated_tooling_contracts(
         rust_toolchain=rust_toolchain,
         parsed_ci_workflow=parsed_ci_workflow,
         ci_workflow=ci_workflow,
+        audit_workflow=audit_workflow,
         act_workflow=act_workflow,
         docs_contents=docs_contents,
         repository_layout=repository_layout,

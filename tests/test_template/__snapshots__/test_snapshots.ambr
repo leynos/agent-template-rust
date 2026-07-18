@@ -54,6 +54,59 @@
         'workflow_dispatch': None,
       }),
     }),
+    'audit_workflow': dict({
+      'jobs': dict({
+        'audit': dict({
+          'env': dict({
+            'CARGO_TERM_COLOR': 'always',
+          }),
+          'runs-on': 'ubuntu-latest',
+          'steps': list([
+            dict({
+              'uses': 'actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231',
+              'with': dict({
+                'persist-credentials': False,
+              }),
+            }),
+            dict({
+              'name': 'Setup Rust',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
+            }),
+            dict({
+              'env': dict({
+                'RUSTFLAGS': '',
+              }),
+              'name': 'Install cargo-audit',
+              'run': 'cargo binstall --no-confirm cargo-audit',
+            }),
+            dict({
+              'name': 'Setup Python for audit manifest extraction',
+              'uses': 'actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405',
+              'with': dict({
+                'python-version': '3.x',
+              }),
+            }),
+            dict({
+              'name': 'Audit dependencies',
+              'run': 'make audit',
+            }),
+          ]),
+          'timeout-minutes': 30,
+        }),
+      }),
+      'name': 'Scheduled dependency audit',
+      'on': dict({
+        'schedule': list([
+          dict({
+            'cron': '41 6 * * 1',
+          }),
+        ]),
+        'workflow_dispatch': None,
+      }),
+      'permissions': dict({
+        'contents': 'read',
+      }),
+    }),
     'cargo_config': '''
       [unstable]
       codegen-backend = true

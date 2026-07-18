@@ -55,8 +55,9 @@ The generated `Makefile` exposes these public targets:
 - `make audit` derives the Rust workspace root with `cargo metadata` and runs
   `cargo audit` once from that root. Generated CI skips this gate for
   Dependabot pull requests so whole-lockfile advisories do not block unrelated
-  dependency bumps; human pull requests still run it. A separate scheduled
-  audit workflow keeps the lockfile covered.
+  dependency bumps; human pull requests still run it. The separate
+  `.github/workflows/audit.yml` workflow runs weekly and can also be triggered
+  manually to keep the lockfile covered.
 - `make markdownlint` checks Markdown files and enforces en-GB-oxendict
   spelling through the pinned `typos` release.
 - `make spelling` refreshes the shared Oxford dictionary when its published

@@ -90,6 +90,70 @@ def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
         "expected CI coverage step to enable the coverage ratchet"
     )
 
+def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
+    """Assert generated scheduled dependency audit workflow contracts."""
+    parsed_audit_workflow = parse_yaml_mapping(audit_workflow, "audit workflow")
+    triggers = require_mapping(parsed_audit_workflow, "on", "audit workflow")
+    schedule = require_sequence(triggers, "schedule", "audit workflow triggers")
+    assert schedule == [{"cron": "41 6 * * 1"}], (
+        "expected generated audit workflow to run weekly"
+    )
+    assert "workflow_dispatch" in triggers, (
+        "expected generated audit workflow to support manual runs"
+    )
+
+    jobs = require_mapping(parsed_audit_workflow, "jobs", "audit workflow")
+    audit = require_mapping(jobs, "audit", "audit workflow jobs")
+    assert audit.get("runs-on") == "ubuntu-latest", (
+        "expected generated audit job to use Ubuntu"
+    )
+    assert audit.get("timeout-minutes") == 30, (
+        "expected generated audit job to have a bounded runtime"
+    )
+    steps = require_sequence(audit, "steps", "audit workflow job")
+    expected_steps = {
+        None: "actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231",
+        "Setup Python for audit manifest extraction": (
+            "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405"
+        ),
+    }
+    for step_name, action in expected_steps.items():
+        matching_steps = [
+            step
+            for step in steps
+            if isinstance(step, dict)
+            and step.get("name") == step_name
+            and step.get("uses") == action
+        ]
+        assert len(matching_steps) == 1, (
+            f"expected generated audit workflow to include pinned {action}"
+        )
+    setup_rust_steps = [
+        step
+        for step in steps
+        if isinstance(step, dict) and step.get("name") == "Setup Rust"
+    ]
+    assert len(setup_rust_steps) == 1, (
+        "expected generated audit workflow to include one Setup Rust step"
+    )
+    setup_rust_uses = str(setup_rust_steps[0].get("uses", ""))
+    assert _SETUP_RUST_USES_TEXT_RE.fullmatch(setup_rust_uses), (
+        "expected generated audit workflow to use setup-rust pinned to a full "
+        f"40-hex commit SHA, got {setup_rust_uses!r}"
+    )
+    assert any(
+        isinstance(step, dict)
+        and step.get("name") == "Install cargo-audit"
+        and step.get("run") == "cargo binstall --no-confirm cargo-audit"
+        for step in steps
+    ), "expected generated audit workflow to install cargo-audit"
+    assert any(
+        isinstance(step, dict)
+        and step.get("name") == "Audit dependencies"
+        and step.get("run") == "make audit"
+        for step in steps
+    ), "expected generated audit workflow to run make audit"
+
 
 def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
     """Assert the generated ``coverage-main.yml`` push-and-upload contract.
@@ -212,6 +276,17 @@ def _assert_ci_workflow_contracts(
     ), "expected generated CI checkout steps to disable credential persistence"
     build_test = require_mapping(jobs, "build-test", "CI workflow jobs")
     steps = require_sequence(build_test, "steps", "CI build-test job")
+    dependabot_guard = "github.actor != 'dependabot[bot]'"
+    dependabot_guarded_steps = [
+        step.get("name")
+        for step in steps
+        if isinstance(step, dict) and step.get("if") == dependabot_guard
+    ]
+    assert dependabot_guarded_steps == [
+        "Install cargo-audit",
+        "Setup Python for audit manifest extraction",
+        "Audit dependencies",
+    ], "expected only audit-specific CI steps to skip Dependabot pull requests"
     rust_tool_install_step_names = [
         "Install test runner",
         "Install cargo-audit",
