@@ -90,6 +90,7 @@ def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
         "expected CI coverage step to enable the coverage ratchet"
     )
 
+
 def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
     """Assert generated scheduled dependency audit workflow contracts."""
     parsed_audit_workflow = parse_yaml_mapping(audit_workflow, "audit workflow")
