@@ -103,6 +103,14 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
         "expected generated audit workflow to support manual runs"
     )
 
+    permissions = require_mapping(
+        parsed_audit_workflow, "permissions", "audit workflow"
+    )
+    assert permissions.get("contents") == "read", (
+        "expected generated audit workflow to grant least-privilege "
+        "contents: read permissions"
+    )
+
     jobs = require_mapping(parsed_audit_workflow, "jobs", "audit workflow")
     audit = require_mapping(jobs, "audit", "audit workflow jobs")
     assert audit.get("runs-on") == "ubuntu-latest", (
@@ -112,8 +120,9 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
         "expected generated audit job to have a bounded runtime"
     )
     steps = require_sequence(audit, "steps", "audit workflow job")
+    checkout_action = "actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231"
     expected_steps = {
-        None: "actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231",
+        None: checkout_action,
         "Setup Python for audit manifest extraction": (
             "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405"
         ),
@@ -129,6 +138,16 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
         assert len(matching_steps) == 1, (
             f"expected generated audit workflow to include pinned {action}"
         )
+    checkout_steps = [
+        step
+        for step in steps
+        if isinstance(step, dict) and step.get("uses") == checkout_action
+    ]
+    assert checkout_steps and all(
+        isinstance(step.get("with"), dict)
+        and step["with"].get("persist-credentials") is False
+        for step in checkout_steps
+    ), "expected generated audit workflow checkout to disable credential persistence"
     setup_rust_steps = [
         step
         for step in steps

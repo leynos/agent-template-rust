@@ -29,16 +29,23 @@ from tests.utilities import (
     docker_environment,
 )
 
+
+def _json_collections(
+    children: st.SearchStrategy[Any],
+) -> st.SearchStrategy[Any]:
+    """Extend a recursive JSON strategy with bounded list and dict collections."""
+    return st.lists(children, max_size=4) | st.dictionaries(
+        st.text(), children, max_size=4
+    )
+
+
 json_value = st.recursive(
     st.none()
     | st.booleans()
     | st.integers()
     | st.floats(allow_nan=False, allow_infinity=False)
     | st.text(),
-    lambda children: (
-        st.lists(children, max_size=4)
-        | st.dictionaries(st.text(), children, max_size=4)
-    ),
+    _json_collections,
     max_leaves=12,
 )
 
@@ -268,7 +275,7 @@ def test_resolved_socket_from_docker_host_accepts_allowed_unix_path(
     assert (
         _resolved_socket_from_docker_host(f"unix://{socket_path}", (allowed_dir,))
         == socket_path
-    )
+    ), f"expected normalized socket path {socket_path}"
 
 
 def test_docker_environment_preserves_valid_unix_socket(
