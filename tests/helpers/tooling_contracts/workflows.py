@@ -29,12 +29,7 @@ _SETUP_RUST_USES_TEXT_RE = re.compile(
 
 
 def _is_pinned_action(uses: str, action_path: str) -> bool:
-    """Return whether ``uses`` pins ``action_path`` to a full 40-hex commit SHA.
-
-    Matching by shape rather than exact SHA keeps these contracts stable across
-    routine Dependabot bump pull requests while still enforcing that the action
-    is pinned to an immutable commit.
-    """
+    """Return whether ``uses`` pins ``action_path`` to a full 40-hex commit SHA."""
     return re.fullmatch(rf"{re.escape(action_path)}@[0-9a-f]{{40}}", uses) is not None
 
 

@@ -18,13 +18,7 @@ _PINNED_USES_RE = re.compile(r"^(?P<ref>.+)@[0-9a-f]{40}$")
 
 
 def _redact_pinned_shas(value: object) -> object:
-    """Replace 40-hex SHA-pinned ``uses`` refs with a stable placeholder.
-
-    Snapshots must not embed pinned action SHAs; Dependabot bumps would
-    otherwise break the snapshot in lockstep with routine dependency updates.
-    The workflow contract helpers retain the full 40-hex SHA validation on the
-    raw rendered text, so pinning is still enforced elsewhere.
-    """
+    """Replace 40-hex SHA-pinned ``uses`` refs with a stable placeholder."""
     if isinstance(value, dict):
         return {
             key: (
