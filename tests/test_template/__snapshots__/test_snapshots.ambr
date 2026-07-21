@@ -14,14 +14,14 @@
           'runs-on': 'ubuntu-latest',
           'steps': list([
             dict({
-              'uses': 'actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231',
+              'uses': 'actions/checkout@<sha>',
               'with': dict({
                 'persist-credentials': False,
               }),
             }),
             dict({
               'name': 'Setup Rust',
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@<sha>',
             }),
             dict({
               'name': 'Install act',
@@ -63,14 +63,14 @@
           'runs-on': 'ubuntu-latest',
           'steps': list([
             dict({
-              'uses': 'actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231',
+              'uses': 'actions/checkout@<sha>',
               'with': dict({
                 'persist-credentials': False,
               }),
             }),
             dict({
               'name': 'Setup Rust',
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@<sha>',
             }),
             dict({
               'env': dict({
@@ -81,7 +81,7 @@
             }),
             dict({
               'name': 'Setup Python for audit manifest extraction',
-              'uses': 'actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405',
+              'uses': 'actions/setup-python@<sha>',
               'with': dict({
                 'python-version': '3.x',
               }),
@@ -133,7 +133,7 @@
           'runs-on': 'ubuntu-latest',
           'steps': list([
             dict({
-              'uses': 'actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231',
+              'uses': 'actions/checkout@<sha>',
               'with': dict({
                 'fetch-depth': 0,
                 'persist-credentials': False,
@@ -141,7 +141,7 @@
             }),
             dict({
               'name': 'Setup Rust',
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@<sha>',
             }),
             dict({
               'if': "runner.os == 'Linux'",
@@ -161,7 +161,7 @@
             }),
             dict({
               'name': 'Markdown lint',
-              'uses': 'DavidAnson/markdownlint-cli2-action@2df9e28eb87988518ef3880c34edad45d65b1668',
+              'uses': 'DavidAnson/markdownlint-cli2-action@<sha>',
               'with': dict({
                 'globs': '''
                   **/*.md
@@ -173,7 +173,7 @@
             }),
             dict({
               'name': 'Setup uv',
-              'uses': 'astral-sh/setup-uv@12d13f90bc3a5a1971bebad4beb09a4dfa962e91',
+              'uses': 'astral-sh/setup-uv@<sha>',
             }),
             dict({
               'name': 'Check spelling',
@@ -197,7 +197,7 @@
             dict({
               'if': "github.actor != 'dependabot[bot]'",
               'name': 'Setup Python for audit manifest extraction',
-              'uses': 'actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405',
+              'uses': 'actions/setup-python@<sha>',
               'with': dict({
                 'python-version': '3.x',
               }),
@@ -205,7 +205,7 @@
             dict({
               'id': 'cache-whitaker',
               'name': 'Cache Whitaker installation',
-              'uses': 'actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae',
+              'uses': 'actions/cache@<sha>',
               'with': dict({
                 'key': 'whitaker-v3-${{ runner.os }}-${{ env.WHITAKER_INSTALLER_VERSION }}',
                 'path': '''
@@ -263,7 +263,7 @@
                 'RUSTFLAGS': '-C link-arg=-fuse-ld=lld',
               }),
               'name': 'Test and Measure Coverage',
-              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
+              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@<sha>',
               'with': dict({
                 'format': 'lcov',
                 'output-path': 'lcov.info',
@@ -298,14 +298,14 @@
           'runs-on': 'ubuntu-latest',
           'steps': list([
             dict({
-              'uses': 'actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231',
+              'uses': 'actions/checkout@<sha>',
               'with': dict({
                 'persist-credentials': False,
               }),
             }),
             dict({
               'name': 'Setup Rust',
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@<sha>',
             }),
             dict({
               'if': "runner.os == 'Linux'",
@@ -344,7 +344,7 @@
                 'RUSTFLAGS': '-C link-arg=-fuse-ld=lld',
               }),
               'name': 'Test and Measure Coverage',
-              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
+              'uses': 'leynos/shared-actions/.github/actions/generate-coverage@<sha>',
               'with': dict({
                 'format': 'lcov',
                 'output-path': 'lcov.info',
@@ -357,7 +357,7 @@
               }),
               'if': "env.CS_ACCESS_TOKEN != ''",
               'name': 'Upload coverage data to CodeScene',
-              'uses': 'leynos/shared-actions/.github/actions/upload-codescene-coverage@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
+              'uses': 'leynos/shared-actions/.github/actions/upload-codescene-coverage@<sha>',
               'with': dict({
                 'access-token': '${{ env.CS_ACCESS_TOKEN }}',
                 'format': 'lcov',
@@ -494,13 +494,13 @@
           'runs-on': 'ubuntu-latest',
           'steps': list([
             dict({
-              'uses': 'actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231',
+              'uses': 'actions/checkout@<sha>',
               'with': dict({
                 'persist-credentials': False,
               }),
             }),
             dict({
-              'uses': 'leynos/shared-actions/.github/actions/setup-rust@18bed1ca49a6de3d8882bd72635a32ae3f023d57',
+              'uses': 'leynos/shared-actions/.github/actions/setup-rust@<sha>',
               'with': dict({
                 'toolchain': 'stable',
               }),
@@ -508,7 +508,7 @@
             dict({
               'id': 'cache-cross',
               'name': 'Cache cross binary',
-              'uses': 'actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae',
+              'uses': 'actions/cache@<sha>',
               'with': dict({
                 'key': 'cross-${{ env.CROSS_REVISION }}',
                 'path': '~/.cargo/bin/cross',
@@ -529,7 +529,7 @@
             }),
             dict({
               'name': 'Cache cargo registry',
-              'uses': 'actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae',
+              'uses': 'actions/cache@<sha>',
               'with': dict({
                 'key': "${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}",
                 'path': '''
@@ -564,7 +564,7 @@
             }),
             dict({
               'name': 'Upload release artifact',
-              'uses': 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+              'uses': 'actions/upload-artifact@<sha>',
               'with': dict({
                 'name': '${{ env.BIN_NAME }}-${{ matrix.os }}-${{ matrix.arch }}',
                 'path': 'artifacts/${{ matrix.os }}-${{ matrix.arch }}',
@@ -623,7 +623,7 @@
           'runs-on': 'ubuntu-latest',
           'steps': list([
             dict({
-              'uses': 'actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317',
+              'uses': 'actions/download-artifact@<sha>',
               'with': dict({
                 'path': 'artifacts',
               }),
@@ -632,7 +632,7 @@
               'env': dict({
                 'GITHUB_TOKEN': '${{ secrets.GITHUB_TOKEN }}',
               }),
-              'uses': 'softprops/action-gh-release@403a5240f3837fa857f642062e05aad6bb3391ca',
+              'uses': 'softprops/action-gh-release@<sha>',
               'with': dict({
                 'files': '''
                   artifacts/*/*

@@ -28,6 +28,16 @@ _SETUP_RUST_USES_TEXT_RE = re.compile(
 )
 
 
+def _is_pinned_action(uses: str, action_path: str) -> bool:
+    """Return whether ``uses`` pins ``action_path`` to a full 40-hex commit SHA.
+
+    Matching by shape rather than exact SHA keeps these contracts stable across
+    routine Dependabot bump pull requests while still enforcing that the action
+    is pinned to an immutable commit.
+    """
+    return re.fullmatch(rf"{re.escape(action_path)}@[0-9a-f]{{40}}", uses) is not None
+
+
 def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
     """Assert generated CI coverage inputs used by act validation.
 
@@ -95,19 +105,20 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
     """Assert generated scheduled dependency audit workflow contracts."""
     parsed_audit_workflow = parse_yaml_mapping(audit_workflow, "audit workflow")
     triggers = require_mapping(parsed_audit_workflow, "on", "audit workflow")
+    assert set(triggers) == {"schedule", "workflow_dispatch"}, (
+        "expected generated audit workflow to trigger only on schedule and "
+        "workflow_dispatch"
+    )
     schedule = require_sequence(triggers, "schedule", "audit workflow triggers")
     assert schedule == [{"cron": "41 6 * * 1"}], (
         "expected generated audit workflow to run weekly"
-    )
-    assert "workflow_dispatch" in triggers, (
-        "expected generated audit workflow to support manual runs"
     )
 
     permissions = require_mapping(
         parsed_audit_workflow, "permissions", "audit workflow"
     )
-    assert permissions.get("contents") == "read", (
-        "expected generated audit workflow to grant least-privilege "
+    assert permissions == {"contents": "read"}, (
+        "expected generated audit workflow to grant exactly least-privilege "
         "contents: read permissions"
     )
 
@@ -120,28 +131,28 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
         "expected generated audit job to have a bounded runtime"
     )
     steps = require_sequence(audit, "steps", "audit workflow job")
-    checkout_action = "actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231"
+    checkout_path = "actions/checkout"
     expected_steps = {
-        None: checkout_action,
-        "Setup Python for audit manifest extraction": (
-            "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405"
-        ),
+        None: checkout_path,
+        "Setup Python for audit manifest extraction": "actions/setup-python",
     }
-    for step_name, action in expected_steps.items():
+    for step_name, action_path in expected_steps.items():
         matching_steps = [
             step
             for step in steps
             if isinstance(step, dict)
             and step.get("name") == step_name
-            and step.get("uses") == action
+            and _is_pinned_action(str(step.get("uses", "")), action_path)
         ]
         assert len(matching_steps) == 1, (
-            f"expected generated audit workflow to include pinned {action}"
+            f"expected generated audit workflow to include {action_path} "
+            "pinned to a full 40-hex commit SHA"
         )
     checkout_steps = [
         step
         for step in steps
-        if isinstance(step, dict) and step.get("uses") == checkout_action
+        if isinstance(step, dict)
+        and _is_pinned_action(str(step.get("uses", "")), checkout_path)
     ]
     assert checkout_steps, "expected generated audit workflow checkout step"
     assert all(

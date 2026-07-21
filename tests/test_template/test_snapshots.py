@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from pytest_copier.plugin import CopierFixture
@@ -12,6 +13,30 @@ from tests.helpers.generated_files import (
     read_generated_text,
 )
 from tests.helpers.rendering import APP, render_project
+
+_PINNED_USES_RE = re.compile(r"^(?P<ref>.+)@[0-9a-f]{40}$")
+
+
+def _redact_pinned_shas(value: object) -> object:
+    """Replace 40-hex SHA-pinned ``uses`` refs with a stable placeholder.
+
+    Snapshots must not embed pinned action SHAs; Dependabot bumps would
+    otherwise break the snapshot in lockstep with routine dependency updates.
+    The workflow contract helpers retain the full 40-hex SHA validation on the
+    raw rendered text, so pinning is still enforced elsewhere.
+    """
+    if isinstance(value, dict):
+        return {
+            key: (
+                _PINNED_USES_RE.sub(r"\g<ref>@<sha>", item)
+                if key == "uses" and isinstance(item, str)
+                else _redact_pinned_shas(item)
+            )
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_pinned_shas(item) for item in value]
+    return value
 
 
 def test_generated_structured_file_snapshots(
@@ -48,15 +73,20 @@ def test_generated_structured_file_snapshots(
         "release workflow",
     )
 
-    assert {
-        "cargo_config": cargo_config,
-        "makefile": makefile_snapshot,
-        "act_workflow": act_workflow,
-        "audit_workflow": audit_workflow,
-        "ci_workflow": ci_workflow,
-        "coverage_main_workflow": coverage_main_workflow,
-        "release_workflow": release_workflow,
-    } == snapshot, (
+    assert (
+        _redact_pinned_shas(
+            {
+                "cargo_config": cargo_config,
+                "makefile": makefile_snapshot,
+                "act_workflow": act_workflow,
+                "audit_workflow": audit_workflow,
+                "ci_workflow": ci_workflow,
+                "coverage_main_workflow": coverage_main_workflow,
+                "release_workflow": release_workflow,
+            }
+        )
+        == snapshot
+    ), (
         "Snapshot mismatch for template outputs (cargo_config, makefile, "
         "act_workflow, audit_workflow, ci_workflow, coverage_main_workflow, "
         "release_workflow)"
