@@ -143,7 +143,8 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
         for step in steps
         if isinstance(step, dict) and step.get("uses") == checkout_action
     ]
-    assert checkout_steps and all(
+    assert checkout_steps, "expected generated audit workflow checkout step"
+    assert all(
         isinstance(step.get("with"), dict)
         and step["with"].get("persist-credentials") is False
         for step in checkout_steps
