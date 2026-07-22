@@ -165,9 +165,15 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
     checkout_steps = [
         step
         for step in step_mappings
-        if _is_pinned_action(str(step.get("uses", "")), checkout_path)
+        if str(step.get("uses", "")).startswith(f"{checkout_path}@")
     ]
-    assert checkout_steps, "expected generated audit workflow checkout step"
+    assert len(checkout_steps) == 1, (
+        "expected generated audit workflow to include exactly one checkout step"
+    )
+    assert _is_pinned_action(str(checkout_steps[0].get("uses", "")), checkout_path), (
+        "expected generated audit workflow checkout to be pinned to a full "
+        "40-hex commit SHA"
+    )
     assert all(_disables_credential_persistence(step) for step in checkout_steps), (
         "expected generated audit workflow checkout to disable credential persistence"
     )
