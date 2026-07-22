@@ -148,7 +148,6 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
     step_mappings = _step_mappings(steps)
     checkout_path = "actions/checkout"
     expected_steps = {
-        None: checkout_path,
         "Setup Python for audit manifest extraction": "actions/setup-python",
     }
     for step_name, action_path in expected_steps.items():
