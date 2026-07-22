@@ -321,13 +321,13 @@ def _assert_ci_workflow_contracts(
         "Audit dependencies",
     ]
     audit_steps = [
-        step for step in _step_mappings(steps) if step.get("name") in audit_step_names
+        (step.get("name"), step.get("if"))
+        for step in _step_mappings(steps)
+        if step.get("name") in audit_step_names
     ]
-    assert [step.get("name") for step in audit_steps] == audit_step_names, (
-        "expected exactly one of each audit-specific CI step"
-    )
-    assert all(step.get("if") == dependabot_guard for step in audit_steps), (
-        "expected only audit-specific CI steps to skip Dependabot pull requests"
+    assert audit_steps == [(name, dependabot_guard) for name in audit_step_names], (
+        "expected each audit-specific CI step exactly once, in order, and guarded "
+        "against Dependabot pull requests"
     )
     rust_tool_install_step_names = [
         "Install test runner",

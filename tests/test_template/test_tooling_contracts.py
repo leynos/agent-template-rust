@@ -13,12 +13,14 @@ from tests.helpers.generated_files import (
     read_generated_text,
     require_mapping,
     require_optional_mapping,
+    require_sequence,
 )
 from tests.helpers.rendering import APP, LIB, render_project
 from tests.helpers.tooling_contracts import (
     assert_coverage_main_workflow_contract,
     assert_generated_tooling_contracts,
 )
+from tests.helpers.tooling_contracts.workflows import _assert_ci_workflow_contracts
 
 
 @pytest.mark.parametrize(
@@ -98,3 +100,32 @@ def test_generated_tooling_contracts(
     assert 'accepted = ["Flavored", "mold"]' in typos_overlay
     assert "DEFAULT_BASE_URL" in spelling_generator
     assert "_local_cache_is_current" in spelling_core
+
+
+def test_ci_contract_rejects_unguarded_duplicate_audit_step(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """Reject a duplicate audit step that would run on Dependabot pull requests."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="ToolingExample",
+        package_name="tooling_example",
+        flavour=APP,
+    )
+    ci_workflow = read_generated_text(project / ".github/workflows/ci.yml")
+    act_workflow = read_generated_text(project / ".github/workflows/act-validation.yml")
+    test_stub = read_generated_text(project / "tests/stub.rs")
+    parsed_ci_workflow = parse_yaml_mapping(ci_workflow, "CI workflow")
+
+    jobs = require_mapping(parsed_ci_workflow, "jobs", "CI workflow")
+    build_test = require_mapping(jobs, "build-test", "CI workflow jobs")
+    steps = require_sequence(build_test, "steps", "CI build-test job")
+    steps.append({"name": "Audit dependencies", "run": "make audit"})
+
+    with pytest.raises(
+        AssertionError, match="each audit-specific CI step exactly once"
+    ):
+        _assert_ci_workflow_contracts(
+            parsed_ci_workflow, ci_workflow, act_workflow, test_stub
+        )
