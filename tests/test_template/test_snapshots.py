@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from pathlib import Path
 
+from hypothesis import given
+from hypothesis import strategies as st
 from pytest_copier.plugin import CopierFixture
 from syrupy.assertion import SnapshotAssertion
 
@@ -94,3 +97,83 @@ def test_generated_structured_file_snapshots(
         "act_workflow, audit_workflow, ci_workflow, coverage_main_workflow, "
         "release_workflow)"
     )
+
+
+_HEX_ALPHABET = "0123456789abcdef"
+_action_paths = st.text(
+    alphabet="abcdefghijklmnopqrstuvwxyz0123456789/-._", min_size=1, max_size=20
+)
+_full_shas = st.text(alphabet=_HEX_ALPHABET, min_size=40, max_size=40)
+_pinned_uses = st.builds(lambda path, sha: f"{path}@{sha}", _action_paths, _full_shas)
+_unpinned_uses = st.one_of(
+    st.builds(
+        lambda path, ref: f"{path}@{ref}",
+        _action_paths,
+        st.sampled_from(("main", "v1", "rolling")),
+    ),
+    st.text(max_size=20),
+)
+_uses_refs = st.one_of(_pinned_uses, _unpinned_uses)
+_workflow_like = st.recursive(
+    st.one_of(
+        st.none(),
+        st.booleans(),
+        st.integers(),
+        st.text(max_size=10),
+        st.fixed_dictionaries({"uses": _uses_refs}),
+    ),
+    lambda children: st.one_of(
+        st.lists(children, max_size=3),
+        st.dictionaries(st.text(min_size=1, max_size=5), children, max_size=3),
+        st.fixed_dictionaries({"uses": _uses_refs}),
+    ),
+    max_leaves=15,
+)
+
+
+def _iter_uses_values(value: object) -> Iterator[str]:
+    """Yield every ``uses`` string leaf in a nested workflow structure."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "uses" and isinstance(item, str):
+                yield item
+            else:
+                yield from _iter_uses_values(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _iter_uses_values(item)
+
+
+def _same_shape(original: object, redacted: object) -> bool:
+    """Return whether two structures share container types, keys, and lengths."""
+    if isinstance(original, dict):
+        return (
+            isinstance(redacted, dict)
+            and original.keys() == redacted.keys()
+            and all(_same_shape(original[key], redacted[key]) for key in original)
+        )
+    if isinstance(original, list):
+        return (
+            isinstance(redacted, list)
+            and len(original) == len(redacted)
+            and all(_same_shape(a, b) for a, b in zip(original, redacted, strict=True))
+        )
+    return type(original) is type(redacted)
+
+
+@given(structure=_workflow_like)
+def test_redact_pinned_shas_removes_every_pinned_sha(structure: object) -> None:
+    """Redaction strips every pinned SHA, is idempotent, and preserves shape."""
+    redacted = _redact_pinned_shas(structure)
+
+    assert all(
+        _PINNED_USES_RE.match(uses) is None for uses in _iter_uses_values(redacted)
+    )
+    assert _redact_pinned_shas(redacted) == redacted
+    assert _same_shape(structure, redacted)
+
+
+@given(path=_action_paths, sha=_full_shas)
+def test_redact_pinned_shas_preserves_action_path(path: str, sha: str) -> None:
+    """A pinned ``uses`` ref keeps its action path and drops only the SHA."""
+    assert _redact_pinned_shas({"uses": f"{path}@{sha}"}) == {"uses": f"{path}@<sha>"}

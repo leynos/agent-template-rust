@@ -21,6 +21,11 @@ from tests.helpers.generated_files import (
 )
 from tests.helpers.rendering import read_generated_file
 from tests.helpers.tooling_contracts import assert_ci_coverage_action_contract
+from tests.helpers.tooling_contracts.workflows import (
+    _disables_credential_persistence,
+    _is_pinned_action,
+    _step_mappings,
+)
 from tests.test_github_actions_integration import xfail_known_act_runtime_limitations
 from tests.utilities import (
     _resolved_socket_from_docker_host,
@@ -153,6 +158,100 @@ def test_require_sequence_property(key: str, value: object) -> None:
     else:
         with pytest.raises(pytest.fail.Exception):
             require_sequence(mapping, key, "generated schema")
+
+
+_HEX_ALPHABET = "0123456789abcdef"
+_action_paths = st.text(
+    alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/-._",
+    min_size=1,
+    max_size=30,
+)
+_full_shas = st.text(alphabet=_HEX_ALPHABET, min_size=40, max_size=40)
+
+
+@st.composite
+def _non_sha_refs(draw: st.DrawFn) -> str:
+    """Draw refs that are never a 40-character lowercase-hex commit SHA."""
+    kind = draw(st.sampled_from(("short", "long", "uppercased", "branch")))
+    if kind == "short":
+        size = draw(st.integers(min_value=0, max_value=39))
+        return draw(st.text(alphabet=_HEX_ALPHABET, min_size=size, max_size=size))
+    if kind == "long":
+        size = draw(st.integers(min_value=41, max_value=64))
+        return draw(st.text(alphabet=_HEX_ALPHABET, min_size=size, max_size=size))
+    if kind == "uppercased":
+        hexes = draw(st.text(alphabet=_HEX_ALPHABET, min_size=40, max_size=40))
+        position = draw(st.integers(min_value=0, max_value=39))
+        return f"{hexes[:position]}G{hexes[position + 1 :]}"
+    return draw(st.sampled_from(("main", "master", "rolling", "HEAD", "v1.2.3")))
+
+
+@given(path=_action_paths, sha=_full_shas)
+def test_is_pinned_action_accepts_full_sha(path: str, sha: str) -> None:
+    """A path pinned to a 40-hex SHA matches only that exact action path."""
+    assert _is_pinned_action(f"{path}@{sha}", path)
+    assert not _is_pinned_action(f"{path}@{sha}", f"{path}-other")
+
+
+@given(path=_action_paths, ref=_non_sha_refs())
+def test_is_pinned_action_rejects_non_sha_refs(path: str, ref: str) -> None:
+    """Refs that are not a full 40-hex commit SHA are never treated as pinned."""
+    assert not _is_pinned_action(f"{path}@{ref}", path)
+
+
+_json_steps = st.lists(
+    st.one_of(
+        st.none(),
+        st.booleans(),
+        st.integers(),
+        st.text(),
+        st.lists(json_value, max_size=3),
+        st.dictionaries(st.text(max_size=5), json_value, max_size=3),
+    ),
+    max_size=6,
+)
+
+
+@given(steps=_json_steps)
+def test_step_mappings_keeps_only_mappings_in_order(steps: list[object]) -> None:
+    """``_step_mappings`` returns exactly the mapping entries, in original order."""
+    result = _step_mappings(steps)
+
+    assert result == [step for step in steps if isinstance(step, dict)]
+    assert all(isinstance(step, dict) for step in result)
+
+
+_persist_credential_values = st.sampled_from([True, False, None, 0, 1, "false", "true"])
+_with_blocks = st.one_of(
+    st.none(),
+    st.text(),
+    st.integers(),
+    st.dictionaries(st.text(min_size=1, max_size=5), json_value, max_size=3),
+    st.builds(
+        lambda base, value: {**base, "persist-credentials": value},
+        st.dictionaries(st.text(min_size=1, max_size=5), json_value, max_size=2),
+        _persist_credential_values,
+    ),
+)
+
+
+@st.composite
+def _checkout_like_steps(draw: st.DrawFn) -> dict[str, object]:
+    """Draw checkout-like steps with and without a ``with`` block."""
+    if draw(st.booleans()):
+        return {"with": draw(_with_blocks)}
+    return {}
+
+
+@given(step=_checkout_like_steps())
+def test_disables_credential_persistence_matches_spec(step: dict[str, object]) -> None:
+    """Only a ``with`` mapping whose persist-credentials is exactly False qualifies."""
+    with_block = step.get("with")
+    expected = (
+        isinstance(with_block, dict) and with_block.get("persist-credentials") is False
+    )
+
+    assert _disables_credential_persistence(step) is expected
 
 
 def test_read_generated_file_uses_shared_error_contract(tmp_path: Path) -> None:

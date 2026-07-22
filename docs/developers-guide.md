@@ -21,6 +21,17 @@ The tests render both library and application projects, run generated public
 gates such as `make all`, validate generated Makefiles with `mbake`, and parse
 generated `Cargo.toml` files as TOML.
 
+## Formatting, Linting, and Type Checking
+
+The parent gates run Ruff and mypy over the `tests/` tree; install `uv` so
+`uvx` can provision the tools on demand:
+
+- `make check-fmt` verifies formatting with `ruff format --check`.
+- `make fmt` rewrites formatting with `ruff format`.
+- `make lint` runs `ruff check`.
+- `make typecheck` runs `mypy` with the pytest dependency stubs and
+  `types-PyYAML`.
+
 ## Shared Oxford Spelling Gate
 
 Both the template repository and rendered projects enforce en-GB-oxendict
