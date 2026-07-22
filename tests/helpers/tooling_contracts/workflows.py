@@ -315,16 +315,20 @@ def _assert_ci_workflow_contracts(
     build_test = require_mapping(jobs, "build-test", "CI workflow jobs")
     steps = require_sequence(build_test, "steps", "CI build-test job")
     dependabot_guard = "github.actor != 'dependabot[bot]'"
-    dependabot_guarded_steps = [
-        step.get("name")
-        for step in _step_mappings(steps)
-        if step.get("if") == dependabot_guard
-    ]
-    assert dependabot_guarded_steps == [
+    audit_step_names = [
         "Install cargo-audit",
         "Setup Python for audit manifest extraction",
         "Audit dependencies",
-    ], "expected only audit-specific CI steps to skip Dependabot pull requests"
+    ]
+    audit_steps = [
+        step for step in _step_mappings(steps) if step.get("name") in audit_step_names
+    ]
+    assert [step.get("name") for step in audit_steps] == audit_step_names, (
+        "expected exactly one of each audit-specific CI step"
+    )
+    assert all(step.get("if") == dependabot_guard for step in audit_steps), (
+        "expected only audit-specific CI steps to skip Dependabot pull requests"
+    )
     rust_tool_install_step_names = [
         "Install test runner",
         "Install cargo-audit",
