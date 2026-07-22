@@ -33,6 +33,25 @@ def _is_pinned_action(uses: str, action_path: str) -> bool:
     return re.fullmatch(rf"{re.escape(action_path)}@[0-9a-f]{{40}}", uses) is not None
 
 
+def _step_mappings(steps: list[Any]) -> list[dict[str, Any]]:
+    """Return only the mapping-shaped entries from a workflow steps sequence."""
+    mappings: list[dict[str, Any]] = []
+    for step in steps:
+        match step:
+            case dict() as mapping:
+                mappings.append(mapping)
+    return mappings
+
+
+def _disables_credential_persistence(step: dict[str, Any]) -> bool:
+    """Return whether ``step`` checks out sources without persisting credentials."""
+    match step.get("with"):
+        case {"persist-credentials": False}:
+            return True
+        case _:
+            return False
+
+
 def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
     """Assert generated CI coverage inputs used by act validation.
 
@@ -126,6 +145,7 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
         "expected generated audit job to have a bounded runtime"
     )
     steps = require_sequence(audit, "steps", "audit workflow job")
+    step_mappings = _step_mappings(steps)
     checkout_path = "actions/checkout"
     expected_steps = {
         None: checkout_path,
@@ -134,9 +154,8 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
     for step_name, action_path in expected_steps.items():
         matching_steps = [
             step
-            for step in steps
-            if isinstance(step, dict)
-            and step.get("name") == step_name
+            for step in step_mappings
+            if step.get("name") == step_name
             and _is_pinned_action(str(step.get("uses", "")), action_path)
         ]
         assert len(matching_steps) == 1, (
@@ -145,20 +164,15 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
         )
     checkout_steps = [
         step
-        for step in steps
-        if isinstance(step, dict)
-        and _is_pinned_action(str(step.get("uses", "")), checkout_path)
+        for step in step_mappings
+        if _is_pinned_action(str(step.get("uses", "")), checkout_path)
     ]
     assert checkout_steps, "expected generated audit workflow checkout step"
-    assert all(
-        isinstance(step.get("with"), dict)
-        and step["with"].get("persist-credentials") is False
-        for step in checkout_steps
-    ), "expected generated audit workflow checkout to disable credential persistence"
+    assert all(_disables_credential_persistence(step) for step in checkout_steps), (
+        "expected generated audit workflow checkout to disable credential persistence"
+    )
     setup_rust_steps = [
-        step
-        for step in steps
-        if isinstance(step, dict) and step.get("name") == "Setup Rust"
+        step for step in step_mappings if step.get("name") == "Setup Rust"
     ]
     assert len(setup_rust_steps) == 1, (
         "expected generated audit workflow to include one Setup Rust step"
@@ -169,16 +183,13 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
         f"40-hex commit SHA, got {setup_rust_uses!r}"
     )
     assert any(
-        isinstance(step, dict)
-        and step.get("name") == "Install cargo-audit"
+        step.get("name") == "Install cargo-audit"
         and step.get("run") == "cargo binstall --no-confirm cargo-audit"
-        for step in steps
+        for step in step_mappings
     ), "expected generated audit workflow to install cargo-audit"
     assert any(
-        isinstance(step, dict)
-        and step.get("name") == "Audit dependencies"
-        and step.get("run") == "make audit"
-        for step in steps
+        step.get("name") == "Audit dependencies" and step.get("run") == "make audit"
+        for step in step_mappings
     ), "expected generated audit workflow to run make audit"
 
 
@@ -306,8 +317,8 @@ def _assert_ci_workflow_contracts(
     dependabot_guard = "github.actor != 'dependabot[bot]'"
     dependabot_guarded_steps = [
         step.get("name")
-        for step in steps
-        if isinstance(step, dict) and step.get("if") == dependabot_guard
+        for step in _step_mappings(steps)
+        if step.get("if") == dependabot_guard
     ]
     assert dependabot_guarded_steps == [
         "Install cargo-audit",

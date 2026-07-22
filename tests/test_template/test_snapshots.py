@@ -19,18 +19,24 @@ _PINNED_USES_RE = re.compile(r"^(?P<ref>.+)@[0-9a-f]{40}$")
 
 def _redact_pinned_shas(value: object) -> object:
     """Replace 40-hex SHA-pinned ``uses`` refs with a stable placeholder."""
-    if isinstance(value, dict):
-        return {
-            key: (
-                _PINNED_USES_RE.sub(r"\g<ref>@<sha>", item)
-                if key == "uses" and isinstance(item, str)
-                else _redact_pinned_shas(item)
-            )
-            for key, item in value.items()
-        }
-    if isinstance(value, list):
-        return [_redact_pinned_shas(item) for item in value]
-    return value
+    match value:
+        case dict() as mapping:
+            return {
+                key: _redact_mapping_entry(key, item) for key, item in mapping.items()
+            }
+        case list() as sequence:
+            return [_redact_pinned_shas(item) for item in sequence]
+        case _:
+            return value
+
+
+def _redact_mapping_entry(key: object, item: object) -> object:
+    """Redact a pinned ``uses`` ref, otherwise recurse into the entry."""
+    match (key, item):
+        case ("uses", str() as pinned):
+            return _PINNED_USES_RE.sub(r"\g<ref>@<sha>", pinned)
+        case _:
+            return _redact_pinned_shas(item)
 
 
 def test_generated_structured_file_snapshots(
