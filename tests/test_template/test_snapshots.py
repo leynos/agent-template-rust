@@ -17,6 +17,9 @@ from tests.helpers.rendering import APP, render_project
 _PINNED_USES_RE = re.compile(r"^(?P<ref>.+)@[0-9a-f]{40}$")
 
 
+# FIXME(https://github.com/leynos/agent-template-rust/issues/72): replace this
+# hand-rolled traversal with a syrupy ``matcher=`` as part of the planned
+# snapshot-testing overhaul (once AST-aware Markdown snapshots are ready).
 def _redact_pinned_shas(value: object) -> object:
     """Replace 40-hex SHA-pinned ``uses`` refs with a stable placeholder."""
     match value:
