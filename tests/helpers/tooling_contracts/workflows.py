@@ -24,11 +24,36 @@ _GENERATE_COVERAGE_USES_RE = re.compile(
 _UPLOAD_CODESCENE_COVERAGE_USES_RE = re.compile(
     r"^leynos/shared-actions/\.github/actions/upload-codescene-coverage@[0-9a-f]{40}$"
 )
-_SETUP_RUST_USES_TEXT_RE = re.compile(
+_SETUP_RUST_USES_RE = re.compile(
     r"leynos/shared-actions/\.github/actions/setup-rust@[0-9a-f]{40}"
 )
-_SETUP_PYTHON_USES_TEXT_RE = re.compile(r"actions/setup-python@[0-9a-f]{40}")
-_UPLOAD_ARTIFACT_USES_TEXT_RE = re.compile(r"actions/upload-artifact@[0-9a-f]{40}")
+_SETUP_PYTHON_USES_RE = re.compile(r"actions/setup-python@[0-9a-f]{40}")
+_UPLOAD_ARTIFACT_USES_RE = re.compile(r"actions/upload-artifact@[0-9a-f]{40}")
+
+
+def _iter_job_steps(jobs: dict[str, Any]) -> list[Any]:
+    """Return every step across all jobs in a parsed jobs mapping."""
+    return [
+        step
+        for job in jobs.values()
+        if isinstance(job, dict)
+        for step in job.get("steps", [])
+    ]
+
+
+def _assert_pinned_step_uses(
+    steps: list[Any], uses_re: "re.Pattern[str]", label: str
+) -> None:
+    """Assert one workflow step's ``uses:`` fully matches ``uses_re``.
+
+    Parsing the actual ``uses:`` field, rather than scanning the raw workflow
+    text, ensures that a commented-out reference or a mutable tag or branch
+    cannot satisfy the pinned-action contract.
+    """
+    assert any(
+        isinstance(step, dict) and uses_re.fullmatch(str(step.get("uses", "")))
+        for step in steps
+    ), f"expected {label} pinned to a full 40-hex commit SHA in a workflow step"
 
 
 def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
@@ -241,9 +266,8 @@ def _assert_ci_workflow_contracts(
     assert "Cache Whitaker installation" in ci_workflow, (
         "expected generated CI workflow to cache Whitaker installation"
     )
-    assert _SETUP_RUST_USES_TEXT_RE.search(ci_workflow), (
-        "expected generated CI workflow to use the shared setup-rust action "
-        "pinned to a full 40-hex commit SHA"
+    _assert_pinned_step_uses(
+        steps, _SETUP_RUST_USES_RE, "generated CI shared setup-rust action"
     )
     build_test_checkout = [
         step
@@ -283,9 +307,8 @@ def _assert_ci_workflow_contracts(
     assert "Setup Python for audit manifest extraction" in ci_workflow, (
         "expected generated CI workflow to install Python for audit metadata parsing"
     )
-    assert _SETUP_PYTHON_USES_TEXT_RE.search(ci_workflow), (
-        "expected generated CI workflow to use the setup-python action "
-        "pinned to a full 40-hex commit SHA"
+    _assert_pinned_step_uses(
+        steps, _SETUP_PYTHON_USES_RE, "generated CI setup-python action"
     )
     assert "make audit" in ci_workflow, (
         "expected generated CI workflow to run the dependency audit gate"
@@ -334,6 +357,8 @@ _MUTATION_SETUP_PACKAGES = ("clang", "lld", "mold")
 _MUTATION_REUSABLE_WORKFLOW = (
     "leynos/shared-actions/.github/workflows/mutation-cargo.yml"
 )
+_MUTATION_CRON = "15 9 * * *"
+_MUTATION_CONCURRENCY_GROUP = "mutation-testing-${{ github.ref }}"
 
 
 def _extract_apt_install_packages(setup_commands: str) -> list[str]:
@@ -354,6 +379,10 @@ def _extract_apt_install_packages(setup_commands: str) -> list[str]:
     lines = setup_commands.splitlines()
     marker = "apt-get install"
     for index, line in enumerate(lines):
+        # Ignore commented-out commands so a `# ... apt-get install ...` line
+        # can never be mistaken for a real install.
+        if line.strip().startswith("#"):
+            continue
         marker_at = line.find(marker)
         if marker_at == -1:
             continue
@@ -364,10 +393,15 @@ def _extract_apt_install_packages(setup_commands: str) -> list[str]:
             cursor += 1
             if cursor < len(lines):
                 segment += " " + lines[cursor]
+        # Surface malformed shell instead of masking it as a valid install; a
+        # setup-commands script that cannot be parsed is not runnable.
         try:
             tokens = shlex.split(segment)
-        except ValueError:
-            tokens = segment.split()
+        except ValueError as error:
+            raise AssertionError(
+                "expected mutation job setup-commands apt-get install to be "
+                f"parseable shell, got {segment!r}"
+            ) from error
         return [token for token in tokens if not token.startswith("-")]
     return []
 
@@ -381,14 +415,16 @@ def _assert_mutation_workflow_contracts(mutation_workflow: str) -> None:
     triggers = require_mapping(parsed, "on", "mutation-testing workflow")
     schedule = require_sequence(triggers, "schedule", "mutation-testing workflow on")
     assert any(
-        isinstance(entry, dict) and entry.get("cron") for entry in schedule
-    ), "expected mutation-testing workflow to define a scheduled cron trigger"
+        isinstance(entry, dict) and entry.get("cron") == _MUTATION_CRON
+        for entry in schedule
+    ), f"expected mutation-testing workflow to schedule cron {_MUTATION_CRON!r}"
     assert "workflow_dispatch" in triggers, (
         "expected mutation-testing workflow to support manual workflow_dispatch"
     )
     concurrency = require_mapping(parsed, "concurrency", "mutation-testing workflow")
-    assert concurrency.get("group"), (
-        "expected mutation-testing workflow to define a concurrency group"
+    assert concurrency.get("group") == _MUTATION_CONCURRENCY_GROUP, (
+        "expected mutation-testing workflow concurrency group "
+        f"{_MUTATION_CONCURRENCY_GROUP!r}"
     )
     assert concurrency.get("cancel-in-progress") is False, (
         "expected mutation-testing workflow to queue runs "
@@ -440,9 +476,10 @@ def _assert_release_workflow_contracts(release_workflow: str) -> None:
         step.get("with", {}).get("persist-credentials") is False
         for step in release_checkout_steps
     ), "expected release workflow checkout steps to disable credentials"
-    assert _UPLOAD_ARTIFACT_USES_TEXT_RE.search(release_workflow), (
-        "expected app release workflow to use the upload-artifact action "
-        "pinned to a full 40-hex commit SHA"
+    _assert_pinned_step_uses(
+        _iter_job_steps(jobs),
+        _UPLOAD_ARTIFACT_USES_RE,
+        "app release upload-artifact action",
     )
     cross_revision = "88f49ff79e777bef6d3564531636ee4d3cc2f8d2"
     assert f"CROSS_REVISION: {cross_revision}" in release_workflow, (
