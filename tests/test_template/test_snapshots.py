@@ -133,32 +133,38 @@ _workflow_like = st.recursive(
 
 def _iter_uses_values(value: object) -> Iterator[str]:
     """Yield every ``uses`` string leaf in a nested workflow structure."""
-    if isinstance(value, dict):
-        for key, item in value.items():
-            if key == "uses" and isinstance(item, str):
-                yield item
-            else:
+    match value:
+        case dict() as mapping:
+            for key, item in mapping.items():
+                match (key, item):
+                    case ("uses", str() as uses):
+                        yield uses
+                    case _:
+                        yield from _iter_uses_values(item)
+        case list() as sequence:
+            for item in sequence:
                 yield from _iter_uses_values(item)
-    elif isinstance(value, list):
-        for item in value:
-            yield from _iter_uses_values(item)
 
 
 def _same_shape(original: object, redacted: object) -> bool:
     """Return whether two structures share container types, keys, and lengths."""
-    if isinstance(original, dict):
-        return (
-            isinstance(redacted, dict)
-            and original.keys() == redacted.keys()
-            and all(_same_shape(original[key], redacted[key]) for key in original)
-        )
-    if isinstance(original, list):
-        return (
-            isinstance(redacted, list)
-            and len(original) == len(redacted)
-            and all(_same_shape(a, b) for a, b in zip(original, redacted, strict=True))
-        )
-    return type(original) is type(redacted)
+    match original, redacted:
+        case dict() as original_map, dict() as redacted_map:
+            return original_map.keys() == redacted_map.keys() and all(
+                _same_shape(original_map[key], redacted_map[key])
+                for key in original_map
+            )
+        case dict(), _:
+            return False
+        case list() as original_seq, list() as redacted_seq:
+            return len(original_seq) == len(redacted_seq) and all(
+                _same_shape(a, b)
+                for a, b in zip(original_seq, redacted_seq, strict=True)
+            )
+        case list(), _:
+            return False
+        case _:
+            return type(original) is type(redacted)
 
 
 @given(structure=_workflow_like)
@@ -168,12 +174,18 @@ def test_redact_pinned_shas_removes_every_pinned_sha(structure: object) -> None:
 
     assert all(
         _PINNED_USES_RE.match(uses) is None for uses in _iter_uses_values(redacted)
+    ), "expected redaction to strip every pinned SHA from uses refs"
+    assert _redact_pinned_shas(redacted) == redacted, (
+        "expected redaction to be idempotent"
     )
-    assert _redact_pinned_shas(redacted) == redacted
-    assert _same_shape(structure, redacted)
+    assert _same_shape(structure, redacted), (
+        "expected redaction to preserve the structure shape"
+    )
 
 
 @given(path=_action_paths, sha=_full_shas)
 def test_redact_pinned_shas_preserves_action_path(path: str, sha: str) -> None:
     """A pinned ``uses`` ref keeps its action path and drops only the SHA."""
-    assert _redact_pinned_shas({"uses": f"{path}@{sha}"}) == {"uses": f"{path}@<sha>"}
+    assert _redact_pinned_shas({"uses": f"{path}@{sha}"}) == {
+        "uses": f"{path}@<sha>"
+    }, "expected redaction to replace only the SHA and keep the action path"

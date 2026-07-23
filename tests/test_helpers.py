@@ -189,14 +189,20 @@ def _non_sha_refs(draw: st.DrawFn) -> str:
 @given(path=_action_paths, sha=_full_shas)
 def test_is_pinned_action_accepts_full_sha(path: str, sha: str) -> None:
     """A path pinned to a 40-hex SHA matches only that exact action path."""
-    assert _is_pinned_action(f"{path}@{sha}", path)
-    assert not _is_pinned_action(f"{path}@{sha}", f"{path}-other")
+    assert _is_pinned_action(f"{path}@{sha}", path), (
+        "expected a full 40-hex SHA pin to match its exact action path"
+    )
+    assert not _is_pinned_action(f"{path}@{sha}", f"{path}-other"), (
+        "expected a pinned ref to be rejected for a mismatched action path"
+    )
 
 
 @given(path=_action_paths, ref=_non_sha_refs())
 def test_is_pinned_action_rejects_non_sha_refs(path: str, ref: str) -> None:
     """Refs that are not a full 40-hex commit SHA are never treated as pinned."""
-    assert not _is_pinned_action(f"{path}@{ref}", path)
+    assert not _is_pinned_action(f"{path}@{ref}", path), (
+        "expected a ref that is not a full 40-hex commit SHA to be unpinned"
+    )
 
 
 _json_steps = st.lists(
@@ -217,8 +223,12 @@ def test_step_mappings_keeps_only_mappings_in_order(steps: list[object]) -> None
     """``_step_mappings`` returns exactly the mapping entries, in original order."""
     result = _step_mappings(steps)
 
-    assert result == [step for step in steps if isinstance(step, dict)]
-    assert all(isinstance(step, dict) for step in result)
+    assert result == [step for step in steps if isinstance(step, dict)], (
+        "expected only mapping steps, preserved in their original order"
+    )
+    assert all(isinstance(step, dict) for step in result), (
+        "expected every returned step to be a mapping"
+    )
 
 
 _persist_credential_values = st.sampled_from([True, False, None, 0, 1, "false", "true"])
@@ -251,7 +261,9 @@ def test_disables_credential_persistence_matches_spec(step: dict[str, object]) -
         isinstance(with_block, dict) and with_block.get("persist-credentials") is False
     )
 
-    assert _disables_credential_persistence(step) is expected
+    assert _disables_credential_persistence(step) is expected, (
+        "expected the credential-persistence verdict to match the with-block spec"
+    )
 
 
 def test_read_generated_file_uses_shared_error_contract(tmp_path: Path) -> None:
