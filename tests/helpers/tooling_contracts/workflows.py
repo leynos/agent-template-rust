@@ -9,6 +9,7 @@ lockstep with routine bump PRs.
 from __future__ import annotations
 
 import re
+import shlex
 from typing import Any
 
 from tests.helpers.generated_files import (
@@ -23,9 +24,36 @@ _GENERATE_COVERAGE_USES_RE = re.compile(
 _UPLOAD_CODESCENE_COVERAGE_USES_RE = re.compile(
     r"^leynos/shared-actions/\.github/actions/upload-codescene-coverage@[0-9a-f]{40}$"
 )
-_SETUP_RUST_USES_TEXT_RE = re.compile(
+_SETUP_RUST_USES_RE = re.compile(
     r"leynos/shared-actions/\.github/actions/setup-rust@[0-9a-f]{40}"
 )
+_SETUP_PYTHON_USES_RE = re.compile(r"actions/setup-python@[0-9a-f]{40}")
+_UPLOAD_ARTIFACT_USES_RE = re.compile(r"actions/upload-artifact@[0-9a-f]{40}")
+
+
+def _iter_job_steps(jobs: dict[str, Any]) -> list[Any]:
+    """Return every step across all jobs in a parsed jobs mapping."""
+    return [
+        step
+        for job in jobs.values()
+        if isinstance(job, dict)
+        for step in job.get("steps", [])
+    ]
+
+
+def _assert_pinned_step_uses(
+    steps: list[Any], uses_re: "re.Pattern[str]", label: str
+) -> None:
+    """Assert one workflow step's ``uses:`` fully matches ``uses_re``.
+
+    Parsing the actual ``uses:`` field, rather than scanning the raw workflow
+    text, ensures that a commented-out reference or a mutable tag or branch
+    cannot satisfy the pinned-action contract.
+    """
+    assert any(
+        isinstance(step, dict) and uses_re.fullmatch(str(step.get("uses", "")))
+        for step in steps
+    ), f"expected {label} pinned to a full 40-hex commit SHA in a workflow step"
 
 
 def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
@@ -238,9 +266,8 @@ def _assert_ci_workflow_contracts(
     assert "Cache Whitaker installation" in ci_workflow, (
         "expected generated CI workflow to cache Whitaker installation"
     )
-    assert _SETUP_RUST_USES_TEXT_RE.search(ci_workflow), (
-        "expected generated CI workflow to use the shared setup-rust action "
-        "pinned to a full 40-hex commit SHA"
+    _assert_pinned_step_uses(
+        steps, _SETUP_RUST_USES_RE, "generated CI shared setup-rust action"
     )
     build_test_checkout = [
         step
@@ -280,9 +307,9 @@ def _assert_ci_workflow_contracts(
     assert "Setup Python for audit manifest extraction" in ci_workflow, (
         "expected generated CI workflow to install Python for audit metadata parsing"
     )
-    assert "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405" in (
-        ci_workflow
-    ), "expected generated CI workflow to pin setup-python for audit parsing"
+    _assert_pinned_step_uses(
+        steps, _SETUP_PYTHON_USES_RE, "generated CI setup-python action"
+    )
     assert "make audit" in ci_workflow, (
         "expected generated CI workflow to run the dependency audit gate"
     )
@@ -325,6 +352,120 @@ def _assert_ci_workflow_contracts(
     )
 
 
+_MUTATION_JOB_PERMISSIONS = {"contents": "read", "id-token": "write"}
+_MUTATION_SETUP_PACKAGES = ("clang", "lld", "mold")
+_MUTATION_REUSABLE_WORKFLOW = (
+    "leynos/shared-actions/.github/workflows/mutation-cargo.yml"
+)
+_MUTATION_CRON = "15 9 * * *"
+_MUTATION_CONCURRENCY_GROUP = "mutation-testing-${{ github.ref }}"
+
+
+def _extract_apt_install_packages(setup_commands: str) -> list[str]:
+    """Return packages passed to the setup-commands ``apt-get install`` call.
+
+    Parameters
+    ----------
+    setup_commands
+        Setup-commands shell script from the mutation job ``with`` inputs.
+
+    Returns
+    -------
+    list[str]
+        Non-flag arguments supplied to ``apt-get install``, following any
+        backslash line continuations, or an empty list when no install command
+        is present.
+    """
+    lines = setup_commands.splitlines()
+    marker = "apt-get install"
+    for index, line in enumerate(lines):
+        # Ignore commented-out commands so a `# ... apt-get install ...` line
+        # can never be mistaken for a real install.
+        if line.strip().startswith("#"):
+            continue
+        marker_at = line.find(marker)
+        if marker_at == -1:
+            continue
+        segment = line[marker_at + len(marker) :]
+        cursor = index
+        while cursor < len(lines) and lines[cursor].rstrip().endswith("\\"):
+            segment = segment.rstrip().removesuffix("\\")
+            cursor += 1
+            if cursor < len(lines):
+                segment += " " + lines[cursor]
+        # Surface malformed shell instead of masking it as a valid install; a
+        # setup-commands script that cannot be parsed is not runnable.
+        try:
+            tokens = shlex.split(segment)
+        except ValueError as error:
+            raise AssertionError(
+                "expected mutation job setup-commands apt-get install to be "
+                f"parseable shell, got {segment!r}"
+            ) from error
+        return [token for token in tokens if not token.startswith("-")]
+    return []
+
+
+def _assert_mutation_workflow_contracts(mutation_workflow: str) -> None:
+    """Assert generated mutation-testing workflow contracts."""
+    parsed = parse_yaml_mapping(mutation_workflow, "mutation-testing workflow")
+    assert parsed.get("permissions") == {}, (
+        "expected mutation-testing workflow root permissions to grant no scopes"
+    )
+    triggers = require_mapping(parsed, "on", "mutation-testing workflow")
+    schedule = require_sequence(triggers, "schedule", "mutation-testing workflow on")
+    assert any(
+        isinstance(entry, dict) and entry.get("cron") == _MUTATION_CRON
+        for entry in schedule
+    ), f"expected mutation-testing workflow to schedule cron {_MUTATION_CRON!r}"
+    assert "workflow_dispatch" in triggers, (
+        "expected mutation-testing workflow to support manual workflow_dispatch"
+    )
+    concurrency = require_mapping(parsed, "concurrency", "mutation-testing workflow")
+    assert concurrency.get("group") == _MUTATION_CONCURRENCY_GROUP, (
+        "expected mutation-testing workflow concurrency group "
+        f"{_MUTATION_CONCURRENCY_GROUP!r}"
+    )
+    assert concurrency.get("cancel-in-progress") is False, (
+        "expected mutation-testing workflow to queue runs "
+        "(concurrency.cancel-in-progress: false)"
+    )
+    jobs = require_mapping(parsed, "jobs", "mutation-testing workflow")
+    mutation = require_mapping(jobs, "mutation", "mutation-testing workflow jobs")
+    mutation_uses = str(mutation.get("uses", ""))
+    pinned_prefix = f"{_MUTATION_REUSABLE_WORKFLOW}@"
+    assert mutation_uses.startswith(pinned_prefix), (
+        "expected mutation job to call the shared mutation-cargo reusable workflow"
+    )
+    # The specific SHA is owned by Dependabot and deliberately not hard-coded, so
+    # the contract survives dependency bumps while requiring an immutable pin.
+    assert re.fullmatch(r"[0-9a-f]{40}", mutation_uses[len(pinned_prefix) :]), (
+        "expected mutation job to pin the reusable workflow to a full commit SHA"
+    )
+    permissions = require_mapping(mutation, "permissions", "mutation job")
+    assert permissions == _MUTATION_JOB_PERMISSIONS, (
+        "expected mutation job permissions to stay scoped to "
+        "contents: read and id-token: write"
+    )
+    inputs = require_mapping(mutation, "with", "mutation job")
+    assert inputs.get("extra-args") == "--all-features", (
+        "expected mutation job to mirror the CI --all-features test baseline"
+    )
+    setup_commands = inputs.get("setup-commands")
+    assert isinstance(setup_commands, str), (
+        "expected mutation job setup-commands to be a string"
+    )
+    installed_packages = _extract_apt_install_packages(setup_commands)
+    assert installed_packages, (
+        "expected mutation job setup-commands to install packages via apt-get"
+    )
+    for package in _MUTATION_SETUP_PACKAGES:
+        assert package in installed_packages, (
+            "expected mutation job setup-commands apt-get install to include "
+            f"{package}"
+        )
+
+
 def _assert_release_workflow_contracts(release_workflow: str) -> None:
     """Assert generated release workflow contracts."""
     parsed_release_workflow = parse_yaml_mapping(release_workflow, "release workflow")
@@ -335,10 +476,11 @@ def _assert_release_workflow_contracts(release_workflow: str) -> None:
         step.get("with", {}).get("persist-credentials") is False
         for step in release_checkout_steps
     ), "expected release workflow checkout steps to disable credentials"
-    assert (
-        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
-        in release_workflow
-    ), "expected app release workflow to use pinned upload-artifact action"
+    _assert_pinned_step_uses(
+        _iter_job_steps(jobs),
+        _UPLOAD_ARTIFACT_USES_RE,
+        "app release upload-artifact action",
+    )
     cross_revision = "88f49ff79e777bef6d3564531636ee4d3cc2f8d2"
     assert f"CROSS_REVISION: {cross_revision}" in release_workflow, (
         "expected app release workflow to pin cross to an immutable revision"

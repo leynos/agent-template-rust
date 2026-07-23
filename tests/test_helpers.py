@@ -21,6 +21,7 @@ from tests.helpers.generated_files import (
 )
 from tests.helpers.rendering import read_generated_file
 from tests.helpers.tooling_contracts import assert_ci_coverage_action_contract
+from tests.helpers.tooling_contracts.workflows import _extract_apt_install_packages
 from tests.test_github_actions_integration import xfail_known_act_runtime_limitations
 from tests.utilities import (
     _resolved_socket_from_docker_host,
@@ -437,6 +438,36 @@ jobs:
         with:
           persist-credentials: {persist_credentials}
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd
+        uses: leynos/shared-actions/.github/actions/generate-coverage@0000000000000000000000000000000000000000
         with:
 {coverage_inputs}"""
+
+
+def test_extract_apt_install_packages_returns_non_flag_arguments() -> None:
+    """Return install arguments across backslash continuations, dropping flags."""
+    setup_commands = (
+        "export DEBIAN_FRONTEND=noninteractive\n"
+        "sudo apt-get update \\\n"
+        "  && sudo apt-get install --yes --no-install-recommends clang lld mold\n"
+    )
+
+    assert _extract_apt_install_packages(setup_commands) == ["clang", "lld", "mold"], (
+        "expected only the non-flag install arguments to be returned"
+    )
+
+
+def test_extract_apt_install_packages_ignores_commented_installs() -> None:
+    """Skip commented-out install commands so they cannot satisfy the contract."""
+    setup_commands = "# sudo apt-get install --yes clang lld mold\necho skip\n"
+
+    assert _extract_apt_install_packages(setup_commands) == [], (
+        "expected a commented-out apt-get install to be ignored"
+    )
+
+
+def test_extract_apt_install_packages_rejects_malformed_shell() -> None:
+    """Surface malformed setup-commands shell instead of masking it as valid."""
+    setup_commands = 'sudo apt-get install --yes "clang\n'
+
+    with pytest.raises(AssertionError, match="parseable shell"):
+        _extract_apt_install_packages(setup_commands)

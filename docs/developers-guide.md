@@ -62,6 +62,13 @@ The main `.github/workflows/ci.yml` workflow runs ordinary `make test` without
 `WITH_ACT=1` so the slower container-backed checks run in parallel instead of
 blocking the main test and coverage path.
 
+The template also renders `.github/workflows/mutation-testing.yml` into
+generated projects; its rendered contract is asserted by
+`_assert_mutation_workflow_contracts` in
+`tests/helpers/tooling_contracts/workflows.py`. Dependabot owns the pinned
+reusable-workflow commit SHA, so the contract test asserts the pin format (a
+full commit SHA) rather than a hard-coded value.
+
 ## Required Tooling
 
 The parent tests expect these tools to be available when validating generated

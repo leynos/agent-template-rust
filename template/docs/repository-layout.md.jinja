@@ -18,6 +18,7 @@ compact and omits build output such as `target/`.
 │   └── workflows/
 │       ├── act-validation.yml
 │       ├── ci.yml
+│       ├── mutation-testing.yml
 {% if flavour == 'app' %}
 │       └── release.yml
 {% endif %}
@@ -55,6 +56,8 @@ compact and omits build output such as `target/`.
   validation through `act` separately from main CI.
 - `.github/workflows/ci.yml`: Runs the generated project's continuous
   integration checks.
+- `.github/workflows/mutation-testing.yml`: Runs scheduled mutation testing
+  through the shared `mutation-cargo` reusable workflow.
 {% if flavour == 'app' %}
 - `.github/workflows/release.yml`: Builds and publishes binary release
   artefacts for the application flavour.

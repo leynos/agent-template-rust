@@ -17,6 +17,13 @@ The main `.github/workflows/ci.yml` workflow deliberately does not run
 `make test WITH_ACT=1`; the separate Act workflow runs those slower
 container-backed checks in parallel.
 
+A scheduled `.github/workflows/mutation-testing.yml` workflow also runs
+`cargo-mutants` via the shared reusable workflow, daily and on manual
+dispatch. It is informational and does not gate pull requests. Dependabot
+keeps its pinned reusable-workflow SHA current. See the user guide's
+"Scheduled Mutation Testing" section for behaviour, and promote surviving
+mutants into new tests.
+
 ## Tooling
 
 Development builds use Cranelift for debug code generation. On Linux targets,
