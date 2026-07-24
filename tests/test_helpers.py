@@ -23,9 +23,9 @@ from tests.helpers.rendering import read_generated_file
 from tests.helpers.tooling_contracts import assert_ci_coverage_action_contract
 from tests.helpers.tooling_contracts.workflows import (
     _disables_credential_persistence,
+    _extract_apt_install_packages,
     _is_pinned_action,
     _step_mappings,
-    _extract_apt_install_packages,
 )
 from tests.test_github_actions_integration import xfail_known_act_runtime_limitations
 from tests.utilities import (
@@ -34,9 +34,6 @@ from tests.utilities import (
     container_daemon_socket,
     docker_environment,
 )
-
-
-"""Validate direct helper-module error handling and edge cases."""
 
 
 def _json_collections(
@@ -586,6 +583,7 @@ jobs:
         with:
 {coverage_inputs}"""
 
+
 def test_extract_apt_install_packages_returns_non_flag_arguments() -> None:
     """Return install arguments across backslash continuations, dropping flags."""
     setup_commands = (
@@ -598,6 +596,7 @@ def test_extract_apt_install_packages_returns_non_flag_arguments() -> None:
         "expected only the non-flag install arguments to be returned"
     )
 
+
 def test_extract_apt_install_packages_ignores_commented_installs() -> None:
     """Skip commented-out install commands so they cannot satisfy the contract."""
     setup_commands = "# sudo apt-get install --yes clang lld mold\necho skip\n"
@@ -605,6 +604,7 @@ def test_extract_apt_install_packages_ignores_commented_installs() -> None:
     assert _extract_apt_install_packages(setup_commands) == [], (
         "expected a commented-out apt-get install to be ignored"
     )
+
 
 def test_extract_apt_install_packages_rejects_malformed_shell() -> None:
     """Surface malformed setup-commands shell instead of masking it as valid."""

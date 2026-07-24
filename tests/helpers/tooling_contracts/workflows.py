@@ -186,7 +186,7 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
         "expected generated audit workflow to include one Setup Rust step"
     )
     setup_rust_uses = str(setup_rust_steps[0].get("uses", ""))
-    assert _SETUP_RUST_USES_TEXT_RE.fullmatch(setup_rust_uses), (
+    assert _SETUP_RUST_USES_RE.fullmatch(setup_rust_uses), (
         "expected generated audit workflow to use setup-rust pinned to a full "
         f"40-hex commit SHA, got {setup_rust_uses!r}"
     )
@@ -554,8 +554,7 @@ def _assert_mutation_workflow_contracts(mutation_workflow: str) -> None:
     )
     for package in _MUTATION_SETUP_PACKAGES:
         assert package in installed_packages, (
-            "expected mutation job setup-commands apt-get install to include "
-            f"{package}"
+            f"expected mutation job setup-commands apt-get install to include {package}"
         )
 
 
@@ -618,6 +617,7 @@ def extract_checkout_steps(jobs: dict[str, Any]) -> list[dict[str, Any]]:
         and str(step.get("uses", "")).startswith("actions/checkout@")
     ]
 
+
 def _iter_job_steps(jobs: dict[str, Any]) -> list[Any]:
     """Return every step across all jobs in a parsed jobs mapping."""
     return [
@@ -626,6 +626,7 @@ def _iter_job_steps(jobs: dict[str, Any]) -> list[Any]:
         if isinstance(job, dict)
         for step in job.get("steps", [])
     ]
+
 
 def _assert_pinned_step_uses(
     steps: list[Any], uses_re: "re.Pattern[str]", label: str
