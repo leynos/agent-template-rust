@@ -8,6 +8,7 @@ from collections.abc import Mapping
 MAKE_RESOLUTION_VARIABLES = frozenset(
     {
         "WHITAKER",
+        "GNUMAKEFLAGS",
         "MAKEFLAGS",
         "MFLAGS",
         "MAKELEVEL",
