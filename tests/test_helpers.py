@@ -21,6 +21,11 @@ from tests.helpers.generated_files import (
 )
 from tests.helpers.rendering import read_generated_file
 from tests.helpers.tooling_contracts import assert_ci_coverage_action_contract
+from tests.helpers.tooling_contracts.workflows import (
+    _disables_credential_persistence,
+    _is_pinned_action,
+    _step_mappings,
+)
 from tests.test_github_actions_integration import xfail_known_act_runtime_limitations
 from tests.utilities import (
     _resolved_socket_from_docker_host,
@@ -29,14 +34,23 @@ from tests.utilities import (
     docker_environment,
 )
 
+
+def _json_collections(
+    children: st.SearchStrategy[Any],
+) -> st.SearchStrategy[Any]:
+    """Extend a recursive JSON strategy with bounded list and dict collections."""
+    return st.lists(children, max_size=4) | st.dictionaries(
+        st.text(), children, max_size=4
+    )
+
+
 json_value = st.recursive(
     st.none()
     | st.booleans()
     | st.integers()
     | st.floats(allow_nan=False, allow_infinity=False)
     | st.text(),
-    lambda children: st.lists(children, max_size=4)
-    | st.dictionaries(st.text(), children, max_size=4),
+    _json_collections,
     max_leaves=12,
 )
 
@@ -146,6 +160,133 @@ def test_require_sequence_property(key: str, value: object) -> None:
             require_sequence(mapping, key, "generated schema")
 
 
+_HEX_ALPHABET = "0123456789abcdef"
+_action_paths = st.text(
+    alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/-._",
+    min_size=1,
+    max_size=30,
+)
+_full_shas = st.text(alphabet=_HEX_ALPHABET, min_size=40, max_size=40)
+
+
+@st.composite
+def _non_sha_refs(draw: st.DrawFn) -> str:
+    """Draw refs that are never a 40-character lowercase-hex commit SHA."""
+    kind = draw(st.sampled_from(("short", "long", "uppercased", "branch")))
+    match kind:
+        case "short":
+            size = draw(st.integers(min_value=0, max_value=39))
+            return draw(st.text(alphabet=_HEX_ALPHABET, min_size=size, max_size=size))
+        case "long":
+            size = draw(st.integers(min_value=41, max_value=64))
+            return draw(st.text(alphabet=_HEX_ALPHABET, min_size=size, max_size=size))
+        case "uppercased":
+            hexes = draw(st.text(alphabet=_HEX_ALPHABET, min_size=40, max_size=40))
+            position = draw(st.integers(min_value=0, max_value=39))
+            existing = hexes[position]
+            # Uppercasing a hex digit is a no-op, so fall back to a hex letter
+            # to keep the ref out of the lowercase-hex SHA shape.
+            flipped = (
+                existing.upper()
+                if existing.isalpha()
+                else draw(st.sampled_from("ABCDEF"))
+            )
+            return f"{hexes[:position]}{flipped}{hexes[position + 1 :]}"
+        case "branch":
+            return draw(
+                st.sampled_from(("main", "master", "rolling", "HEAD", "v1.2.3"))
+            )
+        case _:  # pragma: no cover - kind is drawn from the sampled set above
+            raise AssertionError(f"unexpected ref kind: {kind}")
+
+
+@given(path=_action_paths, sha=_full_shas)
+def test_is_pinned_action_accepts_full_sha(path: str, sha: str) -> None:
+    """A path pinned to a 40-hex SHA matches only that exact action path."""
+    assert _is_pinned_action(f"{path}@{sha}", path), (
+        "expected a full 40-hex SHA pin to match its exact action path"
+    )
+    assert not _is_pinned_action(f"{path}@{sha}", f"{path}-other"), (
+        "expected a pinned ref to be rejected for a mismatched action path"
+    )
+
+
+@given(path=_action_paths, ref=_non_sha_refs())
+def test_is_pinned_action_rejects_non_sha_refs(path: str, ref: str) -> None:
+    """Refs that are not a full 40-hex commit SHA are never treated as pinned."""
+    assert not _is_pinned_action(f"{path}@{ref}", path), (
+        "expected a ref that is not a full 40-hex commit SHA to be unpinned"
+    )
+
+
+_json_steps = st.lists(
+    st.one_of(
+        st.none(),
+        st.booleans(),
+        st.integers(),
+        st.text(),
+        st.lists(json_value, max_size=3),
+        st.dictionaries(st.text(max_size=5), json_value, max_size=3),
+    ),
+    max_size=6,
+)
+
+
+@given(steps=_json_steps)
+def test_step_mappings_keeps_only_mappings_in_order(steps: list[object]) -> None:
+    """``_step_mappings`` returns exactly the mapping entries, in original order."""
+    result = _step_mappings(steps)
+
+    assert result == [step for step in steps if isinstance(step, dict)], (
+        "expected only mapping steps, preserved in their original order"
+    )
+    assert all(isinstance(step, dict) for step in result), (
+        "expected every returned step to be a mapping"
+    )
+
+
+_persist_credential_values = st.sampled_from([True, False, None, 0, 1, "false", "true"])
+
+
+def _with_persist_credentials(base: dict[str, Any], value: object) -> dict[str, Any]:
+    """Add a ``persist-credentials`` entry to a generated ``with`` mapping."""
+    return {**base, "persist-credentials": value}
+
+
+_with_blocks = st.one_of(
+    st.none(),
+    st.text(),
+    st.integers(),
+    st.dictionaries(st.text(min_size=1, max_size=5), json_value, max_size=3),
+    st.builds(
+        _with_persist_credentials,
+        st.dictionaries(st.text(min_size=1, max_size=5), json_value, max_size=2),
+        _persist_credential_values,
+    ),
+)
+
+
+@st.composite
+def _checkout_like_steps(draw: st.DrawFn) -> dict[str, object]:
+    """Draw checkout-like steps with and without a ``with`` block."""
+    if draw(st.booleans()):
+        return {"with": draw(_with_blocks)}
+    return {}
+
+
+@given(step=_checkout_like_steps())
+def test_disables_credential_persistence_matches_spec(step: dict[str, object]) -> None:
+    """Only a ``with`` mapping whose persist-credentials is exactly False qualifies."""
+    with_block = step.get("with")
+    expected = (
+        isinstance(with_block, dict) and with_block.get("persist-credentials") is False
+    )
+
+    assert _disables_credential_persistence(step) is expected, (
+        "expected the credential-persistence verdict to match the with-block spec"
+    )
+
+
 def test_read_generated_file_uses_shared_error_contract(tmp_path: Path) -> None:
     """Read rendered files through the shared generated-file helper contract."""
     generated = tmp_path / "docs" / "users-guide.md"
@@ -216,8 +357,7 @@ def test_ci_coverage_action_contract_validates_edges() -> None:
             _ci_workflow(
                 persist_credentials="false",
                 coverage_inputs=(
-                    "          output-path: lcov.info\n"
-                    "          format: cobertura\n"
+                    "          output-path: lcov.info\n          format: cobertura\n"
                 ),
             )
         )
@@ -264,9 +404,10 @@ def test_resolved_socket_from_docker_host_accepts_allowed_unix_path(
     allowed_dir.mkdir()
     socket_path = allowed_dir / "docker.sock"
 
-    assert _resolved_socket_from_docker_host(
-        f"unix://{socket_path}", (allowed_dir,)
-    ) == socket_path
+    assert (
+        _resolved_socket_from_docker_host(f"unix://{socket_path}", (allowed_dir,))
+        == socket_path
+    ), f"expected normalized socket path {socket_path}"
 
 
 def test_docker_environment_preserves_valid_unix_socket(
@@ -278,9 +419,7 @@ def test_docker_environment_preserves_valid_unix_socket(
     socket_path = allowed_dir / "docker.sock"
     docker_host = f"unix://{socket_path}"
     monkeypatch.setenv("DOCKER_HOST", docker_host)
-    monkeypatch.setattr(
-        utilities, "local_socket_dirs", lambda: (allowed_dir,)
-    )
+    monkeypatch.setattr(utilities, "local_socket_dirs", lambda: (allowed_dir,))
 
     assert docker_environment()["DOCKER_HOST"] == docker_host
 
@@ -296,9 +435,7 @@ def test_docker_environment_removes_credentials(
     monkeypatch.setenv("GITHUB_TOKEN", "secret-token")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret-key")
     monkeypatch.setenv("SOME_API_KEY", "api-key")
-    monkeypatch.setattr(
-        utilities, "local_socket_dirs", lambda: (allowed_dir,)
-    )
+    monkeypatch.setattr(utilities, "local_socket_dirs", lambda: (allowed_dir,))
 
     env = docker_environment()
 
@@ -371,9 +508,7 @@ def test_container_daemon_socket_uses_valid_docker_host(
     runtime_dir.mkdir()
     socket_path = runtime_dir / "docker.sock"
     monkeypatch.setenv("DOCKER_HOST", f"unix://{socket_path}")
-    monkeypatch.setattr(
-        utilities, "user_runtime_socket_dirs", lambda: (runtime_dir,)
-    )
+    monkeypatch.setattr(utilities, "user_runtime_socket_dirs", lambda: (runtime_dir,))
 
     assert container_daemon_socket() == f"unix://{socket_path}"
 
@@ -396,8 +531,8 @@ def test_parent_makefile_test_target_contract() -> None:
     """Validate the parent repository ``test`` target command contract."""
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
-    assert ".PHONY: help spelling test" in makefile, (
-        "expected parent Makefile to mark help, spelling, and test as phony targets"
+    assert ".PHONY: help check-fmt fmt lint spelling typecheck test" in makefile, (
+        "expected parent Makefile to mark all public gate targets phony"
     )
     assert "UV := $(shell command -v uvx 2>/dev/null)" in makefile, (
         "expected parent Makefile to resolve uvx before running tests"
@@ -417,12 +552,18 @@ def test_parent_makefile_test_target_contract() -> None:
     assert "$(error uvx is required" not in makefile, (
         "expected parent Makefile not to fail at parse time when uvx is missing"
     )
-    assert (
-        "$(UV) --with pytest-copier --with pyyaml --with syrupy --with make-parser "
-        "--with hypothesis pytest tests/"
-    ) in makefile, (
+    assert ("$(ACT_TEST_ENV) $(UV) $(PYTEST_DEPS) pytest tests/") in makefile, (
         "expected parent Makefile test target to run pytest through $(UV) with "
-        "pytest-copier, pyyaml, syrupy, make-parser, and hypothesis"
+        "the shared pytest dependency list"
+    )
+    assert "$(UV) --with ruff ruff format --check tests/" in makefile, (
+        "expected parent Makefile check-fmt target to run ruff format checks"
+    )
+    assert "$(UV) --with ruff ruff check tests/" in makefile, (
+        "expected parent Makefile lint target to run ruff lint checks"
+    )
+    assert "$(UV) --with mypy $(MYPY_DEPS) mypy tests/" in makefile, (
+        "expected parent Makefile typecheck target to run mypy"
     )
 
 

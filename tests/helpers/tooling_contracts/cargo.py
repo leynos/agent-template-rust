@@ -11,9 +11,9 @@ def _assert_cargo_package_contracts(
     package: dict[str, Any], metadata: dict[str, Any], flavour: str
 ) -> None:
     """Assert generated Cargo package metadata contracts."""
-    assert package.get("description") == "ToolingExample package used by template tests.", (
-        "expected generated Cargo.toml to include package description"
-    )
+    assert (
+        package.get("description") == "ToolingExample package used by template tests."
+    ), "expected generated Cargo.toml to include package description"
     assert package.get("repository") == "https://github.com/example/tooling_example", (
         "expected generated Cargo.toml to include repository URL"
     )
@@ -63,7 +63,7 @@ def _assert_cargo_config_contracts(
         assert f"[target.{dev_target}]" in cargo_config, (
             "expected generated cargo config to include Linux target settings"
         )
-        assert 'link-arg=-fuse-ld=mold' in cargo_config, (
+        assert "link-arg=-fuse-ld=mold" in cargo_config, (
             "expected generated cargo config to use mold linker for Linux"
         )
     else:
@@ -71,7 +71,7 @@ def _assert_cargo_config_contracts(
             "expected generated cargo config to avoid mold target blocks "
             "for non-Linux targets"
         )
-        assert 'link-arg=-fuse-ld=mold' not in cargo_config, (
+        assert "link-arg=-fuse-ld=mold" not in cargo_config, (
             "expected generated cargo config to avoid mold for non-Linux targets"
         )
 

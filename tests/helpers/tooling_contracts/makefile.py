@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import re
 import tempfile
+from importlib import import_module
 from pathlib import Path
-
-import make_parser
+from typing import Any, cast
 
 
 def _assert_makefile_contracts(makefile: str) -> None:
@@ -121,7 +121,7 @@ def _load_and_parse_makefile_rules(makefile: str) -> dict[str, list[str]]:
     }
 
     def normalise_target(match: re.Match[str]) -> str:
-        target = match.group(1)
+        target = cast("str", match.group(1))
         return normalised_targets.get(target, target) + ":"
 
     normalised_makefile = re.sub(
@@ -133,8 +133,9 @@ def _load_and_parse_makefile_rules(makefile: str) -> dict[str, list[str]]:
     with tempfile.TemporaryDirectory() as tmp_dir:
         makefile_path = Path(tmp_dir) / "Makefile"
         makefile_path.write_text(normalised_makefile, encoding="utf-8")
-        parsed = make_parser.make_load(makefile_path)
-    normalised_rules = parsed["rules"]
+        make_load = import_module("make_parser").make_load
+        parsed = cast("dict[str, Any]", make_load(makefile_path))
+    normalised_rules = cast("dict[str, dict[str, list[str]]]", parsed["rules"])
     return {
         target: normalised_rules[normalised_targets.get(target, target)]["commands"]
         for target in target_names

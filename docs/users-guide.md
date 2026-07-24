@@ -46,14 +46,20 @@ The generated `Makefile` exposes these public targets:
 
 - `make all` runs formatting checks, linting, tests, and spelling checks.
 - `make check-fmt` verifies Rust formatting.
+- `make fmt` formats Rust and Markdown sources.
 - `make lint` runs rustdoc, Clippy, and Whitaker with warnings denied.
+- `make typecheck` type-checks the workspace without building.
 - `make test` runs `cargo nextest run` when cargo-nextest is installed and
   falls back to `cargo test` otherwise. All projects also run doctests.
 - `make build` builds the debug target.
 - `make release` builds the release target.
 - `make coverage` writes `lcov.info` using `cargo llvm-cov` and `lld`.
 - `make audit` derives the Rust workspace root with `cargo metadata` and runs
-  `cargo audit` once from that root.
+  `cargo audit` once from that root. Generated CI skips this gate for
+  Dependabot pull requests so whole-lockfile advisories do not block unrelated
+  dependency bumps; human pull requests still run it. The separate
+  `.github/workflows/audit.yml` workflow runs weekly and can also be triggered
+  manually to keep the lockfile covered.
 - `make markdownlint` checks Markdown files and enforces en-GB-oxendict
   spelling through the pinned `typos` release.
 - `make spelling` refreshes the shared Oxford dictionary when its published

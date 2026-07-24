@@ -114,8 +114,7 @@ def test_makefile_rust_audit_honours_documented_ignores(
     output = f"{result.stdout}\n{result.stderr}"
     assert result.returncode == 0, output
     assert log_path.read_text(encoding="utf-8") == (
-        f"{project.path}|audit --ignore RUSTSEC-2017-0001 "
-        "--ignore RUSTSEC-2024-9999\n"
+        f"{project.path}|audit --ignore RUSTSEC-2017-0001 --ignore RUSTSEC-2024-9999\n"
     ), "expected documented ignores to be passed as cargo-audit --ignore flags"
 
 
