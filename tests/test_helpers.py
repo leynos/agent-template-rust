@@ -232,13 +232,20 @@ def test_step_mappings_keeps_only_mappings_in_order(steps: list[object]) -> None
 
 
 _persist_credential_values = st.sampled_from([True, False, None, 0, 1, "false", "true"])
+
+
+def _with_persist_credentials(base: dict[str, Any], value: object) -> dict[str, Any]:
+    """Add a ``persist-credentials`` entry to a generated ``with`` mapping."""
+    return {**base, "persist-credentials": value}
+
+
 _with_blocks = st.one_of(
     st.none(),
     st.text(),
     st.integers(),
     st.dictionaries(st.text(min_size=1, max_size=5), json_value, max_size=3),
     st.builds(
-        lambda base, value: {**base, "persist-credentials": value},
+        _with_persist_credentials,
         st.dictionaries(st.text(min_size=1, max_size=5), json_value, max_size=2),
         _persist_credential_values,
     ),

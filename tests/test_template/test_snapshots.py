@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 from hypothesis import given
 from hypothesis import strategies as st
@@ -104,16 +105,37 @@ _action_paths = st.text(
     alphabet="abcdefghijklmnopqrstuvwxyz0123456789/-._", min_size=1, max_size=20
 )
 _full_shas = st.text(alphabet=_HEX_ALPHABET, min_size=40, max_size=40)
-_pinned_uses = st.builds(lambda path, sha: f"{path}@{sha}", _action_paths, _full_shas)
+
+
+def _pinned_uses_ref(path: str, sha: str) -> str:
+    """Build a ``uses`` ref pinned to a full 40-hex commit SHA."""
+    return f"{path}@{sha}"
+
+
+def _unpinned_uses_ref(path: str, ref: str) -> str:
+    """Build a ``uses`` ref pointing at a mutable branch or tag."""
+    return f"{path}@{ref}"
+
+
+_pinned_uses = st.builds(_pinned_uses_ref, _action_paths, _full_shas)
 _unpinned_uses = st.one_of(
     st.builds(
-        lambda path, ref: f"{path}@{ref}",
-        _action_paths,
-        st.sampled_from(("main", "v1", "rolling")),
+        _unpinned_uses_ref, _action_paths, st.sampled_from(("main", "v1", "rolling"))
     ),
     st.text(max_size=20),
 )
 _uses_refs = st.one_of(_pinned_uses, _unpinned_uses)
+
+
+def _workflow_children(children: st.SearchStrategy[Any]) -> st.SearchStrategy[Any]:
+    """Extend the recursive workflow strategy with lists, dicts, and uses leaves."""
+    return st.one_of(
+        st.lists(children, max_size=3),
+        st.dictionaries(st.text(min_size=1, max_size=5), children, max_size=3),
+        st.fixed_dictionaries({"uses": _uses_refs}),
+    )
+
+
 _workflow_like = st.recursive(
     st.one_of(
         st.none(),
@@ -122,11 +144,7 @@ _workflow_like = st.recursive(
         st.text(max_size=10),
         st.fixed_dictionaries({"uses": _uses_refs}),
     ),
-    lambda children: st.one_of(
-        st.lists(children, max_size=3),
-        st.dictionaries(st.text(min_size=1, max_size=5), children, max_size=3),
-        st.fixed_dictionaries({"uses": _uses_refs}),
-    ),
+    _workflow_children,
     max_leaves=15,
 )
 
