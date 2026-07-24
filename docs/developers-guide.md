@@ -108,6 +108,9 @@ Reusable test support lives under `tests/helpers/`:
 
 - `tests/helpers/rendering.py` renders Copier projects and exposes generated
   project command helpers.
+- `tests/helpers/subprocess_env.py` builds hermetic subprocess environments by
+  clearing inherited `WHITAKER` and `make` resolution variables before tests
+  apply controlled overrides.
 - `tests/helpers/generated_files.py` centralizes generated text, TOML, and YAML
   parsing with pytest failure messages.
 - `tests/helpers/tooling_contracts/` contains generated Makefile, Cargo,
