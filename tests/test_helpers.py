@@ -610,3 +610,70 @@ def test_extract_apt_install_packages_rejects_malformed_shell() -> None:
 
     with pytest.raises(AssertionError, match="parseable shell"):
         _extract_apt_install_packages(setup_commands)
+
+
+# Shell-safe package tokens: a leading alphanumeric (so they never look like a
+# flag) followed by characters valid in a Debian package name. Flag tokens
+# always begin with ``--`` so the parser drops them.
+_apt_package_tokens = st.builds(
+    lambda head, tail: head + tail,
+    st.sampled_from("abcdefghijklmnopqrstuvwxyz0123456789"),
+    st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789+.-", max_size=11),
+)
+_apt_flag_tokens = st.builds(
+    lambda word: "--" + word,
+    st.text(alphabet="abcdefghijklmnopqrstuvwxyz-", min_size=1, max_size=12),
+)
+_apt_install_tokens = st.lists(
+    st.one_of(
+        st.tuples(_apt_package_tokens, st.just(False)),
+        st.tuples(_apt_flag_tokens, st.just(True)),
+    ),
+    min_size=1,
+    max_size=6,
+)
+
+
+@given(
+    tagged=_apt_install_tokens,
+    use_sudo=st.booleans(),
+    indent=st.text(alphabet=" \t", max_size=3),
+)
+def test_extract_apt_install_packages_recovers_non_flag_arguments(
+    tagged: list[tuple[str, bool]], use_sudo: bool, indent: str
+) -> None:
+    """Return exactly the non-flag install arguments, in order, dropping flags."""
+    tokens = [token for token, _ in tagged]
+    expected = [token for token, is_flag in tagged if not is_flag]
+    prefix = "sudo " if use_sudo else ""
+    setup_commands = (
+        "export DEBIAN_FRONTEND=noninteractive\n"
+        f"{indent}{prefix}apt-get install {' '.join(tokens)}\n"
+    )
+
+    assert _extract_apt_install_packages(setup_commands) == expected
+
+
+@given(
+    packages=st.lists(_apt_package_tokens, min_size=1, max_size=5),
+    indent=st.text(alphabet=" \t", max_size=3),
+)
+def test_extract_apt_install_packages_skips_commented_installs(
+    packages: list[str], indent: str
+) -> None:
+    """A commented apt-get install line never contributes packages."""
+    setup_commands = (
+        f"{indent}# sudo apt-get install --yes {' '.join(packages)}\necho noop\n"
+    )
+
+    assert _extract_apt_install_packages(setup_commands) == []
+
+
+@given(packages=st.lists(_apt_package_tokens, min_size=1, max_size=4))
+def test_extract_apt_install_packages_follows_line_continuations(
+    packages: list[str],
+) -> None:
+    """Recover packages split onto a backslash-continued line."""
+    setup_commands = f"sudo apt-get install --yes \\\n  {' '.join(packages)}\n"
+
+    assert _extract_apt_install_packages(setup_commands) == packages
