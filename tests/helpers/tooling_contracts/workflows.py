@@ -506,6 +506,10 @@ def _assert_mutation_workflow_contracts(mutation_workflow: str) -> None:
         "expected mutation-testing workflow root permissions to grant no scopes"
     )
     triggers = require_mapping(parsed, "on", "mutation-testing workflow")
+    assert set(triggers) == {"schedule", "workflow_dispatch"}, (
+        "expected mutation-testing workflow to trigger only on schedule and "
+        "workflow_dispatch, rejecting push or pull-request runs"
+    )
     schedule = require_sequence(triggers, "schedule", "mutation-testing workflow on")
     assert any(
         isinstance(entry, dict) and entry.get("cron") == _MUTATION_CRON
