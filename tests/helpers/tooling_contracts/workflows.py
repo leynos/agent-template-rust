@@ -454,48 +454,51 @@ _MUTATION_CRON = "15 9 * * *"
 _MUTATION_CONCURRENCY_GROUP = "mutation-testing-${{ github.ref }}"
 
 
+_SHELL_COMMAND_SEPARATORS = frozenset({"&&", "||", ";", "|", "&"})
+
+
+def _split_shell_commands(tokens: list[str]) -> list[list[str]]:
+    """Split a shell token stream into commands on shell control operators."""
+    commands: list[list[str]] = []
+    current: list[str] = []
+    for token in tokens:
+        if token in _SHELL_COMMAND_SEPARATORS:
+            commands.append(current)
+            current = []
+        else:
+            current.append(token)
+    commands.append(current)
+    return commands
+
+
+def _apt_install_packages(command: list[str]) -> list[str] | None:
+    """Return non-flag args of ``[sudo] apt-get install ...``, else ``None``."""
+    words = command[1:] if command[:1] == ["sudo"] else command
+    if words[:2] != ["apt-get", "install"]:
+        return None
+    return [arg for arg in words[2:] if not arg.startswith("-")]
+
+
 def _extract_apt_install_packages(setup_commands: str) -> list[str]:
-    """Return packages passed to the setup-commands ``apt-get install`` call.
-
-    Parameters
-    ----------
-    setup_commands
-        Setup-commands shell script from the mutation job ``with`` inputs.
-
-    Returns
-    -------
-    list[str]
-        Non-flag arguments supplied to ``apt-get install``, following any
-        backslash line continuations, or an empty list when no install command
-        is present.
-    """
-    lines = setup_commands.splitlines()
-    marker = "apt-get install"
-    for index, line in enumerate(lines):
-        # Ignore commented-out commands so a `# ... apt-get install ...` line
-        # can never be mistaken for a real install.
-        if line.strip().startswith("#"):
-            continue
-        marker_at = line.find(marker)
-        if marker_at == -1:
-            continue
-        segment = line[marker_at + len(marker) :]
-        cursor = index
-        while cursor < len(lines) and lines[cursor].rstrip().endswith("\\"):
-            segment = segment.rstrip().removesuffix("\\")
-            cursor += 1
-            if cursor < len(lines):
-                segment += " " + lines[cursor]
+    """Return the packages installed by a setup-commands ``apt-get install``."""
+    # Join backslash continuations so each command sits on one logical line.
+    joined = setup_commands.replace("\\\n", " ")
+    for line in joined.splitlines():
         # Surface malformed shell instead of masking it as a valid install; a
         # setup-commands script that cannot be parsed is not runnable.
         try:
-            tokens = shlex.split(segment)
+            tokens = shlex.split(line, comments=True)
         except ValueError as error:
             raise AssertionError(
-                "expected mutation job setup-commands apt-get install to be "
-                f"parseable shell, got {segment!r}"
+                "expected mutation job setup-commands to be parseable shell, "
+                f"got {line!r}"
             ) from error
-        return [token for token in tokens if not token.startswith("-")]
+        # Only a real `[sudo] apt-get install` command counts; embedded text
+        # such as an echo argument must never be treated as an install.
+        for command in _split_shell_commands(tokens):
+            packages = _apt_install_packages(command)
+            if packages is not None:
+                return packages
     return []
 
 
@@ -511,10 +514,10 @@ def _assert_mutation_workflow_contracts(mutation_workflow: str) -> None:
         "workflow_dispatch, rejecting push or pull-request runs"
     )
     schedule = require_sequence(triggers, "schedule", "mutation-testing workflow on")
-    assert any(
-        isinstance(entry, dict) and entry.get("cron") == _MUTATION_CRON
-        for entry in schedule
-    ), f"expected mutation-testing workflow to schedule cron {_MUTATION_CRON!r}"
+    assert schedule == [{"cron": _MUTATION_CRON}], (
+        "expected mutation-testing workflow on.schedule to be exactly one cron "
+        f"entry {_MUTATION_CRON!r}"
+    )
     assert "workflow_dispatch" in triggers, (
         "expected mutation-testing workflow to support manual workflow_dispatch"
     )
@@ -635,12 +638,7 @@ def _iter_job_steps(jobs: dict[str, Any]) -> list[Any]:
 def _assert_pinned_step_uses(
     steps: list[Any], uses_re: "re.Pattern[str]", label: str
 ) -> None:
-    """Assert one workflow step's ``uses:`` fully matches ``uses_re``.
-
-    Parsing the actual ``uses:`` field, rather than scanning the raw workflow
-    text, ensures that a commented-out reference or a mutable tag or branch
-    cannot satisfy the pinned-action contract.
-    """
+    """Assert one workflow step's ``uses:`` fully matches ``uses_re``."""
     assert any(
         isinstance(step, dict) and uses_re.fullmatch(str(step.get("uses", "")))
         for step in steps

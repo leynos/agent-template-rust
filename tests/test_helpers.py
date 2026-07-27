@@ -172,9 +172,15 @@ _full_shas = st.text(alphabet=_HEX_ALPHABET, min_size=40, max_size=40)
 
 # Focused strategies for refs that are never a 40-character lowercase-hex SHA,
 # composed into ``_non_sha_refs`` below.
-_too_short_hex_refs = st.text(alphabet=_HEX_ALPHABET, min_size=0, max_size=39)
-_too_long_hex_refs = st.text(alphabet=_HEX_ALPHABET, min_size=41, max_size=64)
-_branch_refs = st.sampled_from(("main", "master", "rolling", "HEAD", "v1.2.3"))
+_too_short_hex_refs: st.SearchStrategy[str] = st.text(
+    alphabet=_HEX_ALPHABET, min_size=0, max_size=39
+)
+_too_long_hex_refs: st.SearchStrategy[str] = st.text(
+    alphabet=_HEX_ALPHABET, min_size=41, max_size=64
+)
+_branch_refs: st.SearchStrategy[str] = st.sampled_from(
+    ("main", "master", "rolling", "HEAD", "v1.2.3")
+)
 
 
 @st.composite
@@ -191,7 +197,7 @@ def _uppercased_hex_refs(draw: st.DrawFn) -> str:
     return f"{hexes[:position]}{flipped}{hexes[position + 1 :]}"
 
 
-_non_sha_refs = st.one_of(
+_non_sha_refs: st.SearchStrategy[str] = st.one_of(
     _too_short_hex_refs,
     _too_long_hex_refs,
     _uppercased_hex_refs(),
@@ -612,19 +618,29 @@ def test_extract_apt_install_packages_rejects_malformed_shell() -> None:
         _extract_apt_install_packages(setup_commands)
 
 
+def test_extract_apt_install_packages_ignores_echoed_marker() -> None:
+    """Ignore an echo whose argument merely contains the install marker text."""
+    setup_commands = 'echo "run apt-get install clang lld mold first"\n'
+
+    assert _extract_apt_install_packages(setup_commands) == [], (
+        "expected embedded marker text in an echo argument not to count as an "
+        "install command"
+    )
+
+
 # Shell-safe package tokens: a leading alphanumeric (so they never look like a
 # flag) followed by characters valid in a Debian package name. Flag tokens
 # always begin with ``--`` so the parser drops them.
-_apt_package_tokens = st.builds(
+_apt_package_tokens: st.SearchStrategy[str] = st.builds(
     lambda head, tail: head + tail,
     st.sampled_from("abcdefghijklmnopqrstuvwxyz0123456789"),
     st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789+.-", max_size=11),
 )
-_apt_flag_tokens = st.builds(
+_apt_flag_tokens: st.SearchStrategy[str] = st.builds(
     lambda word: "--" + word,
     st.text(alphabet="abcdefghijklmnopqrstuvwxyz-", min_size=1, max_size=12),
 )
-_apt_install_tokens = st.lists(
+_apt_install_tokens: st.SearchStrategy[list[tuple[str, bool]]] = st.lists(
     st.one_of(
         st.tuples(_apt_package_tokens, st.just(False)),
         st.tuples(_apt_flag_tokens, st.just(True)),
