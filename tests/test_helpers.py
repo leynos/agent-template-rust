@@ -22,6 +22,8 @@ from tests.helpers.generated_files import (
 from tests.helpers.rendering import read_generated_file
 from tests.helpers.tooling_contracts import assert_ci_coverage_action_contract
 from tests.helpers.tooling_contracts.workflows import (
+    _MUTATION_CRON,
+    _assert_mutation_workflow_contracts,
     _disables_credential_persistence,
     _extract_apt_install_packages,
     _is_pinned_action,
@@ -693,3 +695,32 @@ def test_extract_apt_install_packages_follows_line_continuations(
     setup_commands = f"sudo apt-get install --yes \\\n  {' '.join(packages)}\n"
 
     assert _extract_apt_install_packages(setup_commands) == packages
+
+
+def _mutation_workflow_with_schedule(schedule_block: str) -> str:
+    """Build a mutation-testing workflow whose ``on`` reaches the schedule check.
+
+    Only the fields inspected before the schedule assertion are populated, so
+    the returned document exercises the schedule contract in isolation.
+    """
+    return f'permissions: {{}}\n"on":\n{schedule_block}  workflow_dispatch:\n'
+
+
+def test_assert_mutation_workflow_contracts_rejects_extra_schedule_entry() -> None:
+    """Reject a second schedule entry beyond the single sanctioned cron."""
+    workflow = _mutation_workflow_with_schedule(
+        f'  schedule:\n    - cron: "{_MUTATION_CRON}"\n    - cron: "0 0 * * *"\n'
+    )
+
+    with pytest.raises(AssertionError, match="schedule to be exactly one cron entry"):
+        _assert_mutation_workflow_contracts(workflow)
+
+
+def test_assert_mutation_workflow_contracts_rejects_extra_schedule_key() -> None:
+    """Reject an extra key smuggled into the single schedule entry."""
+    workflow = _mutation_workflow_with_schedule(
+        f'  schedule:\n    - cron: "{_MUTATION_CRON}"\n      branches: ["main"]\n'
+    )
+
+    with pytest.raises(AssertionError, match="schedule to be exactly one cron entry"):
+        _assert_mutation_workflow_contracts(workflow)
