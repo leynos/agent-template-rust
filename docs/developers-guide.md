@@ -12,10 +12,12 @@ Run the public parent gate:
 make test
 ```
 
-The target uses `uvx --with pytest-copier --with pyyaml --with syrupy --with
-make-parser --with hypothesis pytest tests/`, so Python test dependencies must
-be added to that invocation before tests import them. Keep long runs logged
-through `tee` into `/tmp`, following the example in `AGENTS.md`.
+The target uses
+`uvx --with pytest-copier --with pyyaml --with syrupy --with
+make-parser --with hypothesis pytest tests/`,
+so Python test dependencies must be added to that invocation before tests
+import them. Keep long runs logged through `tee` into `/tmp`, following the
+example in `AGENTS.md`.
 
 The tests render both library and application projects, run generated public
 gates such as `make all`, validate generated Makefiles with `mbake`, and parse
@@ -43,12 +45,12 @@ repository-specific correction in `typos.local.toml`, then run:
 uv run scripts/generate_typos_config.py
 ```
 
-The generator collects the shared dictionary from
-`leynos/agent-helper-scripts` into the ignored local cache only when the remote
-source is newer. It validates and atomically replaces that cache, retains a
-newer local copy, and supports offline reuse once populated. `make spelling`
-regenerates the tracked configuration before checking maintained Markdown and
-rendered Markdown templates.
+The generator collects the shared dictionary from `leynos/agent-helper-scripts`
+into the ignored local cache only when the remote source is newer. It validates
+and atomically replaces that cache, retains a newer local copy, and supports
+offline reuse once populated. `make spelling` regenerates the tracked
+configuration before checking maintained Markdown and rendered Markdown
+templates.
 
 Generated audit coverage is tested without network access by replacing Cargo
 with a fake executable. The regression verifies that `make rust-audit` derives
@@ -74,8 +76,8 @@ Those checks require `act` and either Docker or Podman. They prepare rendered
 projects as temporary Git repositories, run the generated act-validation
 workflow, and assert black-box evidence for Rust test execution.
 
-Parent CI keeps Act validation in `.github/workflows/act-validation.yml`.
-The main `.github/workflows/ci.yml` workflow runs ordinary `make test` without
+Parent CI keeps Act validation in `.github/workflows/act-validation.yml`. The
+main `.github/workflows/ci.yml` workflow runs ordinary `make test` without
 `WITH_ACT=1` so the slower container-backed checks run in parallel instead of
 blocking the main test and coverage path.
 
@@ -115,9 +117,9 @@ Dependabot owns bumping `leynos/shared-actions` pins in both the parent
 workflows and the templates it renders; rendered workflow assertions in
 `tests/helpers/tooling_contracts/workflows.py` check the *shape* of a
 shared-actions `uses:` ref (correct path, pinned to a full 40-hex commit SHA)
-rather than the exact SHA value, so a routine Dependabot bump does not fail
-the contract. See `template/docs/developers-guide.md.jinja`'s "Workflow pins
-and Dependabot" section for the policy that generated projects inherit.
+rather than the exact SHA value, so a routine Dependabot bump does not fail the
+contract. See `template/docs/developers-guide.md.jinja`'s "Workflow pins and
+Dependabot" section for the policy that generated projects inherit.
 
 ## Test Helper Layout
 
@@ -136,8 +138,8 @@ Reusable test support lives under `tests/helpers/`:
   as a Git repository, runs the generated act-validation workflow through
   `act`, and asserts black-box Rust test evidence from JSON event logs.
 - `tests/test_parent_ci.py` asserts that parent main CI keeps act validation
-  separate and that `.github/workflows/act-validation.yml` carries act
-  pinning and installation, the Docker runtime check, and `make test WITH_ACT=1`.
+  separate and that `.github/workflows/act-validation.yml` carries act pinning
+  and installation, the Docker runtime check, and `make test WITH_ACT=1`.
 
 Container-aware support for optional `act` tests lives in `tests/utilities.py`.
 Direct helper edge-case tests live in `tests/test_helpers.py`; rendered project

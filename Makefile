@@ -25,6 +25,7 @@ check-fmt: ## Verify parent Python formatting
 fmt: ## Format parent Python tests
 	$(REQUIRE_UVX)
 	$(UV) --with ruff ruff format tests/
+	mdformat-all
 
 lint: ## Lint parent Python tests
 	$(REQUIRE_UVX)

@@ -33,8 +33,8 @@ Markdown spelling is enforced separately with the pinned `typos` release:
 make spelling
 ```
 
-The tracked `typos.toml` is generated from the estate-wide shared dictionary
-and `typos.local.toml`. Add only narrow product-name, upstream-term, or fixture
+The tracked `typos.toml` is generated from the estate-wide shared dictionary and
+`typos.local.toml`. Add only narrow product-name, upstream-term, or fixture
 exceptions to the local overlay, then regenerate with
 `uv run scripts/generate_typos_config.py`.
 
@@ -44,9 +44,9 @@ That target currently runs:
 uvx --with pytest-copier pytest tests/
 ```
 
-If tests import additional pytest plugins or assertion helpers, add them to
-the `uvx --with ...` invocation or to the documented dependency list before
-using them in tests. Do not rely on packages installed in an ambient shell
+If tests import additional pytest plugins or assertion helpers, add them to the
+`uvx --with ...` invocation or to the documented dependency list before using
+them in tests. Do not rely on packages installed in an ambient shell
 environment.
 
 When debugging generated projects manually, render with Copier into a temporary

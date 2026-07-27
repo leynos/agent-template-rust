@@ -1,9 +1,8 @@
 # Import Rust Template Tooling
 
-This ExecPlan (execution plan) is a living document. The sections
-`Constraints`, `Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`,
-`Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work
-proceeds.
+This ExecPlan (execution plan) is a living document. The sections `Constraints`,
+`Tolerances`, `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`,
+and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -19,9 +18,9 @@ metadata prompts, and Whitaker linting with the same cache pattern used by
 
 The observable success condition is that running this repository's template
 tests renders both library and application projects, then the generated
-projects pass their public gates through `make all`. The generated project
-must include a disposable stub Rust test so nextest has at least one test until
-real functionality replaces it.
+projects pass their public gates through `make all`. The generated project must
+include a disposable stub Rust test so nextest has at least one test until real
+functionality replaces it.
 
 ## Constraints
 
@@ -47,11 +46,11 @@ current SHAs sourced through Firecrawl-assisted lookup before completion.
 ## Tolerances
 
 Stop and ask for direction if the generated template cannot pass `make all`
-without removing one of the requested tools. Stop if `coderabbit review
---agent` reports a concern that conflicts with the user's explicit
-requirements. Stop if any gate requires more than 1200 seconds as a single
-command and cannot be split into smaller public targets. Stop if disk space or
-`/tmp` fills up.
+without removing one of the requested tools. Stop if
+`coderabbit review --agent` reports a concern that conflicts with the user's
+explicit requirements. Stop if any gate requires more than 1200 seconds as a
+single command and cannot be split into smaller public targets. Stop if disk
+space or `/tmp` fills up.
 
 ## Risks
 
@@ -89,22 +88,23 @@ and record the resulting pins in the plan and pull request validation notes.
 - [x] 2026-05-23: Extended pytest-copier tests so rendered library and
   application projects pass generated `make all` gates and assert the requested
   tooling contracts.
-- [x] 2026-05-23: Ran `make test 2>&1 | tee
-  /tmp/test-agent-template-rust-rust-project-enhancements-tooling-import.out`;
-  result was 9 passed in 17.52 seconds.
+- [x] 2026-05-23: Ran
+      `make test 2>&1 | tee /tmp/test-agent-template-rust-rust-project-enhancements-tooling-import.out`;
+      result was 9 passed in 17.52 seconds.
 - [x] 2026-05-23: Ran repeated `coderabbit review --agent` passes for the
   tooling import milestone and resolved actionable release workflow, cache,
   target matrix, timeout, stub, and linker configuration findings. Skipped the
   final action-version-tag recommendation because it directly contradicted the
   user requirement to replace action versions with SHAs sourced via Firecrawl.
-- [x] 2026-05-23: Re-ran `make test 2>&1 | tee
-  /tmp/test-agent-template-rust-rust-project-enhancements-tooling-import.out`;
-  result was 9 passed in 19.06 seconds after CodeRabbit fixes.
-- [x] 2026-05-23: Committed the tooling import milestone as `60063ab
-  Import Rust template tooling`.
-- [x] 2026-05-23: Ran final post-milestone `make test 2>&1 | tee
-  /tmp/test-agent-template-rust-rust-project-enhancements-final.out`; result
-  was 9 passed in 18.54 seconds.
+- [x] 2026-05-23: Re-ran
+      `make test 2>&1 | tee /tmp/test-agent-template-rust-rust-project-enhancements-tooling-import.out`;
+      result was 9 passed in 19.06 seconds after CodeRabbit fixes.
+- [x] 2026-05-23: Committed the tooling import milestone as
+      `60063ab Import Rust template tooling`.
+- [x] 2026-05-23: Ran final post-milestone
+      `make test 2>&1 | tee /tmp/test-agent-template-rust-rust-project-enhancements-final.out`;
+      result
+      was 9 passed in 18.54 seconds.
 - [x] 2026-05-23: Pushed `rust-project-enhancements` and created draft pull
   request <https://github.com/leynos/agent-template-rust/pull/32>.
 
@@ -119,8 +119,8 @@ file reads are used for this template repository.
 
 Branch changes have been committed and pushed as recorded below.
 
-CodeRabbit recommended changing GitHub Action pins back to version tags such
-as `actions/checkout@v6.0.2`. That is intentionally not applied because the
+CodeRabbit recommended changing GitHub Action pins back to version tags such as
+`actions/checkout@v6.0.2`. That is intentionally not applied because the
 objective explicitly asks for action versions to be replaced by SHAs sourced
 using Firecrawl once the latest version is in place.
 
@@ -145,6 +145,6 @@ the parent repository.
 The template now renders projects with Cranelift debug codegen, Linux mold
 linker configuration, nextest testing, required crates.io metadata prompts,
 cargo-binstall metadata for app projects, Whitaker linting with CI caching,
-SHA-pinned CI actions, and pytest-copier coverage that runs generated `make
-all` gates. The branch was pushed and draft pull request
+SHA-pinned CI actions, and pytest-copier coverage that runs generated
+`make all` gates. The branch was pushed and draft pull request
 <https://github.com/leynos/agent-template-rust/pull/32> was opened for review.
