@@ -12,10 +12,12 @@ from tests.helpers.tooling_contracts.documentation import (
     assert_documentation_navigation_contracts,
 )
 from tests.helpers.tooling_contracts.makefile import _assert_makefile_contracts
+from tests.helpers.tooling_contracts.mutation import (
+    _assert_mutation_workflow_contracts,
+)
 from tests.helpers.tooling_contracts.workflows import (
     _assert_audit_workflow_contracts,
     _assert_ci_workflow_contracts,
-    _assert_mutation_workflow_contracts,
     _assert_release_workflow_contracts,
 )
 
