@@ -68,3 +68,12 @@ When adopting the workflow in a new repository, stagger the cron slot: pick an
 unclaimed daily time to avoid concurrent runs across related repositories. The
 `mutation` job runs with a least-privilege token (`contents: read` plus
 `id-token: write` for workflow-source resolution).
+
+Results land in the run's job summary: a final job posts per-target outcome
+counts and a table of surviving mutants, and each shard uploads its
+`mutants.out/` directory as a `mutation-report-*` artefact. When nothing
+relevant changed, the run writes a skip message and finishes in seconds.
+Surviving mutants and timeouts are informational and leave the run green, so a
+red run means something actually broke — a usage error, an already-failing test
+baseline, or an internal error. Watch for those through GitHub's notifications
+for failed scheduled runs.
