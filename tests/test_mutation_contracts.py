@@ -53,6 +53,16 @@ def test_extract_apt_install_packages_ignores_echoed_marker() -> None:
     )
 
 
+def test_extract_apt_install_packages_ignores_quoted_operator() -> None:
+    """Treat a quoted operator as an argument, not a command separator."""
+    setup_commands = "echo '&&' apt-get install clang lld mold\n"
+
+    assert _extract_apt_install_packages(setup_commands) == [], (
+        "expected a quoted '&&' to stay part of the echo command rather than "
+        "separating a forged apt-get install"
+    )
+
+
 # Shell-safe package tokens: a leading alphanumeric (so they never look like a
 # flag) followed by characters valid in a Debian package name. Flag tokens
 # always begin with ``--`` so the parser drops them.
@@ -92,7 +102,9 @@ def test_extract_apt_install_packages_recovers_non_flag_arguments(
         f"{indent}{prefix}apt-get install {' '.join(tokens)}\n"
     )
 
-    assert _extract_apt_install_packages(setup_commands) == expected
+    assert _extract_apt_install_packages(setup_commands) == expected, (
+        "expected every non-flag install argument, in order, and no flags"
+    )
 
 
 @given(
@@ -107,7 +119,9 @@ def test_extract_apt_install_packages_skips_commented_installs(
         f"{indent}# sudo apt-get install --yes {' '.join(packages)}\necho noop\n"
     )
 
-    assert _extract_apt_install_packages(setup_commands) == []
+    assert _extract_apt_install_packages(setup_commands) == [], (
+        "expected a commented install line to contribute no packages"
+    )
 
 
 @given(packages=st.lists(_apt_package_tokens, min_size=1, max_size=4))
@@ -117,7 +131,9 @@ def test_extract_apt_install_packages_follows_line_continuations(
     """Recover packages split onto a backslash-continued line."""
     setup_commands = f"sudo apt-get install --yes \\\n  {' '.join(packages)}\n"
 
-    assert _extract_apt_install_packages(setup_commands) == packages
+    assert _extract_apt_install_packages(setup_commands) == packages, (
+        "expected packages on a backslash-continued line to be recovered"
+    )
 
 
 def _mutation_workflow_with_schedule(schedule_block: str) -> str:

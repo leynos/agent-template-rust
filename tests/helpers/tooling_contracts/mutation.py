@@ -24,20 +24,51 @@ _MUTATION_REUSABLE_WORKFLOW = (
 _MUTATION_CRON = "15 9 * * *"
 _MUTATION_CONCURRENCY_GROUP = "mutation-testing-${{ github.ref }}"
 
-_SHELL_COMMAND_SEPARATORS = frozenset({"&&", "||", ";", "|", "&"})
+_SHELL_OPERATOR_CHARS = frozenset({"&", "|", ";"})
 
 
-def _split_shell_commands(tokens: list[str]) -> list[list[str]]:
-    """Split a shell token stream into commands on shell control operators."""
-    commands: list[list[str]] = []
+def _split_shell_commands(line: str) -> list[str]:
+    """Split a raw shell line into commands on its unquoted control operators.
+
+    Splitting before ``shlex`` dequotes the line keeps a quoted operator, as in
+    ``echo '&&' apt-get install clang``, part of its command rather than
+    separating one.
+    """
+    commands: list[str] = []
     current: list[str] = []
-    for token in tokens:
-        if token in _SHELL_COMMAND_SEPARATORS:
-            commands.append(current)
+    quote: str | None = None
+    index = 0
+    while index < len(line):
+        char = line[index]
+        if quote is not None:
+            current.append(char)
+            # Only double quotes honour backslash escapes; single quotes are
+            # literal, so a backslash cannot hide the closing quote.
+            if char == "\\" and quote == '"' and index + 1 < len(line):
+                index += 1
+                current.append(line[index])
+            elif char == quote:
+                quote = None
+        elif char in {"'", '"'}:
+            quote = char
+            current.append(char)
+        elif char == "\\" and index + 1 < len(line):
+            current.append(char)
+            index += 1
+            current.append(line[index])
+        elif char == "#" and (not current or current[-1].isspace()):
+            # An unquoted `#` starting a word comments out the rest of the line.
+            break
+        elif char in _SHELL_OPERATOR_CHARS:
+            commands.append("".join(current))
             current = []
+            # Consume the second character of a paired `&&` or `||` operator.
+            if index + 1 < len(line) and line[index + 1] == char:
+                index += 1
         else:
-            current.append(token)
-    commands.append(current)
+            current.append(char)
+        index += 1
+    commands.append("".join(current))
     return commands
 
 
@@ -54,19 +85,21 @@ def _extract_apt_install_packages(setup_commands: str) -> list[str]:
     # Join backslash continuations so each command sits on one logical line.
     joined = setup_commands.replace("\\\n", " ")
     for line in joined.splitlines():
-        # Surface malformed shell instead of masking it as a valid install; a
-        # setup-commands script that cannot be parsed is not runnable.
-        try:
-            tokens = shlex.split(line, comments=True)
-        except ValueError as error:
-            raise AssertionError(
-                "expected mutation job setup-commands to be parseable shell, "
-                f"got {line!r}"
-            ) from error
-        # Only a real `[sudo] apt-get install` command counts; embedded text
-        # such as an echo argument must never be treated as an install.
-        for command in _split_shell_commands(tokens):
-            packages = _apt_install_packages(command)
+        # Split on operators before dequoting, so quoted text cannot forge a
+        # command boundary; comments are dropped by the same quote-aware scan.
+        for command in _split_shell_commands(line):
+            # Surface malformed shell instead of masking it as a valid install;
+            # a setup-commands script that cannot be parsed is not runnable.
+            try:
+                tokens = shlex.split(command)
+            except ValueError as error:
+                raise AssertionError(
+                    "expected mutation job setup-commands to be parseable "
+                    f"shell, got {command!r}"
+                ) from error
+            # Only a real `[sudo] apt-get install` command counts; embedded
+            # text such as an echo argument is never treated as an install.
+            packages = _apt_install_packages(tokens)
             if packages is not None:
                 return packages
     return []
