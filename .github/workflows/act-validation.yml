@@ -21,11 +21,11 @@ jobs:
       BUILD_PROFILE: debug
       WHITAKER_INSTALLER_REV: 764d5a3199fa2999ae979255e467c9d96fd65780
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@1c1a46f0b4fde6dd78a9757fc475a5d06ee891c7
+        uses: leynos/shared-actions/.github/actions/setup-rust@36eb051a22b8f128c8b0a33d2951c961b156c859
       - name: Install mold linker
         if: runner.os == 'Linux'
         run: |
@@ -34,7 +34,7 @@ jobs:
           sudo apt-get update \
             && sudo apt-get install --yes --no-install-recommends clang lld mold
       - name: Setup uv
-        uses: astral-sh/setup-uv@c5680ec91f7b9b91406fab4ded5d45245abf7b67
+        uses: astral-sh/setup-uv@094aa226ed0e8f079adf9b0803105ffdac7bb465
       - name: Install template test tools
         run: |
           set -euo pipefail
@@ -46,7 +46,7 @@ jobs:
         run: docker info
       - name: Cache Whitaker installation
         id: cache-whitaker
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: |
             ~/.cargo/bin/whitaker-installer
