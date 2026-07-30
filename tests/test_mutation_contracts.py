@@ -63,6 +63,26 @@ def test_extract_apt_install_packages_ignores_quoted_operator() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "setup_commands",
+    [
+        "false && sudo apt-get install --yes clang lld mold || true\n",
+        "false && sudo apt-get install --yes clang lld mold\n",
+        "sudo apt-get install --yes clang lld mold || true\n",
+        "sudo apt-get install --yes clang lld mold &\n",
+    ],
+    ids=["guarded-and-fallback", "guarded", "fallback", "backgrounded"],
+)
+def test_extract_apt_install_packages_ignores_conditional_installs(
+    setup_commands: str,
+) -> None:
+    """Ignore an install a guard may skip or a fallback may mask."""
+    assert _extract_apt_install_packages(setup_commands) == [], (
+        "expected an install reachable only through a guard, fallback, or "
+        "background operator not to satisfy the contract"
+    )
+
+
 # Shell-safe package tokens: a leading alphanumeric (so they never look like a
 # flag) followed by characters valid in a Debian package name. Flag tokens
 # always begin with ``--`` so the parser drops them.

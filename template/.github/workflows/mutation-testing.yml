@@ -8,9 +8,9 @@ name: Mutation testing
 
 'on':
   schedule:
-    # Daily, 09:15 UTC. Stagger this slot when adopting the workflow in a
-    # new repository: the estate already occupies 03:05-09:05 UTC, so pick
-    # an unclaimed slot to avoid concurrent runs across repositories.
+    # Default is daily at 09:15 UTC. Stagger this slot when adopting the
+    # workflow in a new repository, choosing an unclaimed time so related
+    # repositories do not run concurrently.
     - cron: "15 9 * * *"
   workflow_dispatch:
 

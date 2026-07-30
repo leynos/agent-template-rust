@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import shlex
+from typing import NamedTuple
 
 from tests.helpers.generated_files import (
     parse_yaml_mapping,
@@ -25,50 +26,81 @@ _MUTATION_CRON = "15 9 * * *"
 _MUTATION_CONCURRENCY_GROUP = "mutation-testing-${{ github.ref }}"
 
 _SHELL_OPERATOR_CHARS = frozenset({"&", "|", ";"})
+_QUOTE_CHARS = frozenset({"'", '"'})
+# Operators that leave the command after them in doubt: `||` runs it only when
+# the previous command failed, and `&` detaches it from the script's result.
+_CONDITIONAL_TERMINATORS = frozenset({"||", "&"})
 
 
-def _split_shell_commands(line: str) -> list[str]:
-    """Split a raw shell line into commands on its unquoted control operators.
+class _ShellCommand(NamedTuple):
+    """A shell command with the control operator that terminated it."""
 
-    Splitting before ``shlex`` dequotes the line keeps a quoted operator, as in
-    ``echo '&&' apt-get install clang``, part of its command rather than
-    separating one.
-    """
-    commands: list[str] = []
+    text: str
+    terminator: str
+
+
+def _is_comment_start(char: str, current: list[str]) -> bool:
+    """Return whether an unquoted ``#`` here begins a trailing comment."""
+    return char == "#" and (not current or current[-1].isspace())
+
+
+def _consume_escape(line: str, index: int, current: list[str]) -> int:
+    """Copy a backslash and the character it escapes; return the new index."""
+    current.append(line[index])
+    if index + 1 < len(line):
+        index += 1
+        current.append(line[index])
+    return index
+
+
+def _step_in_quotes(
+    line: str, index: int, quote: str, current: list[str]
+) -> tuple[int, str | None]:
+    """Copy one quoted character; return the new index and quote state."""
+    char = line[index]
+    # Only double quotes honour backslash escapes; inside single quotes a
+    # backslash is literal and so cannot hide the closing quote.
+    if char == "\\" and quote == '"':
+        return _consume_escape(line, index, current), quote
+    current.append(char)
+    return index, None if char == quote else quote
+
+
+def _operator_end(line: str, index: int) -> int:
+    """Return the index of the last character of a `&&` or `||` style operator."""
+    paired = index + 1 < len(line) and line[index + 1] == line[index]
+    return index + 1 if paired else index
+
+
+def _split_shell_commands(line: str) -> list[_ShellCommand]:
+    """Split a raw shell line into commands on its unquoted control operators."""
+    # Splitting before `shlex` dequotes the line keeps a quoted operator, as in
+    # `echo '&&' apt-get install clang`, inside its command rather than
+    # separating one.
+    commands: list[_ShellCommand] = []
     current: list[str] = []
     quote: str | None = None
     index = 0
     while index < len(line):
         char = line[index]
         if quote is not None:
-            current.append(char)
-            # Only double quotes honour backslash escapes; single quotes are
-            # literal, so a backslash cannot hide the closing quote.
-            if char == "\\" and quote == '"' and index + 1 < len(line):
-                index += 1
-                current.append(line[index])
-            elif char == quote:
-                quote = None
-        elif char in {"'", '"'}:
+            index, quote = _step_in_quotes(line, index, quote, current)
+        elif char in _QUOTE_CHARS:
             quote = char
             current.append(char)
-        elif char == "\\" and index + 1 < len(line):
-            current.append(char)
-            index += 1
-            current.append(line[index])
-        elif char == "#" and (not current or current[-1].isspace()):
-            # An unquoted `#` starting a word comments out the rest of the line.
+        elif char == "\\":
+            index = _consume_escape(line, index, current)
+        elif _is_comment_start(char, current):
             break
         elif char in _SHELL_OPERATOR_CHARS:
-            commands.append("".join(current))
+            end = _operator_end(line, index)
+            commands.append(_ShellCommand("".join(current), line[index : end + 1]))
             current = []
-            # Consume the second character of a paired `&&` or `||` operator.
-            if index + 1 < len(line) and line[index + 1] == char:
-                index += 1
+            index = end
         else:
             current.append(char)
         index += 1
-    commands.append("".join(current))
+    commands.append(_ShellCommand("".join(current), ""))
     return commands
 
 
@@ -80,6 +112,42 @@ def _apt_install_packages(command: list[str]) -> list[str] | None:
     return [arg for arg in words[2:] if not arg.startswith("-")]
 
 
+def _is_approved_prefix_command(tokens: list[str]) -> bool:
+    """Return whether a command may precede the install in an operator chain."""
+    # Deliberately narrow: only the preparation the template itself performs.
+    # Anything else (`false`, `test ...`) could gate the install, so the
+    # contract fails closed rather than trusting an unrecognised guard.
+    words = tokens[1:] if tokens[:1] == ["sudo"] else tokens
+    if not words or words[0] == "export":
+        return True
+    return words[:2] == ["apt-get", "update"]
+
+
+def _install_runs_unconditionally(
+    commands: list[_ShellCommand], tokenised: list[list[str]], index: int
+) -> bool:
+    """Return whether the install at ``index`` runs without a guard or fallback."""
+    if commands[index].terminator in _CONDITIONAL_TERMINATORS:
+        return False
+    return all(
+        commands[position].terminator not in _CONDITIONAL_TERMINATORS
+        and _is_approved_prefix_command(tokenised[position])
+        for position in range(index)
+    )
+
+
+def _tokenise_command(command: str) -> list[str]:
+    """Tokenise one command, failing the contract on unparseable shell."""
+    # Surface malformed shell instead of masking it as a valid install; a
+    # setup-commands script that cannot be parsed is not runnable.
+    try:
+        return shlex.split(command)
+    except ValueError as error:
+        raise AssertionError(
+            f"expected mutation job setup-commands to be parseable shell, got {command!r}"
+        ) from error
+
+
 def _extract_apt_install_packages(setup_commands: str) -> list[str]:
     """Return the packages installed by a setup-commands ``apt-get install``."""
     # Join backslash continuations so each command sits on one logical line.
@@ -87,20 +155,16 @@ def _extract_apt_install_packages(setup_commands: str) -> list[str]:
     for line in joined.splitlines():
         # Split on operators before dequoting, so quoted text cannot forge a
         # command boundary; comments are dropped by the same quote-aware scan.
-        for command in _split_shell_commands(line):
-            # Surface malformed shell instead of masking it as a valid install;
-            # a setup-commands script that cannot be parsed is not runnable.
-            try:
-                tokens = shlex.split(command)
-            except ValueError as error:
-                raise AssertionError(
-                    "expected mutation job setup-commands to be parseable "
-                    f"shell, got {command!r}"
-                ) from error
-            # Only a real `[sudo] apt-get install` command counts; embedded
-            # text such as an echo argument is never treated as an install.
+        commands = _split_shell_commands(line)
+        tokenised = [_tokenise_command(command.text) for command in commands]
+        for index, tokens in enumerate(tokenised):
+            # Only a real `[sudo] apt-get install` counts, and only when the
+            # whole operator chain reaches it: echoed text, a `false &&` guard,
+            # a `|| true` fallback, and a backgrounded `&` are all rejected.
             packages = _apt_install_packages(tokens)
-            if packages is not None:
+            if packages is not None and _install_runs_unconditionally(
+                commands, tokenised, index
+            ):
                 return packages
     return []
 
