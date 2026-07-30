@@ -27,9 +27,10 @@ _MUTATION_CONCURRENCY_GROUP = "mutation-testing-${{ github.ref }}"
 
 _SHELL_OPERATOR_CHARS = frozenset({"&", "|", ";"})
 _QUOTE_CHARS = frozenset({"'", '"'})
-# Operators that leave the command after them in doubt: `||` runs it only when
-# the previous command failed, and `&` detaches it from the script's result.
-_CONDITIONAL_TERMINATORS = frozenset({"||", "&"})
+# Operators that break the link between a command and the script's result: `||`
+# runs what follows only when the command failed, `|` discards the command's
+# exit status in favour of the last stage of the pipeline, and `&` detaches it.
+_CONDITIONAL_TERMINATORS = frozenset({"||", "|", "&"})
 
 
 class _ShellCommand(NamedTuple):
@@ -116,7 +117,7 @@ def _is_approved_prefix_command(tokens: list[str]) -> bool:
     """Return whether a command may precede the install in an operator chain."""
     # Deliberately narrow: only the preparation the template itself performs.
     # Anything else (`false`, `test ...`) could gate the install, so the
-    # contract fails closed rather than trusting an unrecognised guard.
+    # contract fails closed rather than trusting an unrecognized guard.
     words = tokens[1:] if tokens[:1] == ["sudo"] else tokens
     if not words or words[0] == "export":
         return True
@@ -124,20 +125,20 @@ def _is_approved_prefix_command(tokens: list[str]) -> bool:
 
 
 def _install_runs_unconditionally(
-    commands: list[_ShellCommand], tokenised: list[list[str]], index: int
+    commands: list[_ShellCommand], tokenized: list[list[str]], index: int
 ) -> bool:
     """Return whether the install at ``index`` runs without a guard or fallback."""
     if commands[index].terminator in _CONDITIONAL_TERMINATORS:
         return False
     return all(
         commands[position].terminator not in _CONDITIONAL_TERMINATORS
-        and _is_approved_prefix_command(tokenised[position])
+        and _is_approved_prefix_command(tokenized[position])
         for position in range(index)
     )
 
 
-def _tokenise_command(command: str) -> list[str]:
-    """Tokenise one command, failing the contract on unparseable shell."""
+def _tokenize_command(command: str) -> list[str]:
+    """Tokenize one command, failing the contract on unparseable shell."""
     # Surface malformed shell instead of masking it as a valid install; a
     # setup-commands script that cannot be parsed is not runnable.
     try:
@@ -156,14 +157,15 @@ def _extract_apt_install_packages(setup_commands: str) -> list[str]:
         # Split on operators before dequoting, so quoted text cannot forge a
         # command boundary; comments are dropped by the same quote-aware scan.
         commands = _split_shell_commands(line)
-        tokenised = [_tokenise_command(command.text) for command in commands]
-        for index, tokens in enumerate(tokenised):
+        tokenized = [_tokenize_command(command.text) for command in commands]
+        for index, tokens in enumerate(tokenized):
             # Only a real `[sudo] apt-get install` counts, and only when the
             # whole operator chain reaches it: echoed text, a `false &&` guard,
-            # a `|| true` fallback, and a backgrounded `&` are all rejected.
+            # a `|| true` fallback, a `| true` pipeline, and a backgrounded `&`
+            # are all rejected.
             packages = _apt_install_packages(tokens)
             if packages is not None and _install_runs_unconditionally(
-                commands, tokenised, index
+                commands, tokenized, index
             ):
                 return packages
     return []

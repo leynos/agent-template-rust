@@ -69,17 +69,19 @@ def test_extract_apt_install_packages_ignores_quoted_operator() -> None:
         "false && sudo apt-get install --yes clang lld mold || true\n",
         "false && sudo apt-get install --yes clang lld mold\n",
         "sudo apt-get install --yes clang lld mold || true\n",
+        "sudo apt-get install --yes clang lld mold | true\n",
         "sudo apt-get install --yes clang lld mold &\n",
     ],
-    ids=["guarded-and-fallback", "guarded", "fallback", "backgrounded"],
+    ids=["guarded-and-fallback", "guarded", "fallback", "piped", "backgrounded"],
 )
 def test_extract_apt_install_packages_ignores_conditional_installs(
     setup_commands: str,
 ) -> None:
-    """Ignore an install a guard may skip or a fallback may mask."""
+    """Ignore an install a guard may skip or whose failure is masked."""
     assert _extract_apt_install_packages(setup_commands) == [], (
-        "expected an install reachable only through a guard, fallback, or "
-        "background operator not to satisfy the contract"
+        "expected an install reachable only through a guard, or whose exit "
+        "status a fallback, pipeline, or background operator hides, not to "
+        "satisfy the contract"
     )
 
 
