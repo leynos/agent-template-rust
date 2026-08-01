@@ -163,6 +163,16 @@ def _mutation_workflow_with_schedule(schedule_block: str) -> str:
     return f'permissions: {{}}\n"on":\n{schedule_block}  workflow_dispatch:\n'
 
 
+def test_assert_mutation_workflow_contracts_rejects_incorrect_cron() -> None:
+    """Reject a lone schedule entry carrying a cron other than the sanctioned one."""
+    workflow = _mutation_workflow_with_schedule(
+        '  schedule:\n    - cron: "0 0 * * *"\n'
+    )
+
+    with pytest.raises(AssertionError, match="schedule to be exactly one cron entry"):
+        _assert_mutation_workflow_contracts(workflow)
+
+
 def test_assert_mutation_workflow_contracts_rejects_extra_schedule_entry() -> None:
     """Reject a second schedule entry beyond the single sanctioned cron."""
     workflow = _mutation_workflow_with_schedule(
