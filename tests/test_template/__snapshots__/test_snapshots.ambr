@@ -484,6 +484,42 @@
       \tawk 'BEGIN {FS=":"; printf "Available targets:\n"} {printf "  %-20s %s\n", $$1, $$2}'
   
     ''',
+    'mutation_workflow': dict({
+      'concurrency': dict({
+        'cancel-in-progress': False,
+        'group': 'mutation-testing-${{ github.ref }}',
+      }),
+      'jobs': dict({
+        'mutation': dict({
+          'permissions': dict({
+            'contents': 'read',
+            'id-token': 'write',
+          }),
+          'uses': 'leynos/shared-actions/.github/workflows/mutation-cargo.yml@<sha>',
+          'with': dict({
+            'extra-args': '--all-features',
+            'setup-commands': '''
+              export DEBIAN_FRONTEND=noninteractive
+              # mold accelerates dev builds; coverage uses lld for llvm-tools compatibility.
+              sudo apt-get update \
+                && sudo apt-get install --yes --no-install-recommends clang lld mold
+  
+            ''',
+          }),
+        }),
+      }),
+      'name': 'Mutation testing',
+      'on': dict({
+        'schedule': list([
+          dict({
+            'cron': '15 9 * * *',
+          }),
+        ]),
+        'workflow_dispatch': None,
+      }),
+      'permissions': dict({
+      }),
+    }),
     'release_workflow': dict({
       'env': dict({
         'BIN_NAME': 'snapshot_example',
