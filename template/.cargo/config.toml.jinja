@@ -1,3 +1,11 @@
+{% if enable_polonius -%}
+# Enable the Polonius alpha borrow-checking analysis by default so Cargo,
+# rust-analyzer, and verification tools agree about what borrows are legal.
+# An inherited RUSTFLAGS value overrides this table; the generated Makefile and
+# workflows therefore re-state -Zpolonius=next whenever they set RUSTFLAGS.
+[build]
+rustflags = ["-Zpolonius=next"]
+{% endif -%}
 [unstable]
 codegen-backend = true
 
@@ -7,7 +15,11 @@ codegen-backend = "cranelift"
 {% if dev_target and 'linux' in dev_target -%}
 [target.{{ dev_target }}]
 linker = "clang"
-rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+{% if enable_polonius -%}
+# Cargo selects target rustflags instead of merging them with build.rustflags,
+# so this target-specific mold configuration must repeat the Polonius flag.
+{% endif -%}
+rustflags = [{% if enable_polonius %}"-Zpolonius=next", {% endif %}"-C", "link-arg=-fuse-ld=mold"]
 {% elif dev_target -%}
 # mold is Linux-only. For faster linking on {{ dev_target }}, add a
 # platform-specific block here. Common options include lld via clang on macOS

@@ -19,20 +19,26 @@ from tests.helpers.rendering import APP, LIB, render_project
 from tests.helpers.tooling_contracts import (
     assert_coverage_main_workflow_contract,
     assert_generated_tooling_contracts,
+    assert_polonius_toolchain_contracts,
 )
 from tests.helpers.tooling_contracts.workflows import _assert_ci_workflow_contracts
 
 
 @pytest.mark.parametrize(
-    ("flavour", "dev_target"),
+    ("flavour", "dev_target", "enable_polonius"),
     [
-        (LIB, "x86_64-unknown-linux-gnu"),
-        (APP, "x86_64-unknown-linux-gnu"),
-        (LIB, "aarch64-apple-darwin"),
+        (LIB, "x86_64-unknown-linux-gnu", False),
+        (APP, "x86_64-unknown-linux-gnu", True),
+        (LIB, "aarch64-apple-darwin", True),
+        (APP, "x86_64-unknown-linux-gnu", False),
     ],
 )
 def test_generated_tooling_contracts(
-    tmp_path: Path, copier: CopierFixture, flavour: str, dev_target: str
+    tmp_path: Path,
+    copier: CopierFixture,
+    flavour: str,
+    dev_target: str,
+    enable_polonius: bool,
 ) -> None:
     """Generated projects include the requested Rust tooling contracts."""
     project = render_project(
@@ -41,6 +47,7 @@ def test_generated_tooling_contracts(
         project_name="ToolingExample",
         package_name="tooling_example",
         flavour=flavour,
+        enable_polonius=enable_polonius,
         dev_target=dev_target,
     )
 
@@ -63,8 +70,11 @@ def test_generated_tooling_contracts(
         project / ".github/workflows/mutation-testing.yml"
     )
     docs_contents = read_generated_text(project / "docs/contents.md")
+    developers_guide = read_generated_text(project / "docs/developers-guide.md")
     repository_layout = read_generated_text(project / "docs/repository-layout.md")
     readme = read_generated_text(project / "README.md")
+    users_guide = read_generated_text(project / "docs/users-guide.md")
+    agents = read_generated_text(project / "AGENTS.md")
     rust_toolchain = read_generated_text(project / "rust-toolchain.toml")
     test_stub = read_generated_text(project / "tests/stub.rs")
     typos_config = read_generated_text(project / "typos.toml")
@@ -79,6 +89,10 @@ def test_generated_tooling_contracts(
         read_generated_text(project / ".github/workflows/release.yml")
         if flavour == APP
         else None
+    )
+    polonius_path = project / "docs/polonius.md"
+    polonius_doc = (
+        read_generated_text(polonius_path) if polonius_path.exists() else None
     )
     assert_generated_tooling_contracts(
         package=package,
@@ -100,8 +114,25 @@ def test_generated_tooling_contracts(
         release_workflow=release_workflow,
     )
     assert_coverage_main_workflow_contract(coverage_main_workflow)
+    assert_polonius_toolchain_contracts(
+        enabled=enable_polonius,
+        dev_target=dev_target,
+        cargo_config=cargo_config,
+        makefile=makefile,
+        rust_toolchain=rust_toolchain,
+        ci_workflow=ci_workflow,
+        coverage_main_workflow=coverage_main_workflow,
+        release_workflow=release_workflow,
+        agents=agents,
+        readme=readme,
+        docs_contents=docs_contents,
+        repository_layout=repository_layout,
+        developers_guide=developers_guide,
+        users_guide=users_guide,
+        polonius_doc=polonius_doc,
+    )
     assert '[default]\nlocale = "en-gb"' in typos_config
-    assert 'accepted = ["Flavored", "mold"]' in typos_overlay
+    assert 'accepted = ["Flavored", "mold", "Polonius"]' in typos_overlay
     assert "DEFAULT_BASE_URL" in spelling_generator
     assert "_local_cache_is_current" in spelling_core
 

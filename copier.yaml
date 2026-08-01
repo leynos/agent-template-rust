@@ -73,6 +73,14 @@ flavour:
   default: lib
   help: 'What type of project? (lib = reusable library, app = executable binary)'
 
+enable_polonius:
+  type: bool
+  default: "{{ flavour == 'app' }}"
+  help: >-
+    Enable the nightly Polonius borrow checker (-Zpolonius=next)? Recommended
+    for applications; libraries may disable it to retain wider compiler
+    compatibility.
+
 codescene_project_id:
   type: str
   default: ''

@@ -41,6 +41,12 @@ def test_template_renders_app_flavour(tmp_path: Path, copier: CopierFixture) -> 
     assert (project / ".github" / "workflows" / "release.yml").exists(), (
         "expected release workflow to exist for app flavour"
     )
+    assert "-Zpolonius=next" in (project / ".cargo/config.toml").read_text(), (
+        "expected app flavour to enable recommended Polonius support by default"
+    )
+    assert (project / "docs/polonius.md").exists(), (
+        "expected app flavour to document default Polonius support"
+    )
     project.run("make all")
 
 
@@ -58,5 +64,11 @@ def test_template_renders_lib_flavour(tmp_path: Path, copier: CopierFixture) -> 
     )
     assert not (project / ".github" / "workflows" / "release.yml").exists(), (
         "expected release workflow to be omitted for lib flavour"
+    )
+    assert "-Zpolonius=next" not in (project / ".cargo/config.toml").read_text(), (
+        "expected lib flavour to retain wider compiler compatibility by default"
+    )
+    assert not (project / "docs/polonius.md").exists(), (
+        "expected lib flavour to omit Polonius policy by default"
     )
     project.run("make all")

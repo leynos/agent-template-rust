@@ -8,6 +8,9 @@ from tests.helpers.tooling_contracts.documentation import (
 from tests.helpers.tooling_contracts.orchestration import (
     assert_generated_tooling_contracts,
 )
+from tests.helpers.tooling_contracts.polonius import (
+    assert_polonius_toolchain_contracts,
+)
 from tests.helpers.tooling_contracts.workflows import (
     assert_ci_coverage_action_contract,
     assert_coverage_main_workflow_contract,
@@ -19,5 +22,6 @@ __all__ = [
     "assert_coverage_main_workflow_contract",
     "assert_documentation_navigation_contracts",
     "assert_generated_tooling_contracts",
+    "assert_polonius_toolchain_contracts",
     "extract_checkout_steps",
 ]

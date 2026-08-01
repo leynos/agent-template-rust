@@ -19,11 +19,12 @@ def render_project(
     project_name: str,
     package_name: str,
     flavour: str = LIB,
+    enable_polonius: bool | None = None,
     license_year: int | None = 2026,
     dev_target: str = "x86_64-unknown-linux-gnu",
 ) -> CopierProject:
     """Render a generated Rust project with publishable metadata."""
-    answers: dict[str, str | int] = {
+    answers: dict[str, str | int | bool] = {
         "project_name": project_name,
         "package_name": package_name,
         "package_description": f"{project_name} package used by template tests.",
@@ -36,6 +37,8 @@ def render_project(
         "flavour": flavour,
         "dev_target": dev_target,
     }
+    if enable_polonius is not None:
+        answers["enable_polonius"] = enable_polonius
     if license_year is not None:
         answers["license_year"] = license_year
 

@@ -133,6 +133,25 @@ This repository is written in Rust and uses Cargo for building and dependency
 management. Contributors should follow these best practices when working on the
 project:
 
+{% if enable_polonius -%}
+### Borrow checker: Polonius, not NLL
+
+This repository compiles with the Polonius alpha analysis
+(`-Zpolonius=next`) on the dated nightly pinned in `rust-toolchain.toml`.
+Internal APIs should be borrow-centric: lookups and get-or-create accessors
+return references, keys are cloned only on insertion, and error context is
+built lazily. See `docs/polonius.md` for the full contract.
+
+- Never rewrite a site tagged `POLONIUS(...)` into a double lookup, an
+  `entry(key.clone())` call, id or index indirection, or eager error context.
+- Do not add defensive clones merely to end a borrow without first compiling
+  the natural borrow-returning form under the project toolchain.
+- Respect `POLONIUS-REFUSED(...)` tags. Polonius does not relax aliasing,
+  suspension-point, lock-boundary, or thread-boundary constraints.
+- Verify new borrow-sensitive code with the project toolchain and classify it
+  with and without `-Zpolonius=next` as described in `docs/polonius.md`.
+
+{% endif -%}
 - Run `make check-fmt`, `make lint`, and `make test` before committing. These
   targets wrap the following commands, so contributors understand the exact
   behaviour and policy enforced:
