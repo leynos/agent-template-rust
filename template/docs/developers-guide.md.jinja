@@ -44,6 +44,12 @@ workflows that set `RUSTFLAGS` must re-state it because the environment value
 overrides Cargo configuration. See [the Polonius policy](polonius.md) for the
 borrow-centric API and audit-tag conventions.
 
+Generated CI, coverage, and release workflows pass this base flag through the
+shared `setup-rust` action's `rustflags` input. The pinned revision must expose
+that input, and coverage overrides must repeat the selected base flag alongside
+their `lld` linker flag. Contract tests should assert these inputs and combined
+flags without fixing the shared action to one literal SHA.
+
 {% endif -%}
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so debug builds link

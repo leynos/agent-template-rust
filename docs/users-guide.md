@@ -48,6 +48,13 @@ rustflags instead of merging them with `[build].rustflags`. The generated
 project also includes `docs/polonius.md` and matching `AGENTS.md` guidance for
 borrow-centric APIs.
 
+Generated CI, coverage, and release workflows pass their base compiler flags
+through the shared `setup-rust` action's `rustflags` input. They pass
+`-Zpolonius=next` when Polonius is enabled and retain `-D warnings` otherwise;
+coverage steps then repeat that base alongside their `lld` linker flag when
+they override `RUSTFLAGS`. The pinned shared-action revision must expose this
+input, so dependency updates must preserve the passthrough contract.
+
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so local debug builds
 link quickly. Coverage generation uses `lld` instead because LLVM coverage
