@@ -55,6 +55,41 @@ coverage steps then repeat that base alongside their `lld` linker flag when
 they override `RUSTFLAGS`. The pinned shared-action revision must expose this
 input, so dependency updates must preserve the passthrough contract.
 
+For screen readers: The following flowchart shows how `enable_polonius`
+selects the base Rust flags used by setup, coverage, and release workflows.
+The enabled path uses `-Zpolonius=next`; the disabled path uses `-D warnings`.
+Coverage adds the `lld` linker flag to either base, while release inherits the
+selected base from `setup-rust` and uses the corresponding nightly or stable
+toolchain.
+
+```mermaid
+flowchart TD
+  start([Workflow start])
+
+  start --> enable_polonius
+
+  enable_polonius{enable_polonius}
+  enable_polonius -->|true| setup_rust_polonius
+  enable_polonius -->|false| setup_rust_warnings
+
+  setup_rust_polonius["Setup Rust (setup-rust)\nwith rustflags = -Zpolonius=next"]
+  setup_rust_warnings["Setup Rust (setup-rust)\nwith rustflags = -D warnings"]
+
+  setup_rust_polonius --> coverage_polonius
+  setup_rust_polonius --> release_polonius
+  setup_rust_warnings --> coverage_warnings
+  setup_rust_warnings --> release_warnings
+
+  coverage_polonius["Test and Measure Coverage (generate-coverage)\nRUSTFLAGS includes -Zpolonius=next and -C link-arg=-fuse-ld=lld"]
+  coverage_warnings["Test and Measure Coverage (generate-coverage)\nRUSTFLAGS includes -D warnings and -C link-arg=-fuse-ld=lld"]
+
+  release_polonius["Build release binary (cross)\nuses nightly toolchain with -Zpolonius=next from setup-rust"]
+  release_warnings["Build release binary (cross)\nuses stable toolchain with -D warnings from setup-rust"]
+```
+
+_Figure 1: Rust flag selection and propagation through generated setup,
+coverage, and release workflows._
+
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so local debug builds
 link quickly. Coverage generation uses `lld` instead because LLVM coverage
