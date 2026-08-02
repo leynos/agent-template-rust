@@ -50,7 +50,10 @@ def _assert_setup_rust_rustflags(
     setup = _setup_rust_step(workflow, job_name)
     setup_inputs = require_mapping(setup, "with", f"{job_name} setup-rust step")
     expected = POLONIUS_FLAG if enabled else "-D warnings"
-    assert setup_inputs.get("rustflags") == expected
+    actual = setup_inputs.get("rustflags")
+    assert actual == expected, (
+        f"expected {job_name} setup-rust rustflags to be {expected!r}, got {actual!r}"
+    )
 def _assert_cargo_config(cargo_config: str, *, enabled: bool, dev_target: str) -> None:
     """Assert Cargo's build and target rustflags retain Polonius as required."""
     config = tomllib.loads(cargo_config)
@@ -130,9 +133,12 @@ def _assert_coverage_workflow(workflow: str, job_name: str, *, enabled: bool) ->
     """Assert coverage's explicit RUSTFLAGS do not shadow Polonius."""
     coverage = _named_step(workflow, job_name, "Test and Measure Coverage")
     env = require_mapping(coverage, "env", "coverage step")
-    rustflags = str(env.get("RUSTFLAGS", ""))
-    assert "-C link-arg=-fuse-ld=lld" in rustflags
-    assert (POLONIUS_FLAG in rustflags) is enabled
+    actual = str(env.get("RUSTFLAGS", ""))
+    base_flags = POLONIUS_FLAG if enabled else "-D warnings"
+    expected = f"{base_flags} -C link-arg=-fuse-ld=lld"
+    assert actual == expected, (
+        f"expected {job_name} coverage RUSTFLAGS to be {expected!r}, got {actual!r}"
+    )
 
 
 def _assert_release_workflow(
@@ -140,21 +146,32 @@ def _assert_release_workflow(
 ) -> None:
     """Assert release artefacts use a compiler compatible with the source."""
     toolchain_config = tomllib.loads(rust_toolchain)
-    expected_toolchain = str(toolchain_config["toolchain"]["channel"])
+    configured_toolchain = str(toolchain_config["toolchain"]["channel"])
     setup = _setup_rust_step(release_workflow, "build")
     setup_inputs = require_mapping(setup, "with", "release setup-rust step")
-    toolchain = str(setup_inputs.get("toolchain", ""))
+    actual_toolchain = str(setup_inputs.get("toolchain", ""))
+    actual_rustflags = setup_inputs.get("rustflags")
     build = _named_step(release_workflow, "build", "Build release binary")
-    command = str(build.get("run", ""))
-    if enabled:
-        assert toolchain == expected_toolchain
-        assert setup_inputs.get("rustflags") == POLONIUS_FLAG
-        assert f"cross +{expected_toolchain} build" in command
-    else:
-        assert toolchain == "stable"
-        assert setup_inputs.get("rustflags") == "-D warnings"
-        assert "cross +stable build" in command
-    assert "env" not in build
+    actual_command = str(build.get("run", ""))
+    actual_env = build.get("env")
+    expected_toolchain = configured_toolchain if enabled else "stable"
+    expected_rustflags = POLONIUS_FLAG if enabled else "-D warnings"
+    expected_command = f"cross +{expected_toolchain} build"
+    assert actual_toolchain == expected_toolchain, (
+        f"expected release build toolchain to be {expected_toolchain!r}, "
+        f"got {actual_toolchain!r}"
+    )
+    assert actual_rustflags == expected_rustflags, (
+        f"expected release setup-rust rustflags to be {expected_rustflags!r}, "
+        f"got {actual_rustflags!r}"
+    )
+    assert expected_command in actual_command, (
+        f"expected release build command to contain {expected_command!r}, "
+        f"got {actual_command!r}"
+    )
+    assert "env" not in build, (
+        f"expected release build env to be absent, got {actual_env!r}"
+    )
 
 
 def assert_polonius_toolchain_contracts(
