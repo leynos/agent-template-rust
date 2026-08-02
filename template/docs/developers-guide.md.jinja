@@ -32,6 +32,22 @@ keeps its pinned reusable-workflow SHA current. See the user guide's
 "Scheduled Mutation Testing" section for behaviour, and promote surviving
 mutants into new tests.
 
+## Compile-time UI tests
+
+`tests/compile_ui.rs` enforces the generated lint contract. `trybuild` checks
+the supported compiler pass fixture and the `unsafe_code` and `missing_docs`
+compile-fail fixtures. Every compile-fail source has a reviewed adjacent
+`.stderr` file. Do not run validation with `TRYBUILD=overwrite`; when a pinned
+compiler update changes a diagnostic, regenerate it only during authoring,
+review the complete diff, and rerun normally.
+
+`trybuild` invokes `rustc` and therefore cannot execute Clippy lints or the
+Rustdoc documentation build. The same Rust integration-test harness runs
+isolated Cargo commands for those cases and compares their output with the
+narrow reviewed fragments in `tests/ui/expected/`. Keep the Python
+generated-project rejection tests as Makefile and rendering integration
+coverage; the Rust harness owns the compile-time diagnostic contract.
+
 ## Tooling
 
 {% if enable_polonius -%}

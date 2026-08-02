@@ -1,0 +1,13 @@
+error: usage of an `unsafe` block
+ --> tests/ui/compile_fail/unsafe_code.rs:5:5
+  |
+5 | /     unsafe {
+6 | |         let _value = *pointer;
+7 | |     }
+  | |_____^
+  |
+note: the lint level is defined here
+ --> tests/ui/compile_fail/unsafe_code.rs:1:11
+  |
+1 | #![forbid(unsafe_code)]
+  |           ^^^^^^^^^^^

@@ -39,7 +39,13 @@ compact and omits build output such as `target/`.
 │   └── lib.rs
 {% endif %}
 ├── tests/
-│   └── stub.rs
+│   ├── compile_ui.rs
+│   ├── stub.rs
+│   └── ui/
+│       ├── cases/
+│       ├── compile_fail/
+│       ├── expected/
+│       └── pass/
 ├── AGENTS.md
 ├── Cargo.toml
 ├── LICENSE
@@ -90,8 +96,12 @@ compact and omits build output such as `target/`.
 {% endif %}
 - `tests/`: Holds integration and behavioural tests that exercise public
   behaviour.
+- `tests/compile_ui.rs`: Runs the reviewed `trybuild`, Clippy, and Rustdoc UI
+  contracts.
 - `tests/stub.rs`: Keeps the generated test directory valid until real tests
   replace it.
+- `tests/ui/`: Holds compile-pass and compile-fail sources, isolated Cargo
+  cases, and reviewed expected diagnostics for the UI harness.
 - `AGENTS.md`: Provides repository-specific working instructions for agents and
   contributors.
 - `Cargo.toml`: Defines package metadata, dependencies, lint policy, and Cargo

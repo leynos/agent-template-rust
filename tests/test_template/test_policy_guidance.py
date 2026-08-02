@@ -81,6 +81,11 @@ def test_rendered_agents_requires_injected_environment_and_diagnostics(
             "Do not accept brittle snapshots",
             "Add compile-time behaviour tests using `trybuild`",
             "compile-fail and compile-pass contracts",
+            "Commit and review every compile-fail `.stderr` file",
+            "Never use `TRYBUILD=overwrite` during validation",
+            "`trybuild` invokes `rustc`, not Clippy or Rustdoc",
+            "`tests/compile_ui.rs` Cargo-command harness",
+            "narrow reviewed diagnostic fragments under `tests/ui/expected/`",
         ),
     )
 
@@ -157,6 +162,9 @@ def test_policy_documentation_covers_validation_and_migration(
             "only the composition root constructs `mockable::DefaultEnv`",
             "`test_make_lint_rejects_rust_and_rustdoc_policy_violations`",
             "[ADR-005](adr-005-injected-environment-boundary.md)",
+            "`test_generated_compile_time_ui_contracts`",
+            "reviewed `unsafe_code` and `missing_docs` `.stderr` files",
+            "Never set `TRYBUILD=overwrite` in validation",
         ),
     )
     _assert_contains_all(

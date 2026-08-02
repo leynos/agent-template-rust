@@ -14,6 +14,9 @@ categories = [{% for category in package_category_values %}"{{ category }}"{% if
 
 [dependencies]
 
+[dev-dependencies]
+trybuild = "1.0.119"
+
 {% if flavour == 'app' -%}
 # The package.metadata.binstall pkg-url intentionally mixes Jinja2 values
 # rendered at project generation with single-brace cargo-binstall variables

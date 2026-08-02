@@ -1,0 +1,2 @@
+clippy::missing-assert-message
+assert without any message

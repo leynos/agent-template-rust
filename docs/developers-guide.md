@@ -54,7 +54,7 @@ an environment because it cannot mutate the harness process. The rationale and
 consequences are recorded in
 [ADR-005](adr-005-injected-environment-boundary.md).
 
-Parent tests prove the contract at three levels:
+Parent tests prove the contract at four levels:
 
 - `test_rendered_agents_requires_injected_environment_and_diagnostics` reads a
   rendered `AGENTS.md` and asserts the contributor-facing boundaries.
@@ -64,10 +64,19 @@ Parent tests prove the contract at three levels:
   `test_make_lint_rejects_rust_and_rustdoc_policy_violations` render isolated
   projects, introduce one violation, run the public `make lint` command, and
   require the corresponding diagnostic.
+- `test_generated_compile_time_ui_contracts` renders and runs the generated
+  Rust UI suite. `trybuild` owns the compiler pass case and the reviewed
+  `unsafe_code` and `missing_docs` `.stderr` files. Because `trybuild` invokes
+  `rustc` rather than Clippy or Rustdoc, `tests/compile_ui.rs` also runs focused
+  Cargo commands against isolated Clippy and Rustdoc fixtures and compares
+  their output with narrow reviewed fragments under `tests/ui/expected/`.
 
 Keep these as semantic assertions. Add a rejection case when adding a lint with
 a deterministic compiler or Rustdoc failure; do not replace focused contracts
-with a broad generated-file snapshot.
+with a broad generated-file snapshot. Never set `TRYBUILD=overwrite` in
+validation. Regenerate a compiler diagnostic only while authoring a deliberate
+change, review the complete diff, and then rerun the suite without overwrite
+mode.
 
 ## Formatting, Linting, and Type Checking
 

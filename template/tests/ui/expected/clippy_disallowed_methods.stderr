@@ -1,0 +1,2 @@
+clippy::disallowed-methods
+inject an environment reader

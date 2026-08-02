@@ -216,7 +216,14 @@ built lazily. See `docs/polonius.md` for the full contract.
   confirming a snapshot failure identifies a real contract change.
 - Add compile-time behaviour tests using `trybuild` where macro expansion,
   trait bounds, feature-gated APIs, or other compile-fail and compile-pass
-  contracts are relevant to the requirements.
+  contracts are relevant to the requirements. Commit and review every
+  compile-fail `.stderr` file. Never use `TRYBUILD=overwrite` during
+  validation or accept regenerated diagnostics without reviewing the diff.
+- `trybuild` invokes `rustc`, not Clippy or Rustdoc. Keep Clippy and Rustdoc UI
+  cases in the generated `tests/compile_ui.rs` Cargo-command harness, with
+  narrow reviewed diagnostic fragments under `tests/ui/expected/`. Update an
+  expected fragment only after confirming the diagnostic represents the
+  intended contract.
 - Add end-to-end tests where a change affects externally observable workflows,
   integration contracts, persistence, command-line behaviour, network
   boundaries, UI flows, or other system-level behaviour.

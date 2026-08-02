@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from pytest_copier.plugin import CopierFixture
 
-from tests.helpers.generated_files import read_generated_text
+from tests.helpers.generated_files import parse_toml_file, read_generated_text
 from tests.helpers.rendering import APP, LIB, render_project
 
 
@@ -71,6 +71,52 @@ edition = "2024"
     project.run(
         'RUSTFLAGS="-D warnings" cargo test --manifest-path '
         "documented-environment-injection/Cargo.toml --all-targets --all-features"
+    )
+
+
+def test_generated_compile_time_ui_contracts(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """Generated Rust UI harness validates reviewed compiler diagnostics."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="CompileUiExample",
+        package_name="compile_ui_example",
+    )
+    manifest = parse_toml_file(project / "Cargo.toml")
+    harness = read_generated_text(project / "tests" / "compile_ui.rs")
+
+    assert manifest["dev-dependencies"]["trybuild"] == "1.0.119"
+    assert 'cases.pass("tests/ui/pass/*.rs")' in harness
+    assert 'cases.compile_fail("tests/ui/compile_fail/*.rs")' in harness
+    assert 'Command::new("cargo")' in harness
+    for fixture in (
+        "missing_docs.stderr",
+        "unsafe_code.stderr",
+    ):
+        assert (project / "tests" / "ui" / "compile_fail" / fixture).is_file(), (
+            f"expected reviewed trybuild diagnostic {fixture}"
+        )
+    for diagnostic in (
+        "clippy_missing_assert_message.stderr",
+        "clippy_disallowed_methods.stderr",
+        "rustdoc_missing_crate_level_docs.stderr",
+        "rustdoc_broken_intra_doc_links.stderr",
+        "rustdoc_private_intra_doc_links.stderr",
+        "rustdoc_bare_urls.stderr",
+        "rustdoc_invalid_html_tags.stderr",
+        "rustdoc_invalid_codeblock_attributes.stderr",
+        "rustdoc_unescaped_backticks.stderr",
+    ):
+        expected = read_generated_text(
+            project / "tests" / "ui" / "expected" / diagnostic
+        )
+        assert expected.strip(), f"expected reviewed UI diagnostic {diagnostic}"
+
+    project.run(
+        'RUSTFLAGS="-D warnings" RUSTDOCFLAGS="--cfg docsrs -D warnings" '
+        "cargo test --test compile_ui"
     )
 
 
