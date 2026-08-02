@@ -103,8 +103,12 @@ def _assert_coverage_workflow(workflow: str, job_name: str, *, enabled: bool) ->
     assert (POLONIUS_FLAG in rustflags) is enabled
 
 
-def _assert_release_workflow(release_workflow: str, *, enabled: bool) -> None:
+def _assert_release_workflow(
+    release_workflow: str, rust_toolchain: str, *, enabled: bool
+) -> None:
     """Assert release artefacts use a compiler compatible with the source."""
+    toolchain_config = tomllib.loads(rust_toolchain)
+    expected_toolchain = str(toolchain_config["toolchain"]["channel"])
     setup = _setup_rust_step(release_workflow)
     setup_inputs = require_mapping(setup, "with", "release setup-rust step")
     toolchain = str(setup_inputs.get("toolchain", ""))
@@ -113,9 +117,9 @@ def _assert_release_workflow(release_workflow: str, *, enabled: bool) -> None:
     rustflags = str(env.get("RUSTFLAGS", ""))
     command = str(build.get("run", ""))
     if enabled:
-        assert toolchain.startswith("nightly-20")
+        assert toolchain == expected_toolchain
         assert rustflags == POLONIUS_FLAG
-        assert f"cross +{toolchain} build" in command
+        assert f"cross +{expected_toolchain} build" in command
     else:
         assert toolchain == "stable"
         assert rustflags == ""
@@ -140,7 +144,46 @@ def assert_polonius_toolchain_contracts(
     users_guide: str,
     polonius_doc: str | None,
 ) -> None:
-    """Assert the selected Polonius state across generated project surfaces."""
+    """Assert the selected Polonius state across generated project surfaces.
+
+    Parameters
+    ----------
+    enabled : bool
+        Expected Polonius selection for the rendered project.
+    dev_target : str
+        Development target represented in the rendered Cargo and Make files.
+    cargo_config : str
+        Rendered Cargo configuration.
+    makefile : str
+        Rendered Makefile.
+    rust_toolchain : str
+        Rendered Rust toolchain configuration.
+    ci_workflow : str
+        Rendered Continuous Integration workflow.
+    coverage_main_workflow : str
+        Rendered main-branch coverage workflow.
+    release_workflow : str | None
+        Rendered release workflow, or ``None`` when the project has none.
+    agents : str
+        Rendered agent guidance.
+    readme : str
+        Rendered project README.
+    docs_contents : str
+        Rendered documentation contents page.
+    repository_layout : str
+        Rendered repository layout documentation.
+    developers_guide : str
+        Rendered developers guide.
+    users_guide : str
+        Rendered users guide.
+    polonius_doc : str | None
+        Rendered Polonius policy, or ``None`` when Polonius is disabled.
+
+    Raises
+    ------
+    AssertionError
+        If any rendered surface does not match the selected Polonius state.
+    """
     _assert_cargo_config(cargo_config, enabled=enabled, dev_target=dev_target)
     _assert_makefile(makefile, enabled=enabled, dev_target=dev_target)
     _assert_coverage_workflow(ci_workflow, "build-test", enabled=enabled)
@@ -148,7 +191,7 @@ def assert_polonius_toolchain_contracts(
         coverage_main_workflow, "coverage-upload", enabled=enabled
     )
     if release_workflow is not None:
-        _assert_release_workflow(release_workflow, enabled=enabled)
+        _assert_release_workflow(release_workflow, rust_toolchain, enabled=enabled)
 
     if enabled:
         assert "Polonius alpha" in rust_toolchain

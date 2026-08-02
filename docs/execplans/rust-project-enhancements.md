@@ -66,6 +66,12 @@ Pinned GitHub Action SHAs drift over time. The mitigation is to resolve the
 current default-branch commit for each action repository during implementation
 and record the resulting pins in the plan and pull request validation notes.
 
+Polonius remains a nightly-only alpha analysis, and explicit `RUSTFLAGS`
+replace Cargo's build-level flags. Generated projects that opt in therefore
+depend on a dated nightly, and every build path that overrides `RUSTFLAGS` must
+re-state `-Zpolonius=next`. Contract tests cover the supported override paths;
+new paths must extend those tests.
+
 ## Progress
 
 - [x] 2026-05-23: Confirmed branch `rust-project-enhancements` and clean
@@ -107,6 +113,11 @@ and record the resulting pins in the plan and pull request validation notes.
       was 9 passed in 18.54 seconds.
 - [x] 2026-05-23: Pushed `rust-project-enhancements` and created draft pull
   request <https://github.com/leynos/agent-template-rust/pull/32>.
+- [x] 2026-08-02: Extended the completed tooling import with an optional
+  `enable_polonius` choice, application-recommended and library-compatible
+  defaults, flag propagation across Cargo, Make, coverage, CI, and release
+  builds, generated policy guidance, and enabled/disabled contract and
+  compilation coverage. Recorded the extension in ADR-004.
 
 ## Surprises & Discoveries
 
@@ -140,6 +151,12 @@ Validate generated projects through pytest-copier by invoking the generated
 public `make all` target rather than stitching together private commands from
 the parent repository.
 
+Expose Polonius as a Copier choice that defaults on for applications and off
+for libraries. When enabled, use the dated channel from `rust-toolchain.toml`
+and preserve `-Zpolonius=next` wherever `RUSTFLAGS` are replaced; this permits
+borrow-centric application internals without imposing nightly compatibility on
+generated libraries. ADR-004 records the alternatives and accepted risks.
+
 ## Outcomes & Retrospective
 
 The template now renders projects with Cranelift debug codegen, Linux mold
@@ -148,3 +165,9 @@ cargo-binstall metadata for app projects, Whitaker linting with CI caching,
 SHA-pinned CI actions, and pytest-copier coverage that runs generated
 `make all` gates. The branch was pushed and draft pull request
 <https://github.com/leynos/agent-template-rust/pull/32> was opened for review.
+
+The later Polonius extension is also complete. Generated applications now opt
+in by default, libraries retain wider compiler compatibility by default, and
+all supported flag-override paths preserve the selected compiler contract.
+Rendered-project tests exercise both choices, and generated documentation
+explains the nightly dependency and borrow-centric design policy.

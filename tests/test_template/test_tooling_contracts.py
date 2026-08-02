@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 from pytest_copier.plugin import CopierFixture
 
 from tests.helpers.generated_files import (
@@ -22,6 +24,18 @@ from tests.helpers.tooling_contracts import (
     assert_polonius_toolchain_contracts,
 )
 from tests.helpers.tooling_contracts.workflows import _assert_ci_workflow_contracts
+
+
+POLONIUS_RENDER_CASES = tuple(
+    (flavour, enable_polonius, dev_target)
+    for flavour in (LIB, APP)
+    for enable_polonius in (None, False, True)
+    for dev_target in (
+        "x86_64-unknown-linux-gnu",
+        "aarch64-apple-darwin",
+        "",
+    )
+)
 
 
 @pytest.mark.parametrize(
@@ -136,7 +150,55 @@ def test_generated_tooling_contracts(
     assert "DEFAULT_BASE_URL" in spelling_generator
     assert "_local_cache_is_current" in spelling_core
 
+@given(case=st.sampled_from(POLONIUS_RENDER_CASES))
+@settings(
+    deadline=None,
+    max_examples=len(POLONIUS_RENDER_CASES),
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
+def test_polonius_flag_invariant_across_rendered_configuration_space(
+    tmp_path_factory: pytest.TempPathFactory,
+    copier: CopierFixture,
+    case: tuple[str, bool | None, str],
+) -> None:
+    """Every rendered RUSTFLAGS override preserves the selected Polonius state."""
+    flavour, enable_polonius, dev_target = case
+    project = render_project(
+        tmp_path_factory.mktemp("polonius-contract"),
+        copier,
+        project_name="InvariantProperty",
+        package_name="invariant_property",
+        flavour=flavour,
+        enable_polonius=enable_polonius,
+        dev_target=dev_target,
+    )
+    expected_enabled = flavour == APP if enable_polonius is None else enable_polonius
+    release_path = project / ".github/workflows/release.yml"
+    polonius_path = project / "docs/polonius.md"
 
+    assert_polonius_toolchain_contracts(
+        enabled=expected_enabled,
+        dev_target=dev_target,
+        cargo_config=read_generated_text(project / ".cargo/config.toml"),
+        makefile=read_generated_text(project / "Makefile"),
+        rust_toolchain=read_generated_text(project / "rust-toolchain.toml"),
+        ci_workflow=read_generated_text(project / ".github/workflows/ci.yml"),
+        coverage_main_workflow=read_generated_text(
+            project / ".github/workflows/coverage-main.yml"
+        ),
+        release_workflow=(
+            read_generated_text(release_path) if release_path.exists() else None
+        ),
+        agents=read_generated_text(project / "AGENTS.md"),
+        readme=read_generated_text(project / "README.md"),
+        docs_contents=read_generated_text(project / "docs/contents.md"),
+        repository_layout=read_generated_text(project / "docs/repository-layout.md"),
+        developers_guide=read_generated_text(project / "docs/developers-guide.md"),
+        users_guide=read_generated_text(project / "docs/users-guide.md"),
+        polonius_doc=(
+            read_generated_text(polonius_path) if polonius_path.exists() else None
+        ),
+    )
 def test_ci_contract_rejects_unguarded_duplicate_audit_step(
     tmp_path: Path, copier: CopierFixture
 ) -> None:
