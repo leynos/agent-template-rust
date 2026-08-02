@@ -40,6 +40,12 @@ def test_rendered_agents_requires_injected_environment_and_diagnostics(
             "Process-wide locks are not an escape hatch",
             "shared `Mutex`, `OnceLock`, or `serial_test` attribute",
             "Clippy warnings MUST be disallowed",
+            'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
+            'RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps',
+            "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+            'RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- '
+            "--all-targets --all-features",
+            "Documentation warnings, Clippy warnings, and Whitaker findings",
             "Every module **must** begin with a module level (`//!`) comment",
             "Document public APIs using Rustdoc comments (`///`)",
             "Every `assert!`, `assert_eq!`, and `assert_ne!` invocation",
@@ -100,10 +106,13 @@ def test_policy_documentation_covers_validation_and_migration(
     _assert_contains_all(
         decision,
         (
-            "direct `std::env` access",
-            "constructing `mockable::DefaultEnv` only",
-            "at the production composition root",
-            "using `mockable::MockEnv` in tests",
+            "Triage: Accepted",
+            "We decided to inject `mockable::Env`",
+            "construct `mockable::DefaultEnv` only",
+            "production composition root",
+            "use `mockable::MockEnv` in tests",
+            "We reject direct",
+            "`std::env` access in domain code",
             "Process-wide locks are prohibited",
             "serial-test attributes",
             "`assert_cmd`",

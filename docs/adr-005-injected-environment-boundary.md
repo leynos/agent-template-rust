@@ -6,17 +6,21 @@
 
 ## Context and Decision
 
-In the context of generated Rust projects whose behaviour depends on
-environment variables, facing process-global reads that hide dependencies and
-in-process mutation that makes parallel and property-based tests interfere, we
-decided for injecting `mockable::Env`, constructing `mockable::DefaultEnv` only
-at the production composition root, using `mockable::MockEnv` in tests, and
-allowing `assert_cmd` to configure only isolated child processes, and against
-direct `std::env` access in domain code, harness-process mutation, shared
-locks, or serial-test attributes, to achieve explicit production signatures and
-deterministic tests that remain safe under concurrency, accepting a small
-adapter at each composition root and dependency parameters on environment-aware
-behaviour.
+Triage: Accepted. The original decision was technically correct but obscured
+its parallel choices in one overloaded sentence.
+
+In generated Rust projects, process-global reads hide environment dependencies,
+while in-process mutation makes parallel and property-based tests interfere.
+
+We decided to inject `mockable::Env`, construct `mockable::DefaultEnv` only at
+the production composition root, use `mockable::MockEnv` in tests, and allow
+`assert_cmd` to configure only isolated child processes. We reject direct
+`std::env` access in domain code, harness-process mutation, shared locks, and
+serial-test attributes.
+
+This decision provides explicit production signatures and deterministic tests
+that remain safe under concurrency. It accepts a small adapter at each
+composition root and dependency parameters on environment-aware behaviour.
 
 ## Consequences
 

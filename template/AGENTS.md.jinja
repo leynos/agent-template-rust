@@ -168,12 +168,15 @@ built lazily. See `docs/polonius.md` for the full contract.
     validating formatting across the entire workspace without modifying files.
   - `make lint` executes:
 
-    ```sh
+    ```makefile
+    RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps
     cargo clippy --workspace --all-targets --all-features -- -D warnings
+    RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- --all-targets --all-features
     ```
 
-    linting every target with all features enabled and denying all Clippy
-    warnings.
+    building documentation before linting every target with all features
+    enabled. Documentation warnings, Clippy warnings, and Whitaker findings
+    fail the command.
   - `make test` executes:
 
     ```sh
