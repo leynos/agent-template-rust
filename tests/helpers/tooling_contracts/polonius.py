@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import tomllib
 from typing import Any
 
@@ -12,6 +13,13 @@ from tests.helpers.generated_files import (
 )
 
 POLONIUS_FLAG = "-Zpolonius=next"
+RUSTFLAGS_PASSTHROUGH_REVISION = "47b337e4f230b591891656534d4ffad868131740"
+_SETUP_RUST_USES_RE = re.compile(
+    r"^leynos/shared-actions/\.github/actions/setup-rust@[0-9a-f]{40}$"
+)
+_SHARED_ACTION_USES_RE = re.compile(
+    r"uses:\s+(?P<reference>leynos/shared-actions/[^\s]+)"
+)
 
 
 def _named_step(workflow: str, job_name: str, step_name: str) -> dict[str, Any]:
@@ -38,7 +46,8 @@ def _setup_rust_step(workflow: str, job_name: str) -> dict[str, Any]:
     matches = [
         step
         for step in steps
-        if isinstance(step, dict) and "actions/setup-rust@" in str(step.get("uses"))
+        if isinstance(step, dict)
+        and _SETUP_RUST_USES_RE.fullmatch(str(step.get("uses", "")))
     ]
     assert len(matches) == 1, f"expected one setup-rust step in {job_name} workflow"
     return matches[0]
@@ -131,16 +140,40 @@ def _assert_makefile(makefile: str, *, enabled: bool, dev_target: str) -> None:
 
 def _assert_coverage_workflow(workflow: str, job_name: str, *, enabled: bool) -> None:
     """Assert coverage's explicit RUSTFLAGS do not shadow Polonius."""
-    coverage = _named_step(workflow, job_name, "Test and Measure Coverage")
-    env = require_mapping(coverage, "env", "coverage step")
+    coverage_step = _named_step(workflow, job_name, "Test and Measure Coverage")
+    env = require_mapping(coverage_step, "env", "coverage step")
     actual = str(env.get("RUSTFLAGS", ""))
     base_flags = POLONIUS_FLAG if enabled else "-D warnings"
     expected = f"{base_flags} -C link-arg=-fuse-ld=lld"
     assert actual == expected, (
         f"expected {job_name} coverage RUSTFLAGS to be {expected!r}, got {actual!r}"
     )
+    log_step = _named_step(workflow, job_name, "Log coverage linker configuration")
+    actual_log = str(log_step.get("run", ""))
+    expected_log = f'echo "Coverage RUSTFLAGS: {expected}"'
+    assert expected_log in actual_log, (
+        f"expected {job_name} coverage log to contain {expected_log!r}, "
+        f"got {actual_log!r}"
+    )
 
-
+def _assert_shared_action_passthrough_revision(
+    workflow: str, workflow_name: str
+) -> None:
+    """Assert affected shared-action refs include the rustflags capability."""
+    references = [
+        match.group("reference") for match in _SHARED_ACTION_USES_RE.finditer(workflow)
+    ]
+    assert references, f"expected shared-action references in {workflow_name}"
+    unexpected = [
+        reference
+        for reference in references
+        if not reference.endswith(f"@{RUSTFLAGS_PASSTHROUGH_REVISION}")
+    ]
+    assert not unexpected, (
+        f"expected {workflow_name} shared-action references to use rustflags "
+        f"passthrough revision {RUSTFLAGS_PASSTHROUGH_REVISION!r}, "
+        f"got {unexpected!r}"
+    )
 def _assert_release_workflow(
     release_workflow: str, rust_toolchain: str, *, enabled: bool
 ) -> None:
@@ -238,11 +271,16 @@ def assert_polonius_toolchain_contracts(
     _assert_setup_rust_rustflags(
         coverage_main_workflow, "coverage-upload", enabled=enabled
     )
+    _assert_shared_action_passthrough_revision(ci_workflow, "CI workflow")
+    _assert_shared_action_passthrough_revision(
+        coverage_main_workflow, "coverage-main workflow"
+    )
     _assert_coverage_workflow(ci_workflow, "build-test", enabled=enabled)
     _assert_coverage_workflow(
         coverage_main_workflow, "coverage-upload", enabled=enabled
     )
     if release_workflow is not None:
+        _assert_shared_action_passthrough_revision(release_workflow, "release workflow")
         _assert_release_workflow(release_workflow, rust_toolchain, enabled=enabled)
 
     if enabled:

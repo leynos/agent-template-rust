@@ -48,15 +48,18 @@ rustflags instead of merging them with `[build].rustflags`. The generated
 project also includes `docs/polonius.md` and matching `AGENTS.md` guidance for
 borrow-centric APIs.
 
-Generated CI, coverage, and release workflows pass their base compiler flags
-through the shared `setup-rust` action's `rustflags` input. They pass
+Generated CI and coverage workflows, plus the release workflow rendered for
+applications, pass their base compiler flags through the shared `setup-rust`
+action's `rustflags` input. They pass
 `-Zpolonius=next` when Polonius is enabled and retain `-D warnings` otherwise;
 coverage steps then repeat that base alongside their `lld` linker flag when
 they override `RUSTFLAGS`. The pinned shared-action revision must expose this
 input, so dependency updates must preserve the passthrough contract.
 
 For screen readers: The following flowchart shows how `enable_polonius`
-selects the base Rust flags used by setup, coverage, and release workflows.
+selects the base Rust flags used by setup and coverage workflows, and by the
+release workflow rendered for applications (library renders omit
+`release.yml`).
 The enabled path uses `-Zpolonius=next`; the disabled path uses `-D warnings`.
 Coverage adds the `lld` linker flag to either base, while release inherits the
 selected base from `setup-rust` and uses the corresponding nightly or stable
@@ -87,8 +90,8 @@ flowchart TD
   release_warnings["Build release binary (cross)\nuses stable toolchain with -D warnings from setup-rust"]
 ```
 
-_Figure 1: Rust flag selection and propagation through generated setup,
-coverage, and release workflows._
+_Figure 1: Rust flag selection and propagation through generated setup and
+coverage workflows, and the application-only release workflow._
 
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so local debug builds
