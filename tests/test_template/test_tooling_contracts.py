@@ -51,6 +51,15 @@ def test_polonius_contract_rejects_stale_shared_action_revision() -> None:
         _assert_shared_action_passthrough_revision(workflow, "CI workflow")
 
 
+def test_polonius_contract_allows_independent_shared_action_revision() -> None:
+    """Allow unrelated shared actions to advance independently."""
+    workflow = """uses: leynos/shared-actions/.github/actions/setup-rust@47b337e4f230b591891656534d4ffad868131740
+uses: leynos/shared-actions/.github/actions/generate-coverage@0000000000000000000000000000000000000000
+"""
+
+    _assert_shared_action_passthrough_revision(workflow, "CI workflow")
+
+
 def test_polonius_contract_rejects_missing_setup_rustflags() -> None:
     """Reject setup-rust when its rustflags input is absent."""
     workflow = """jobs:
@@ -93,7 +102,7 @@ def test_polonius_contract_rejects_release_rustflags_env_override() -> None:
       - name: Log Rust compiler configuration
         run: |
           rustc --version
-          echo "Base RUSTFLAGS: -Zpolonius=next"
+          printf 'Base RUSTFLAGS: %s\\n' "$RUSTFLAGS"
       - name: Build release binary
         env:
           RUSTFLAGS: -D warnings

@@ -65,12 +65,11 @@ def _assert_setup_rust_rustflags(
         f"expected {job_name} setup-rust rustflags to be {expected!r}, got {actual!r}"
     )
 
-def _assert_rust_setup_log(workflow: str, job_name: str, *, enabled: bool) -> None:
+def _assert_rust_setup_log(workflow: str, job_name: str) -> None:
     """Assert post-setup diagnostics expose only bounded Rust configuration."""
     log_step = _named_step(workflow, job_name, "Log Rust compiler configuration")
     actual = str(log_step.get("run", "")).splitlines()
-    base_flags = POLONIUS_FLAG if enabled else "-D warnings"
-    expected = ["rustc --version", f'echo "Base RUSTFLAGS: {base_flags}"']
+    expected = ["rustc --version", "printf 'Base RUSTFLAGS: %s\\n' \"$RUSTFLAGS\""]
     assert actual == expected, (
         f"expected {job_name} Rust setup log commands to be {expected!r}, "
         f"got {actual!r}"
@@ -173,9 +172,11 @@ def _assert_shared_action_passthrough_revision(
 ) -> None:
     """Assert affected shared-action refs include the rustflags capability."""
     references = [
-        match.group("reference") for match in _SHARED_ACTION_USES_RE.finditer(workflow)
+        match.group("reference")
+        for match in _SHARED_ACTION_USES_RE.finditer(workflow)
+        if "/.github/actions/setup-rust@" in match.group("reference")
     ]
-    assert references, f"expected shared-action references in {workflow_name}"
+    assert references, f"expected shared setup-rust references in {workflow_name}"
     unexpected = [
         reference
         for reference in references
@@ -217,7 +218,7 @@ def _assert_release_workflow(
     assert "env" not in build, (
         f"expected release build env to be absent, got {actual_env!r}"
     )
-    _assert_rust_setup_log(release_workflow, "build", enabled=enabled)
+    _assert_rust_setup_log(release_workflow, "build")
 
 
 def assert_polonius_toolchain_contracts(
@@ -284,8 +285,8 @@ def assert_polonius_toolchain_contracts(
     _assert_setup_rust_rustflags(
         coverage_main_workflow, "coverage-upload", enabled=enabled
     )
-    _assert_rust_setup_log(ci_workflow, "build-test", enabled=enabled)
-    _assert_rust_setup_log(coverage_main_workflow, "coverage-upload", enabled=enabled)
+    _assert_rust_setup_log(ci_workflow, "build-test")
+    _assert_rust_setup_log(coverage_main_workflow, "coverage-upload")
     _assert_shared_action_passthrough_revision(ci_workflow, "CI workflow")
     _assert_shared_action_passthrough_revision(
         coverage_main_workflow, "coverage-main workflow"

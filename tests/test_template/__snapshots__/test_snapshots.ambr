@@ -159,7 +159,7 @@
               'name': 'Log Rust compiler configuration',
               'run': '''
                 rustc --version
-                echo "Base RUSTFLAGS: -Zpolonius=next"
+                printf 'Base RUSTFLAGS: %s\n' "$RUSTFLAGS"
               ''',
             }),
             dict({
@@ -333,7 +333,7 @@
               'name': 'Log Rust compiler configuration',
               'run': '''
                 rustc --version
-                echo "Base RUSTFLAGS: -Zpolonius=next"
+                printf 'Base RUSTFLAGS: %s\n' "$RUSTFLAGS"
               ''',
             }),
             dict({
@@ -581,7 +581,7 @@
               'name': 'Log Rust compiler configuration',
               'run': '''
                 rustc --version
-                echo "Base RUSTFLAGS: -Zpolonius=next"
+                printf 'Base RUSTFLAGS: %s\n' "$RUSTFLAGS"
               ''',
             }),
             dict({
