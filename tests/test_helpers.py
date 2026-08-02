@@ -169,35 +169,39 @@ _action_paths = st.text(
 _full_shas = st.text(alphabet=_HEX_ALPHABET, min_size=40, max_size=40)
 
 
+# Focused strategies for refs that are never a 40-character lowercase-hex SHA,
+# composed into ``_non_sha_refs`` below.
+_too_short_hex_refs: st.SearchStrategy[str] = st.text(
+    alphabet=_HEX_ALPHABET, min_size=0, max_size=39
+)
+_too_long_hex_refs: st.SearchStrategy[str] = st.text(
+    alphabet=_HEX_ALPHABET, min_size=41, max_size=64
+)
+_branch_refs: st.SearchStrategy[str] = st.sampled_from(
+    ("main", "master", "rolling", "HEAD", "v1.2.3")
+)
+
+
 @st.composite
-def _non_sha_refs(draw: st.DrawFn) -> str:
-    """Draw refs that are never a 40-character lowercase-hex commit SHA."""
-    kind = draw(st.sampled_from(("short", "long", "uppercased", "branch")))
-    match kind:
-        case "short":
-            size = draw(st.integers(min_value=0, max_value=39))
-            return draw(st.text(alphabet=_HEX_ALPHABET, min_size=size, max_size=size))
-        case "long":
-            size = draw(st.integers(min_value=41, max_value=64))
-            return draw(st.text(alphabet=_HEX_ALPHABET, min_size=size, max_size=size))
-        case "uppercased":
-            hexes = draw(st.text(alphabet=_HEX_ALPHABET, min_size=40, max_size=40))
-            position = draw(st.integers(min_value=0, max_value=39))
-            existing = hexes[position]
-            # Uppercasing a hex digit is a no-op, so fall back to a hex letter
-            # to keep the ref out of the lowercase-hex SHA shape.
-            flipped = (
-                existing.upper()
-                if existing.isalpha()
-                else draw(st.sampled_from("ABCDEF"))
-            )
-            return f"{hexes[:position]}{flipped}{hexes[position + 1 :]}"
-        case "branch":
-            return draw(
-                st.sampled_from(("main", "master", "rolling", "HEAD", "v1.2.3"))
-            )
-        case _:  # pragma: no cover - kind is drawn from the sampled set above
-            raise AssertionError(f"unexpected ref kind: {kind}")
+def _uppercased_hex_refs(draw: st.DrawFn) -> str:
+    """Draw a 40-character hex ref carrying at least one uppercase digit."""
+    hexes = draw(st.text(alphabet=_HEX_ALPHABET, min_size=40, max_size=40))
+    position = draw(st.integers(min_value=0, max_value=39))
+    existing = hexes[position]
+    # Uppercasing a hex digit is a no-op, so fall back to a hex letter to keep
+    # the ref out of the lowercase-hex SHA shape.
+    flipped = (
+        existing.upper() if existing.isalpha() else draw(st.sampled_from("ABCDEF"))
+    )
+    return f"{hexes[:position]}{flipped}{hexes[position + 1 :]}"
+
+
+_non_sha_refs: st.SearchStrategy[str] = st.one_of(
+    _too_short_hex_refs,
+    _too_long_hex_refs,
+    _uppercased_hex_refs(),
+    _branch_refs,
+)
 
 
 @given(path=_action_paths, sha=_full_shas)
@@ -211,7 +215,7 @@ def test_is_pinned_action_accepts_full_sha(path: str, sha: str) -> None:
     )
 
 
-@given(path=_action_paths, ref=_non_sha_refs())
+@given(path=_action_paths, ref=_non_sha_refs)
 def test_is_pinned_action_rejects_non_sha_refs(path: str, ref: str) -> None:
     """Refs that are not a full 40-hex commit SHA are never treated as pinned."""
     assert not _is_pinned_action(f"{path}@{ref}", path), (
@@ -578,6 +582,6 @@ jobs:
         with:
           persist-credentials: {persist_credentials}
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@927edd45ae77be4251a8a18ca9eb5613a2e32cbd
+        uses: leynos/shared-actions/.github/actions/generate-coverage@0000000000000000000000000000000000000000
         with:
 {coverage_inputs}"""

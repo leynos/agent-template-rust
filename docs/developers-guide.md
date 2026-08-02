@@ -81,6 +81,13 @@ main `.github/workflows/ci.yml` workflow runs ordinary `make test` without
 `WITH_ACT=1` so the slower container-backed checks run in parallel instead of
 blocking the main test and coverage path.
 
+The template also renders `.github/workflows/mutation-testing.yml` into
+generated projects; its rendered contract is asserted by
+`_assert_mutation_workflow_contracts` in
+`tests/helpers/tooling_contracts/mutation.py`. Dependabot owns the pinned
+reusable-workflow commit SHA, so the contract test asserts the pin format (a
+full commit SHA) rather than a hard-coded value.
+
 ## Required Tooling
 
 The parent tests expect these tools to be available when validating generated
@@ -130,7 +137,8 @@ Reusable test support lives under `tests/helpers/`:
 - `tests/helpers/generated_files.py` centralizes generated text, TOML, and YAML
   parsing with pytest failure messages.
 - `tests/helpers/tooling_contracts/` contains generated Makefile, Cargo,
-  documentation, CI, release, and coverage-action contract assertions.
+  documentation, CI, release, coverage-action, and mutation-testing contract
+  assertions.
 - `tests/conftest.py` provides the session-scoped `act_ready` fixture, which
   skips act-dependent tests unless `RUN_ACT_VALIDATION=1` is set and at least
   one container runtime is reachable.

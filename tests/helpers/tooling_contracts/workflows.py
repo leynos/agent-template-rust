@@ -23,9 +23,11 @@ _GENERATE_COVERAGE_USES_RE = re.compile(
 _UPLOAD_CODESCENE_COVERAGE_USES_RE = re.compile(
     r"^leynos/shared-actions/\.github/actions/upload-codescene-coverage@[0-9a-f]{40}$"
 )
-_SETUP_RUST_USES_TEXT_RE = re.compile(
+_SETUP_RUST_USES_RE = re.compile(
     r"leynos/shared-actions/\.github/actions/setup-rust@[0-9a-f]{40}"
 )
+_SETUP_PYTHON_USES_RE = re.compile(r"actions/setup-python@[0-9a-f]{40}")
+_UPLOAD_ARTIFACT_USES_RE = re.compile(r"actions/upload-artifact@[0-9a-f]{40}")
 
 
 def _is_pinned_action(uses: str, action_path: str) -> bool:
@@ -183,7 +185,7 @@ def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
         "expected generated audit workflow to include one Setup Rust step"
     )
     setup_rust_uses = str(setup_rust_steps[0].get("uses", ""))
-    assert _SETUP_RUST_USES_TEXT_RE.fullmatch(setup_rust_uses), (
+    assert _SETUP_RUST_USES_RE.fullmatch(setup_rust_uses), (
         "expected generated audit workflow to use setup-rust pinned to a full "
         f"40-hex commit SHA, got {setup_rust_uses!r}"
     )
@@ -356,9 +358,8 @@ def _assert_ci_workflow_contracts(
     assert "Cache Whitaker installation" in ci_workflow, (
         "expected generated CI workflow to cache Whitaker installation"
     )
-    assert _SETUP_RUST_USES_TEXT_RE.search(ci_workflow), (
-        "expected generated CI workflow to use the shared setup-rust action "
-        "pinned to a full 40-hex commit SHA"
+    _assert_pinned_step_uses(
+        steps, _SETUP_RUST_USES_RE, "generated CI shared setup-rust action"
     )
     build_test_checkout = [
         step
@@ -398,9 +399,9 @@ def _assert_ci_workflow_contracts(
     assert "Setup Python for audit manifest extraction" in ci_workflow, (
         "expected generated CI workflow to install Python for audit metadata parsing"
     )
-    assert "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405" in (
-        ci_workflow
-    ), "expected generated CI workflow to pin setup-python for audit parsing"
+    _assert_pinned_step_uses(
+        steps, _SETUP_PYTHON_USES_RE, "generated CI setup-python action"
+    )
     assert "make audit" in ci_workflow, (
         "expected generated CI workflow to run the dependency audit gate"
     )
@@ -453,10 +454,11 @@ def _assert_release_workflow_contracts(release_workflow: str) -> None:
         step.get("with", {}).get("persist-credentials") is False
         for step in release_checkout_steps
     ), "expected release workflow checkout steps to disable credentials"
-    assert (
-        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
-        in release_workflow
-    ), "expected app release workflow to use pinned upload-artifact action"
+    _assert_pinned_step_uses(
+        _iter_job_steps(jobs),
+        _UPLOAD_ARTIFACT_USES_RE,
+        "app release upload-artifact action",
+    )
     cross_revision = "88f49ff79e777bef6d3564531636ee4d3cc2f8d2"
     assert f"CROSS_REVISION: {cross_revision}" in release_workflow, (
         "expected app release workflow to pin cross to an immutable revision"
@@ -500,3 +502,23 @@ def extract_checkout_steps(jobs: dict[str, Any]) -> list[dict[str, Any]]:
         if isinstance(step, dict)
         and str(step.get("uses", "")).startswith("actions/checkout@")
     ]
+
+
+def _iter_job_steps(jobs: dict[str, Any]) -> list[Any]:
+    """Return every step across all jobs in a parsed jobs mapping."""
+    return [
+        step
+        for job in jobs.values()
+        if isinstance(job, dict)
+        for step in job.get("steps", [])
+    ]
+
+
+def _assert_pinned_step_uses(
+    steps: list[Any], uses_re: "re.Pattern[str]", label: str
+) -> None:
+    """Assert one workflow step's ``uses:`` fully matches ``uses_re``."""
+    assert any(
+        isinstance(step, dict) and uses_re.fullmatch(str(step.get("uses", "")))
+        for step in steps
+    ), f"expected {label} pinned to a full 40-hex commit SHA in a workflow step"

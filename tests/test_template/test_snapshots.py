@@ -75,6 +75,10 @@ def test_generated_structured_file_snapshots(
         read_generated_text(project / ".github/workflows/coverage-main.yml"),
         "coverage-main workflow",
     )
+    mutation_workflow = parse_yaml_mapping(
+        read_generated_text(project / ".github/workflows/mutation-testing.yml"),
+        "mutation-testing workflow",
+    )
     release_workflow = parse_yaml_mapping(
         read_generated_text(project / ".github/workflows/release.yml"),
         "release workflow",
@@ -89,6 +93,7 @@ def test_generated_structured_file_snapshots(
                 "audit_workflow": audit_workflow,
                 "ci_workflow": ci_workflow,
                 "coverage_main_workflow": coverage_main_workflow,
+                "mutation_workflow": mutation_workflow,
                 "release_workflow": release_workflow,
             }
         )
@@ -96,7 +101,7 @@ def test_generated_structured_file_snapshots(
     ), (
         "Snapshot mismatch for template outputs (cargo_config, makefile, "
         "act_workflow, audit_workflow, ci_workflow, coverage_main_workflow, "
-        "release_workflow)"
+        "mutation_workflow, release_workflow)"
     )
 
 
