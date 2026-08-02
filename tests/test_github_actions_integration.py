@@ -15,7 +15,6 @@ from tests.utilities import container_daemon_socket, docker_environment
 
 EVENT = Path(__file__).parent / "fixtures" / "pull_request.event.json"
 ACT_IMAGE = "ubuntu-latest=catthehacker/ubuntu:act-latest"
-ACT_VALIDATION_STEP = "Run tests with act validation"
 RUST_SETUP_LOG_STEP = "Log Rust compiler configuration"
 
 
@@ -126,17 +125,9 @@ def assert_ci_exercised_expected_steps(
     for event in iter_json_log_events(logs):
         output = str(event_text(event, "Output", "output", "message", "msg"))
         step = str(event_text(event, "name", "step_name", "Step", "step"))
-        in_act_test_step = ACT_VALIDATION_STEP in step
-        saw_test_step = saw_test_step or (
-            in_act_test_step and "make test WITH_ACT=1" in output
-        )
+        saw_test_step = saw_test_step or "$ cargo llvm-cov" in output
         saw_rust = saw_rust or (
-            in_act_test_step
-            and (
-                "cargo nextest" in output
-                or "cargo test --doc" in output
-                or "cargo test" in output
-            )
+            "$ cargo llvm-cov nextest" in output or "$ cargo llvm-cov test" in output
         )
         saw_rust_setup_log = saw_rust_setup_log or (
             RUST_SETUP_LOG_STEP in step
@@ -144,8 +135,8 @@ def assert_ci_exercised_expected_steps(
         )
 
     assert saw_rust_setup_log, f"Rust setup diagnostics were not observed:\n{logs}"
-    assert saw_test_step, f"act-validation test step was not observed:\n{logs}"
-    assert saw_rust, f"Rust tests were not observed:\n{logs}"
+    assert saw_test_step, f"CI coverage command was not observed:\n{logs}"
+    assert saw_rust, f"Rust coverage tests were not observed:\n{logs}"
 
 
 def xfail_known_act_runtime_limitations(logs: str) -> None:
@@ -169,7 +160,6 @@ def xfail_known_act_runtime_limitations(logs: str) -> None:
 
 
 def assert_act_result(
-    project: CopierProject,
     code: int,
     logs: str,
     *,
@@ -211,7 +201,6 @@ def test_generated_act_validation_workflow_runs_tests(
     )
 
     assert_act_result(
-        project,
         code,
         logs,
         expected_base_rustflags=expected_base_rustflags,
