@@ -1,4 +1,11 @@
-"""Build hermetic subprocess environments for generated-project commands."""
+"""Build hermetic subprocess environments for generated-project commands.
+
+``generated_project_env`` copies the parent environment, removes Make and
+Whitaker control variables, and applies explicit overrides before passing the
+result to subprocess calls. For example::
+
+    subprocess.run(["make", "lint"], env=generated_project_env({"PATH": path}))
+"""
 
 from __future__ import annotations
 

@@ -11,6 +11,7 @@ import pytest
 from tests.helpers.generated_files import parse_toml_file
 from tests.helpers.rendering import render_project
 from tests.helpers.subprocess_env import generated_project_env
+import shlex
 
 
 def test_clippy_runs(tmp_path: Path, copier: CopierFixture) -> None:
@@ -254,7 +255,7 @@ def test_makefile_resolves_whitaker_fallback(
             else user_bin / "whitaker"
         )
         expected_whitaker.write_text(
-            f"#!/bin/sh\n: > {marker}\n", encoding="utf-8"
+            f"#!/bin/sh\n: > {shlex.quote(str(marker))}\n", encoding="utf-8"
         )
         expected_whitaker.chmod(0o755)
     make = shutil.which("make")
