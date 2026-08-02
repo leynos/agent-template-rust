@@ -85,6 +85,13 @@ opens a bump PR, the test fails until a human edits the pinned constant to
 match. That defeats the purpose of automated dependency updates and turns a
 routine bump into a manual chore.
 
+The narrow `RUSTFLAGS_PASSTHROUGH_REVISION` exception applies only while no
+independent capability probe can establish that the shared `setup-rust` action
+accepts the required `rustflags` input. In that case, assert the first revision
+that provides the capability and document this boundary beside the test. Remove
+the literal revision assertion once an independent capability probe is
+available.
+
 Contract tests may still verify the *shape* of a reusable-workflow caller.
 They must not verify the specific SHA value.
 

@@ -28,7 +28,7 @@ linking, LLVM coverage, and cross-platform application releases.
 Generated CI and coverage workflows, plus the application-only release
 workflow, pass their base compiler flags through the shared `setup-rust`
 action's `rustflags` input. Coverage repeats that base when its explicit
-`RUSTFLAGS` adds the `lld` linker flag, because an environment override replaces
+`RUSTFLAGS` adds the `lld` linker flag because an environment override replaces
 the value supplied during setup. This capability first appears in
 `leynos/shared-actions` revision
 `47b337e4f230b591891656534d4ffad868131740`; using an older revision silently
