@@ -6,9 +6,9 @@
 
 #[test]
 fn replace_this_stub_when_real_tests_exist() {
-    let package_name = env!("CARGO_PKG_NAME");
-    assert!(
-        !package_name.is_empty(),
-        "Cargo should provide a non-empty package name"
+    assert_eq!(
+        env!("CARGO_PKG_NAME"),
+        "{{ package_name }}",
+        "Cargo package metadata should match the generated package name"
     );
 }

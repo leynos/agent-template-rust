@@ -12,8 +12,12 @@ from tests.helpers.rendering import render_project
 
 def _assert_contains_all(document: str, required_text: tuple[str, ...]) -> None:
     """Assert a document contains each stable policy phrase."""
+    normalized_document = " ".join(document.split())
     for text in required_text:
-        assert text in document, f"expected policy guidance to contain {text!r}"
+        normalized_text = " ".join(text.split())
+        assert normalized_text in normalized_document, (
+            f"expected policy guidance to contain {text!r}"
+        )
 
 
 def test_rendered_agents_requires_injected_environment_and_diagnostics(
@@ -50,8 +54,37 @@ def test_rendered_agents_requires_injected_environment_and_diagnostics(
             "Document public APIs using Rustdoc comments (`///`)",
             "Every `assert!`, `assert_eq!`, and `assert_ne!` invocation",
             "custom diagnostic message",
+            "Completed execplans are historical documents",
+            "Do not retroactively update completed execplan documents",
+            "place that payload behind `Box`; use `Arc` only when shared ownership",
+            "Add snapshot tests using `insta`",
+            "pair them with semantic assertions for business rules and schema contracts",
+            "normalize nondeterministic fields before snapshotting",
+            "Do not accept brittle snapshots",
+            "Add compile-time behaviour tests using `trybuild`",
+            "compile-fail and compile-pass contracts",
         ),
     )
+
+
+def test_rendered_stub_asserts_expected_cargo_package_metadata(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """Generated stub checks Cargo metadata against the rendered package name."""
+    package_name = "metadata_stub_example"
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="MetadataStubExample",
+        package_name=package_name,
+    )
+    stub = read_generated_text(project / "tests" / "stub.rs")
+
+    assert (
+        f'assert_eq!(\n        env!("CARGO_PKG_NAME"),\n        "{package_name}",'
+        in stub
+    )
+    assert "Cargo package metadata should match the generated package name" in stub
 
 
 def test_policy_documentation_covers_validation_and_migration(
