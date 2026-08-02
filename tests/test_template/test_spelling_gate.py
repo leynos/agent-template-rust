@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import tomllib
+import subprocess
 import tempfile
+import tomllib
 from pathlib import Path
 
 from hypothesis import HealthCheck, given, settings
@@ -84,6 +85,12 @@ def test_spelling_gate_config_matches_generator(
         copier,
         project_name="SpellingDrift",
         package_name="spelling_drift",
+    )
+
+    subprocess.run(  # noqa: S603 - runs the rendered, trusted generator.
+        ["uv", "run", "scripts/generate_typos_config.py"],
+        check=True,
+        cwd=project.path,
     )
 
     parsed = tomllib.loads(read_generated_text(project / "typos.toml"))

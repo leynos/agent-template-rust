@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import email.message
 import importlib.util
 import io
-import email.message
 import fcntl
 import json
 import os
@@ -17,6 +17,7 @@ import sys
 import tomllib
 import typing as typ
 import urllib.error
+import urllib.request
 
 import pytest
 from hypothesis import given
@@ -217,8 +218,8 @@ def test_oversized_http_dictionary_is_rejected_without_cache_mutation(
     repository, _ = prepare_repository(tmp_path)
     response = FakeHttpResponse(content, headers)
     monkeypatch.setattr(
-        generator.rollout.urllib.request,
-        "urlopen",
+        generator.rollout,
+        "_open_https",
         lambda *args, **kwargs: response,
     )
 
@@ -239,8 +240,8 @@ def test_http_failure_reports_bounded_stale_cache_diagnostic(
     repository, source = prepare_repository(tmp_path)
     generator.main(repository=repository, source=source)
     monkeypatch.setattr(
-        generator.rollout.urllib.request,
-        "urlopen",
+        generator.rollout,
+        "_open_https",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             urllib.error.HTTPError(
                 "https://secret.invalid/dictionary",
@@ -267,6 +268,65 @@ def test_http_failure_reports_bounded_stale_cache_diagnostic(
     assert "cache_age_seconds=" in record.message
     assert "secret.invalid" not in record.message
     assert "example.invalid" not in record.message
+
+
+def test_changed_http_source_discards_matching_validators(
+    generator: types.ModuleType,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A new HTTP authority is fetched even when its validators match."""
+    repository, _ = prepare_repository(tmp_path)
+    headers = {
+        "ETag": '"shared-validator"',
+        "Last-Modified": "Wed, 21 Oct 2015 07:28:00 GMT",
+    }
+    responses = iter(
+        [
+            FakeHttpResponse(dictionary_text(stem="first").encode(), headers),
+            FakeHttpResponse(dictionary_text(stem="second").encode(), headers),
+        ]
+    )
+    requests: list[urllib.request.Request] = []
+
+    def open_https(request: urllib.request.Request) -> FakeHttpResponse:
+        requests.append(request)
+        return next(responses)
+
+    monkeypatch.setattr(generator.rollout, "_open_https", open_https)
+
+    first_url = "https://first.example.invalid/dictionary.toml"
+    second_url = "https://second.example.invalid/dictionary.toml"
+    generator.main(repository=repository, source=first_url)
+    result = generator.main(repository=repository, source=second_url)
+
+    second_request = requests[1]
+    assert second_request.full_url == second_url
+    assert second_request.get_header("If-none-match") is None
+    assert second_request.get_header("If-modified-since") is None
+    assert result.status == "refreshed"
+    assert '"secondise" = "secondize"' in generator.render_config(repository)
+
+
+def test_http_redirect_cannot_downgrade_to_plain_http(
+    generator: types.ModuleType,
+) -> None:
+    """Every redirect target must retain HTTPS transport."""
+    handler = generator.rollout._HttpsRedirectHandler()
+    request = generator.rollout._https_request(
+        "https://example.invalid/dictionary.toml",
+        {},
+    )
+
+    with pytest.raises(ValueError, match="must use HTTPS"):
+        handler.redirect_request(
+            request,
+            io.BytesIO(),
+            302,
+            "Found",
+            email.message.Message(),
+            "http://example.invalid/dictionary.toml",
+        )
 
 
 def test_metadata_failure_cleans_up_and_retries_changed_source(
