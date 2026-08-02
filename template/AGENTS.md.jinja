@@ -179,13 +179,18 @@ built lazily. See `docs/polonius.md` for the full contract.
     fail the command.
   - `make test` executes:
 
-    ```sh
-    cargo test --workspace
+    ```makefile
+    TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
+    test: export RUSTFLAGS := $(DEV_RUST_FLAGS)
+    $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
+    RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
     ```
 
-    running the full workspace test suite. Use `make fmt`
-    (`cargo fmt --workspace`) to apply formatting fixes reported by the
-    formatter check.
+    running the full test suite with `cargo-nextest` when available and
+    falling back to `cargo test`, with Rust warnings denied. It then runs
+    all-feature workspace doctests separately with Rustdoc warnings denied.
+    Use `make fmt` (`cargo fmt --workspace`) to apply formatting fixes reported
+    by the formatter check.
 - Clippy warnings MUST be disallowed.
 - Fix any warnings emitted during tests in the code itself rather than
   silencing them.

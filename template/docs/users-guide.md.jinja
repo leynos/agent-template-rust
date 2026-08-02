@@ -58,12 +58,15 @@ doctest therefore fails the command.
 3. Update the Makefile so `make lint` passes mandatory `RUSTDOCFLAGS` to
    `cargo doc` and `make test` passes them to workspace doctests. Preserve
    mandatory flags when appending inherited flags.
-4. Refactor direct `std::env` reads behind an injected `mockable::Env` and
-   replace in-process environment mutation with `mockable::MockEnv`. Keep
-   `DefaultEnv` at the production composition root.
-5. Add diagnostic messages to assertions and crate/module/public-item
+4. Declare the current `mockable` dependency, refactor direct `std::env` reads
+   behind an injected `mockable::Env`, and replace in-process environment
+   mutation with `mockable::MockEnv`. Wire the environment adapter at the
+   composition root and construct `mockable::DefaultEnv` only in production.
+5. Update contributor guidance in `AGENTS.md` to document the injection
+   boundary and the `assert_cmd` child-process exception.
+6. Add diagnostic messages to assertions and crate/module/public-item
    documentation where the denied lints require it.
-6. Run `make check-fmt`, `make lint`, `make typecheck`, and `make test`. Fix
+7. Run `make check-fmt`, `make lint`, `make typecheck`, and `make test`. Fix
    every warning rather than suppressing or downgrading it.
 
 ## Makefile Targets

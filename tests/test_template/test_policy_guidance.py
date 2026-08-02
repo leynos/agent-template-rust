@@ -44,11 +44,29 @@ def test_rendered_agents_requires_injected_environment_and_diagnostics(
             "Process-wide locks are not an escape hatch",
             "shared `Mutex`, `OnceLock`, or `serial_test` attribute",
             "Clippy warnings MUST be disallowed",
-            'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
-            'RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps',
+            (
+                'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
+                'RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps'
+            ),
             "cargo clippy --workspace --all-targets --all-features -- -D warnings",
-            'RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- '
-            "--all-targets --all-features",
+            (
+                'RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- '
+                "--all-targets --all-features"
+            ),
+            (
+                "TEST_CMD := $(if $(shell $(CARGO) nextest --version "
+                "2>/dev/null),nextest run,test)"
+            ),
+            "test: export RUSTFLAGS := $(DEV_RUST_FLAGS)",
+            "$(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)",
+            (
+                'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc '
+                "--workspace --all-features"
+            ),
+            "with `cargo-nextest` when available",
+            "falling back to `cargo test`",
+            "with Rust warnings denied",
+            "all-feature workspace doctests separately with Rustdoc warnings denied",
             "Documentation warnings, Clippy warnings, and Whitaker findings",
             "Every module **must** begin with a module level (`//!`) comment",
             "Document public APIs using Rustdoc comments (`///`)",
@@ -122,6 +140,11 @@ def test_policy_documentation_covers_validation_and_migration(
         "Rustdoc warnings denied",
         "Migrate an Existing",
         "`[lints.clippy]`, `[lints.rust]`, and `[lints.rustdoc]`",
+        "Declare the current `mockable` dependency",
+        "Wire the environment adapter at the composition root",
+        "construct `mockable::DefaultEnv` only in production",
+        "Update contributor guidance in `AGENTS.md`",
+        "the `assert_cmd` child-process exception",
     )
 
     _assert_contains_all(maintained_user_guide, user_policy)
