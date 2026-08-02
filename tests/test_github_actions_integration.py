@@ -16,6 +16,7 @@ from tests.utilities import container_daemon_socket, docker_environment
 EVENT = Path(__file__).parent / "fixtures" / "pull_request.event.json"
 ACT_IMAGE = "ubuntu-latest=catthehacker/ubuntu:act-latest"
 ACT_VALIDATION_STEP = "Run tests with act validation"
+RUST_SETUP_LOG_STEP = "Log Rust compiler configuration"
 
 
 def prepare_git_repository(project: CopierProject) -> None:
@@ -117,6 +118,7 @@ def assert_ci_exercised_expected_steps(logs: str) -> None:
     """Assert that act logs include the expected Rust test gate."""
     saw_test_step = False
     saw_rust = False
+    saw_rust_setup_log = False
     for event in iter_json_log_events(logs):
         output = str(event_text(event, "Output", "output", "message", "msg"))
         step = str(event_text(event, "name", "step_name", "Step", "step"))
@@ -132,7 +134,11 @@ def assert_ci_exercised_expected_steps(logs: str) -> None:
                 or "cargo test" in output
             )
         )
+        saw_rust_setup_log = saw_rust_setup_log or (
+            RUST_SETUP_LOG_STEP in step and "Base RUSTFLAGS: -D warnings" in output
+        )
 
+    assert saw_rust_setup_log, f"Rust setup diagnostics were not observed:\n{logs}"
     assert saw_test_step, f"act-validation test step was not observed:\n{logs}"
     assert saw_rust, f"Rust tests were not observed:\n{logs}"
 

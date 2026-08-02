@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import re
-import tomllib
 from typing import Any
+
+import tomllib
 
 from tests.helpers.generated_files import (
     parse_yaml_mapping,
@@ -62,6 +63,17 @@ def _assert_setup_rust_rustflags(
     actual = setup_inputs.get("rustflags")
     assert actual == expected, (
         f"expected {job_name} setup-rust rustflags to be {expected!r}, got {actual!r}"
+    )
+
+def _assert_rust_setup_log(workflow: str, job_name: str, *, enabled: bool) -> None:
+    """Assert post-setup diagnostics expose only bounded Rust configuration."""
+    log_step = _named_step(workflow, job_name, "Log Rust compiler configuration")
+    actual = str(log_step.get("run", "")).splitlines()
+    base_flags = POLONIUS_FLAG if enabled else "-D warnings"
+    expected = ["rustc --version", f'echo "Base RUSTFLAGS: {base_flags}"']
+    assert actual == expected, (
+        f"expected {job_name} Rust setup log commands to be {expected!r}, "
+        f"got {actual!r}"
     )
 def _assert_cargo_config(cargo_config: str, *, enabled: bool, dev_target: str) -> None:
     """Assert Cargo's build and target rustflags retain Polonius as required."""
@@ -205,6 +217,7 @@ def _assert_release_workflow(
     assert "env" not in build, (
         f"expected release build env to be absent, got {actual_env!r}"
     )
+    _assert_rust_setup_log(release_workflow, "build", enabled=enabled)
 
 
 def assert_polonius_toolchain_contracts(
@@ -271,6 +284,8 @@ def assert_polonius_toolchain_contracts(
     _assert_setup_rust_rustflags(
         coverage_main_workflow, "coverage-upload", enabled=enabled
     )
+    _assert_rust_setup_log(ci_workflow, "build-test", enabled=enabled)
+    _assert_rust_setup_log(coverage_main_workflow, "coverage-upload", enabled=enabled)
     _assert_shared_action_passthrough_revision(ci_workflow, "CI workflow")
     _assert_shared_action_passthrough_revision(
         coverage_main_workflow, "coverage-main workflow"

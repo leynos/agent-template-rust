@@ -49,6 +49,10 @@ jobs:
         with:
           toolchain: {% endraw %}{% if enable_polonius %}nightly-{{ rust_nightly_date }}{% else %}stable{% endif %}{% raw %}
           rustflags: {% endraw %}{% if enable_polonius %}-Zpolonius=next{% else %}-D warnings{% endif %}{% raw %}
+      - name: Log Rust compiler configuration
+        run: |-
+          rustc --version
+          echo "Base RUSTFLAGS: {% endraw %}{% if enable_polonius %}-Zpolonius=next{% else %}-D warnings{% endif %}{% raw %}"
       - name: Cache cross binary
         id: cache-cross
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae

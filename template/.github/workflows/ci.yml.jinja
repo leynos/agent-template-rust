@@ -26,6 +26,10 @@ jobs:
         uses: leynos/shared-actions/.github/actions/setup-rust@47b337e4f230b591891656534d4ffad868131740
         with:
           rustflags: {% endraw %}{% if enable_polonius %}-Zpolonius=next{% else %}-D warnings{% endif %}{% raw %}
+      - name: Log Rust compiler configuration
+        run: |-
+          rustc --version
+          echo "Base RUSTFLAGS: {% endraw %}{% if enable_polonius %}-Zpolonius=next{% else %}-D warnings{% endif %}{% raw %}"
       - name: Install mold linker
         if: runner.os == 'Linux'
         run: |

@@ -156,6 +156,13 @@
               }),
             }),
             dict({
+              'name': 'Log Rust compiler configuration',
+              'run': '''
+                rustc --version
+                echo "Base RUSTFLAGS: -Zpolonius=next"
+              ''',
+            }),
+            dict({
               'if': "runner.os == 'Linux'",
               'name': 'Install mold linker',
               'run': '''
@@ -321,6 +328,13 @@
               'with': dict({
                 'rustflags': '-Zpolonius=next',
               }),
+            }),
+            dict({
+              'name': 'Log Rust compiler configuration',
+              'run': '''
+                rustc --version
+                echo "Base RUSTFLAGS: -Zpolonius=next"
+              ''',
             }),
             dict({
               'if': "runner.os == 'Linux'",
@@ -562,6 +576,13 @@
                 'rustflags': '-Zpolonius=next',
                 'toolchain': 'nightly-2025-06-10',
               }),
+            }),
+            dict({
+              'name': 'Log Rust compiler configuration',
+              'run': '''
+                rustc --version
+                echo "Base RUSTFLAGS: -Zpolonius=next"
+              ''',
             }),
             dict({
               'id': 'cache-cross',
