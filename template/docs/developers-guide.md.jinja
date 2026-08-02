@@ -116,4 +116,7 @@ def test_uses_pinned_full_sha(caller_step):
 
 If a workflow's behaviour genuinely depends on a feature only present from a
 particular commit onwards, express that as a comment or a changelog note, not
-as a test assertion on the SHA string.
+as a test assertion on the SHA string. The sole exception is the
+`RUSTFLAGS_PASSTHROUGH_REVISION` boundary above: until an independent probe can
+confirm that `setup-rust` supports `rustflags`, document and assert the first
+capable revision. Remove that literal revision assertion once the probe exists.
