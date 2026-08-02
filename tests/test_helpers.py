@@ -59,13 +59,13 @@ json_value = st.recursive(
 )
 
 
-environment_value = st.text(
+environment_value: st.SearchStrategy[str] = st.text(
     alphabet="abcdefghijklmnopqrstuvwxyz0123456789",
     min_size=1,
     max_size=12,
 )
 
-generated_project_overrides = st.dictionaries(
+generated_project_overrides: st.SearchStrategy[dict[str, str]] = st.dictionaries(
     st.sampled_from(("PATH", "CARGO", "WHITAKER", "OVERRIDE_VARIABLE")),
     environment_value,
     max_size=4,
@@ -86,26 +86,47 @@ def test_generated_project_env_strips_resolution_controls(
     monkeypatch.setenv("PATH", "inherited-path")
     monkeypatch.setenv("CARGO", "inherited-cargo")
 
-    env = generated_project_env(
-        {
-            "PATH": "controlled-path",
-            "CARGO": "cargo",
-            "WHITAKER": "explicit-whitaker",
-        }
-    )
+    overrides = {
+        "PATH": "controlled-path",
+        "CARGO": "cargo",
+        "WHITAKER": "explicit-whitaker",
+    }
+    env = generated_project_env(overrides)
 
-    assert all(
-        variable not in env for variable in MAKE_RESOLUTION_VARIABLES - {"WHITAKER"}
+    expected_absent = MAKE_RESOLUTION_VARIABLES - {"WHITAKER"}
+    assert all(variable not in env for variable in expected_absent), (
+        "expected inherited resolution controls to be absent; "
+        f"variables={sorted(expected_absent)}, overrides={overrides}, env={env}"
     )
-    assert env["ORDINARY_VARIABLE"] == "preserved"
-    assert env["PATH"] == "controlled-path"
-    assert env["CARGO"] == "cargo"
-    assert env["WHITAKER"] == "explicit-whitaker"
-    assert os.environ["PATH"] == "inherited-path"
+    assert env.get("ORDINARY_VARIABLE") == "preserved", (
+        "expected ORDINARY_VARIABLE='preserved'; "
+        f"actual={env.get('ORDINARY_VARIABLE')!r}, overrides={overrides}"
+    )
+    assert env.get("PATH") == "controlled-path", (
+        "expected PATH='controlled-path'; "
+        f"actual={env.get('PATH')!r}, overrides={overrides}"
+    )
+    assert env.get("CARGO") == "cargo", (
+        f"expected CARGO='cargo'; actual={env.get('CARGO')!r}, overrides={overrides}"
+    )
+    assert env.get("WHITAKER") == "explicit-whitaker", (
+        "expected WHITAKER='explicit-whitaker'; "
+        f"actual={env.get('WHITAKER')!r}, overrides={overrides}"
+    )
+    assert os.environ.get("PATH") == "inherited-path", (
+        "expected parent PATH='inherited-path' to remain unchanged; "
+        f"actual={os.environ.get('PATH')!r}, overrides={overrides}"
+    )
     assert all(
         os.environ[variable] == value for variable, value in inherited_controls.items()
+    ), (
+        "expected inherited resolution controls to remain unchanged in os.environ; "
+        f"expected={inherited_controls}, overrides={overrides}"
     )
-    assert os.environ["CARGO"] == "inherited-cargo"
+    assert os.environ.get("CARGO") == "inherited-cargo", (
+        "expected parent CARGO='inherited-cargo' to remain unchanged; "
+        f"actual={os.environ.get('CARGO')!r}, overrides={overrides}"
+    )
 
 
 @given(
@@ -138,22 +159,46 @@ def test_generated_project_env_properties(
 
     for variable in MAKE_RESOLUTION_VARIABLES:
         if variable in overrides:
-            assert env[variable] == overrides[variable]
+            assert env.get(variable) == overrides[variable], (
+                f"expected override {variable}={overrides[variable]!r}; "
+                f"actual={env.get(variable)!r}, overrides={overrides}"
+            )
         else:
-            assert variable not in env
+            assert variable not in env, (
+                f"expected inherited control {variable} to be absent; "
+                f"actual={env.get(variable)!r}, overrides={overrides}"
+            )
     for variable, value in overrides.items():
-        assert env[variable] == value
-    assert env["ORDINARY_VARIABLE"] == ordinary_value
-    assert os.environ["PATH"] == parent_path
+        assert env.get(variable) == value, (
+            f"expected override {variable}={value!r}; "
+            f"actual={env.get(variable)!r}, overrides={overrides}"
+        )
+    assert env.get("ORDINARY_VARIABLE") == ordinary_value, (
+        f"expected ORDINARY_VARIABLE={ordinary_value!r}; "
+        f"actual={env.get('ORDINARY_VARIABLE')!r}, overrides={overrides}"
+    )
+    assert os.environ.get("PATH") == parent_path, (
+        f"expected parent PATH={parent_path!r} to remain unchanged; "
+        f"actual={os.environ.get('PATH')!r}, overrides={overrides}"
+    )
     assert all(
         os.environ[variable] == value for variable, value in inherited_controls.items()
+    ), (
+        "expected inherited controls to remain unchanged in os.environ; "
+        f"expected={inherited_controls}, overrides={overrides}"
     )
 
     monkeypatch.setenv("ORDINARY_VARIABLE", "parent-after")
     env["ORDINARY_VARIABLE"] = "child-after"
 
-    assert os.environ["ORDINARY_VARIABLE"] == "parent-after"
-    assert env["ORDINARY_VARIABLE"] == "child-after"
+    assert os.environ.get("ORDINARY_VARIABLE") == "parent-after", (
+        "expected parent ORDINARY_VARIABLE='parent-after'; "
+        f"actual={os.environ.get('ORDINARY_VARIABLE')!r}, overrides={overrides}"
+    )
+    assert env.get("ORDINARY_VARIABLE") == "child-after", (
+        "expected child ORDINARY_VARIABLE='child-after'; "
+        f"actual={env.get('ORDINARY_VARIABLE')!r}, overrides={overrides}"
+    )
 
 
 def test_generated_project_env_returns_independent_copy(
