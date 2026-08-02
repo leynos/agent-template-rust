@@ -198,7 +198,11 @@ built lazily. See `docs/polonius.md` for the full contract.
   unhappy paths, and relevant edge cases.
 - Add snapshot tests using `insta` where structured output, user-interface
   output, diagnostics, or other multivariant output formats need meaningful,
-  stable assertions.
+  stable assertions. Keep snapshots focused on stable output boundaries, pair
+  them with semantic assertions for business rules and schema contracts, and
+  normalize nondeterministic fields before snapshotting. Do not accept brittle
+  snapshots that churn after unrelated changes; update snapshots only after
+  confirming a snapshot failure identifies a real contract change.
 - Add compile-time behaviour tests using `trybuild` where macro expansion,
   trait bounds, feature-gated APIs, or other compile-fail and compile-pass
   contracts are relevant to the requirements.
