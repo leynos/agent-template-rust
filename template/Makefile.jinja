@@ -26,8 +26,8 @@ DEV_LINKER_FLAGS ?= $(if $(filter Linux,$(shell uname -s)),-C link-arg=-fuse-ld=
 DEV_LINKER_FLAGS ?=
 {% endif -%}
 DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_LINKER_FLAGS)
-RUSTDOC_FLAGS ?= $(POLONIUS_FLAGS)
-RUSTDOC_FLAGS := --cfg docsrs -D warnings $(RUSTDOC_FLAGS)
+RUSTDOC_FLAGS ?=
+RUSTDOC_FLAGS := --cfg docsrs -D warnings $(POLONIUS_FLAGS) $(RUSTDOC_FLAGS)
 CARGO_FLAGS ?= --all-targets --all-features
 CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
 TEST_FLAGS ?= $(CARGO_FLAGS)

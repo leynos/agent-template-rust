@@ -43,13 +43,25 @@ def _assert_makefile_contracts(makefile: str) -> None:
     assert "test: export RUSTFLAGS := $(DEV_RUST_FLAGS)" in makefile, (
         "expected generated Makefile test target to export Rust flags once"
     )
-    assert "RUSTDOC_FLAGS := --cfg docsrs -D warnings $(RUSTDOC_FLAGS)" in makefile, (
-        "expected generated Makefile to enable docsrs cfg and deny Rustdoc warnings"
+    assert "RUSTDOC_FLAGS ?=" in makefile, (
+        "expected generated Makefile to preserve inherited Rustdoc flags"
     )
-    assert "$(CARGO) test --doc --all-features $(BUILD_JOBS)" in makefile, (
-        "expected generated Makefile test target to run doctests"
+    assert (
+        "RUSTDOC_FLAGS := --cfg docsrs -D warnings "
+        "$(POLONIUS_FLAGS) $(RUSTDOC_FLAGS)"
+    ) in makefile, (
+        "expected generated Makefile to require docsrs cfg and deny Rustdoc warnings"
     )
-    assert 'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --no-deps' in makefile, (
+    assert (
+        'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
+        "$(CARGO) test --doc --workspace --all-features"
+    ) in makefile, (
+        "expected generated Makefile test target to run doctests with Rustdoc flags"
+    )
+    assert (
+        'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" '
+        "$(CARGO) doc --no-deps"
+    ) in makefile, (
         "expected generated Makefile lint target to deny Rustdoc warnings"
     )
     assert "coverage: ## Generate lcov coverage with lld" in makefile, (
