@@ -20,6 +20,10 @@ from tests.helpers.generated_files import (
     require_sequence,
 )
 from tests.helpers.rendering import read_generated_file
+from tests.helpers.subprocess_env import (
+    MAKE_RESOLUTION_VARIABLES,
+    generated_project_env,
+)
 from tests.helpers.tooling_contracts import assert_ci_coverage_action_contract
 from tests.helpers.tooling_contracts.workflows import (
     _disables_credential_persistence,
@@ -53,6 +57,47 @@ json_value = st.recursive(
     _json_collections,
     max_leaves=12,
 )
+
+
+def test_generated_project_env_strips_resolution_controls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Remove inherited Make controls without changing the parent environment."""
+    inherited_controls = {
+        variable: f"inherited-{variable.lower()}"
+        for variable in MAKE_RESOLUTION_VARIABLES
+    }
+    for variable, value in inherited_controls.items():
+        monkeypatch.setenv(variable, value)
+    monkeypatch.setenv("ORDINARY_VARIABLE", "preserved")
+    monkeypatch.setenv("PATH", "inherited-path")
+    monkeypatch.setenv("CARGO", "inherited-cargo")
+
+    env = generated_project_env({"PATH": "controlled-path", "CARGO": "cargo"})
+
+    assert all(variable not in env for variable in MAKE_RESOLUTION_VARIABLES)
+    assert env["ORDINARY_VARIABLE"] == "preserved"
+    assert env["PATH"] == "controlled-path"
+    assert env["CARGO"] == "cargo"
+    assert os.environ["PATH"] == "inherited-path"
+    assert all(
+        os.environ[variable] == value for variable, value in inherited_controls.items()
+    )
+    assert os.environ["CARGO"] == "inherited-cargo"
+
+
+def test_generated_project_env_returns_independent_copy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep the generated subprocess environment independent of its parent."""
+    monkeypatch.setenv("ORDINARY_VARIABLE", "before")
+
+    env = generated_project_env({})
+    monkeypatch.setenv("ORDINARY_VARIABLE", "after")
+    env["ORDINARY_VARIABLE"] = "changed"
+
+    assert env["ORDINARY_VARIABLE"] == "changed"
+    assert os.environ["ORDINARY_VARIABLE"] == "after"
 
 
 def test_read_generated_text_converts_os_errors(tmp_path: Path) -> None:
