@@ -136,6 +136,88 @@ def test_make_lint_rejects_environment_policy_violations(
     assert expected_lint in output, f"expected make lint to report {expected_lint}"
 
 
+@pytest.mark.parametrize(
+    ("source", "expected_diagnostic"),
+    [
+        pytest.param(
+            """//! Crate documentation.\n\n/// An unsafe operation.\npub unsafe fn unchecked() {}\n""",
+            "unsafe-code",
+            id="unsafe-code",
+        ),
+        pytest.param(
+            """//! Crate documentation.\n\npub fn undocumented() {}\n""",
+            "missing-docs",
+            id="missing-public-api-docs",
+        ),
+        pytest.param(
+            """/// A documented function.\npub fn documented() {}\n""",
+            "missing-crate-level-docs",
+            id="missing-crate-level-docs",
+        ),
+        pytest.param(
+            """//! See [`MissingItem`].\n\n/// A documented function.\npub fn documented() {}\n""",
+            "broken-intra-doc-links",
+            id="broken-intra-doc-links",
+        ),
+        pytest.param(
+            """//! Crate documentation.\n\nstruct PrivateItem;\n\n/// Returns a [`PrivateItem`].\npub fn documented() {}\n""",
+            "private-intra-doc-links",
+            id="private-intra-doc-links",
+        ),
+        pytest.param(
+            """//! Crate documentation.\n\n/// See https://example.com for details.\npub fn documented() {}\n""",
+            "bare-urls",
+            id="bare-urls",
+        ),
+        pytest.param(
+            """//! Crate documentation.\n\n/// An <invalid> HTML element.\npub fn documented() {}\n""",
+            "invalid-html-tags",
+            id="invalid-html-tags",
+        ),
+        pytest.param(
+            """//! Crate documentation.\n\n/// ```should-panic\n/// assert_eq!(1, 2);\n/// ```\npub fn documented() {}\n""",
+            "invalid-codeblock-attributes",
+            id="invalid-codeblock-attributes",
+        ),
+        pytest.param(
+            """//! Crate documentation.\n\n/// An `unclosed code span.\npub fn documented() {}\n""",
+            "unescaped-backticks",
+            id="unescaped-backticks",
+        ),
+    ],
+)
+def test_make_lint_rejects_rust_and_rustdoc_policy_violations(
+    tmp_path: Path,
+    copier: CopierFixture,
+    source: str,
+    expected_diagnostic: str,
+) -> None:
+    """Generated lint gate rejects representative Rust and Rustdoc violations."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="RustdocLintRejectionExample",
+        package_name="rustdoc_lint_rejection_example",
+    )
+    (project / "src" / "lib.rs").write_text(source, encoding="utf-8")
+    make = shutil.which("make")
+    assert make is not None, "expected make to be available for generated tests"
+
+    result = subprocess.run(
+        [make, "lint"],
+        cwd=project.path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0, f"expected make lint to reject {expected_diagnostic}"
+    assert expected_diagnostic in output, (
+        f"expected make lint to report {expected_diagnostic}"
+    )
+
+
 @pytest.mark.parametrize("whitaker_location", ["path", "home", "missing"])
 def test_makefile_resolves_whitaker_fallback(
     tmp_path: Path,

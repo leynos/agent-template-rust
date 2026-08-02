@@ -53,6 +53,49 @@ Development builds use Cranelift for debug code generation. On Linux targets,
 link quickly. Coverage generation uses `lld` instead because LLVM coverage
 tools expect LLVM-compatible linker behaviour.
 
+## Validation and Environment Policy
+
+Generated manifests deny `unknown_lints`, `renamed_and_removed_lints`,
+`unsafe_code`, and `missing_docs`. Rustdoc denies
+`missing_crate_level_docs`, `broken_intra_doc_links`,
+`private_intra_doc_links`, `bare_urls`, `invalid_html_tags`,
+`invalid_codeblock_attributes`, and `unescaped_backticks`. Clippy denies
+`missing_assert_message` and uses `disallowed_methods` to reject direct calls
+to process-environment readers, iterators, and mutation functions. Warnings are
+validation failures; these policies are not advisory.
+
+Code that depends on environment variables must receive `mockable::Env` (or a
+narrow equivalent closure) as a dependency. The production composition root
+constructs `mockable::DefaultEnv`, while tests use `mockable::MockEnv`.
+In-process tests must not mutate the process environment or serialize mutation
+behind `Mutex`, `OnceLock`, or `serial_test`. The only mutation exception is an
+end-to-end test using `assert_cmd`: `Command::env` and `Command::env_clear`
+configure the isolated child process, not the test harness.
+
+`make lint` builds documentation with Rustdoc warnings denied before running
+Clippy and Whitaker. `make test` exports warning-denial flags to the selected
+test runner and separately runs all-feature workspace doctests with Rustdoc
+warnings denied. A warning from normal tests, the documentation build, or a
+doctest therefore fails the command.
+
+### Migrate an Existing Generated Project
+
+1. Copy the current `[lints.clippy]`, `[lints.rust]`, and `[lints.rustdoc]`
+   policy into each package manifest, or opt every workspace member into
+   equivalent workspace lints.
+2. Add the current `disallowed-methods` entries to the workspace-root
+   `clippy.toml`.
+3. Update the generated Makefile so `make lint` passes mandatory
+   `RUSTDOCFLAGS` to `cargo doc` and `make test` passes them to workspace
+   doctests. Preserve mandatory flags when appending inherited flags.
+4. Refactor direct `std::env` reads behind an injected `mockable::Env` and
+   replace in-process environment mutation with `mockable::MockEnv`. Keep
+   `DefaultEnv` at the production composition root.
+5. Add diagnostic messages to assertions and crate/module/public-item
+   documentation where the denied lints require it.
+6. Run `make check-fmt`, `make lint`, `make typecheck`, and `make test`. Fix
+   every warning rather than suppressing or downgrading it.
+
 ## Makefile Targets
 
 The generated `Makefile` exposes these public targets:
@@ -60,10 +103,12 @@ The generated `Makefile` exposes these public targets:
 - `make all` runs formatting checks, linting, tests, and spelling checks.
 - `make check-fmt` verifies Rust formatting.
 - `make fmt` formats Rust and Markdown sources.
-- `make lint` runs rustdoc, Clippy, and Whitaker with warnings denied.
+- `make lint` builds documentation, then runs Clippy and Whitaker, with every
+  warning denied.
 - `make typecheck` type-checks the workspace without building.
 - `make test` runs `cargo nextest run` when cargo-nextest is installed and
-  falls back to `cargo test` otherwise. All projects also run doctests.
+  falls back to `cargo test` otherwise. It denies warnings in normal tests and
+  in the separate all-feature workspace doctest run.
 - `make build` builds the debug target.
 - `make release` builds the release target.
 - `make coverage` writes `lcov.info` using `cargo llvm-cov` and `lld`.

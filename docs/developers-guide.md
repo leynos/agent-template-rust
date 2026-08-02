@@ -25,6 +25,40 @@ Makefiles with `mbake`, and parse generated Cargo and workflow configuration.
 The Polonius contract checks every `RUSTFLAGS` override, including Linux mold
 linking, LLVM coverage, and cross-platform application releases.
 
+## Generated Lint and Environment Contract
+
+The template treats warnings as failures across generated compilation, tests,
+documentation, and doctests. Package manifests deny unsafe code, missing
+documentation, malformed Rustdoc, assertions without custom diagnostics, and
+the process-environment methods listed in `template/clippy.toml`. The generated
+Makefile preserves mandatory Rust, Rustdoc, and optional Polonius flags while
+appending inherited flags. `make lint` runs the warning-denied documentation
+build before Clippy and Whitaker; `make test` applies warning denial to its
+test runner and its separate all-feature workspace doctest run.
+
+The environment boundary is dependency injection. Production behaviour accepts
+`mockable::Env`; only the composition root constructs `mockable::DefaultEnv`.
+Tests supply `mockable::MockEnv`. In-process mutation and shared locking are
+not fallbacks. Only `assert_cmd` child-process configuration may set or clear
+an environment because it cannot mutate the harness process. The rationale and
+consequences are recorded in
+[ADR-005](adr-005-injected-environment-boundary.md).
+
+Parent tests prove the contract at three levels:
+
+- `test_rendered_agents_requires_injected_environment_and_diagnostics` reads a
+  rendered `AGENTS.md` and asserts the contributor-facing boundaries.
+- `test_generated_lint_configuration_enforces_environment_injection` parses
+  the generated lint tables and disallowed-method configuration.
+- `test_make_lint_rejects_environment_policy_violations` and
+  `test_make_lint_rejects_rust_and_rustdoc_policy_violations` render isolated
+  projects, introduce one violation, run the public `make lint` command, and
+  require the corresponding diagnostic.
+
+Keep these as semantic assertions. Add a rejection case when adding a lint with
+a deterministic compiler or Rustdoc failure; do not replace focused contracts
+with a broad generated-file snapshot.
+
 ## Formatting, Linting, and Type Checking
 
 The parent gates run Ruff and mypy over the `tests/` tree; install `uv` so
