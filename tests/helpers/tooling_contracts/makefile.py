@@ -40,7 +40,10 @@ def _assert_makefile_contracts(makefile: str) -> None:
     assert "$(CARGO) $(TEST_CMD)" in makefile, (
         "expected generated Makefile test target to use the selected test command"
     )
-    assert "RUSTDOC_FLAGS ?= --cfg docsrs -D warnings" in makefile, (
+    assert "test: export RUSTFLAGS := $(DEV_RUST_FLAGS)" in makefile, (
+        "expected generated Makefile test target to export Rust flags once"
+    )
+    assert "RUSTDOC_FLAGS := --cfg docsrs -D warnings $(RUSTDOC_FLAGS)" in makefile, (
         "expected generated Makefile to enable docsrs cfg and deny Rustdoc warnings"
     )
     assert "$(CARGO) test --doc --all-features $(BUILD_JOBS)" in makefile, (
