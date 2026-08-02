@@ -435,10 +435,8 @@
       COVERAGE_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) -C link-arg=$(COVERAGE_LINKER_FLAGS)
       MDLINT ?= markdownlint-cli2
       NIXIE ?= nixie
-      
       TYPOS_VERSION ?= 1.48.0
       TYPOS := uv tool run typos@$(TYPOS_VERSION)
-      
       WHITAKER ?= $(or $(shell command -v whitaker 2>/dev/null),$(wildcard $(USER_WHITAKER)),whitaker)
       
       build: target/debug/$(TARGET) ## Build debug binary
@@ -446,14 +444,9 @@
       
       all: check-fmt lint test ## Perform a comprehensive check of code
       \t+$(MAKE) spellcheck
-      
-      
       clean: ## Remove build artifacts
       \t$(CARGO) clean
-      
       \trm -f .typos-oxendict-base.json .typos-oxendict-base.toml
-      
-      
       test: export RUSTFLAGS := $(DEV_RUST_FLAGS)
       test: ## Run tests with warnings treated as errors
       \t$(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
@@ -488,13 +481,10 @@
       
       markdownlint: spellcheck ## Lint Markdown files and enforce en-GB-oxendict spelling
       \t$(MDLINT) '**/*.md'
-      
       spellcheck: ## Enforce en-GB-oxendict spelling in Markdown prose
       \tuv run scripts/generate_typos_config.py
       \tfind . -type f -name '*.md' -not -path './target/*' -print0 | \
       \t\txargs -0 $(TYPOS) --config typos.toml --force-exclude
-      
-      
       nixie: ## Validate Mermaid diagrams
       \t$(NIXIE) --no-sandbox
       
