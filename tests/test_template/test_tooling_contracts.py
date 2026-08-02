@@ -150,6 +150,7 @@ def test_generated_tooling_contracts(
     assert "DEFAULT_BASE_URL" in spelling_generator
     assert "_local_cache_is_current" in spelling_core
 
+
 @given(case=st.sampled_from(POLONIUS_RENDER_CASES))
 @settings(
     deadline=None,
@@ -199,6 +200,8 @@ def test_polonius_flag_invariant_across_rendered_configuration_space(
             read_generated_text(polonius_path) if polonius_path.exists() else None
         ),
     )
+
+
 def test_ci_contract_rejects_unguarded_duplicate_audit_step(
     tmp_path: Path, copier: CopierFixture
 ) -> None:
