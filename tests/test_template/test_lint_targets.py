@@ -267,9 +267,7 @@ def test_makefile_resolves_whitaker_fallback(
         env=generated_project_env(
             {
                 "HOME": str(home),
-                "PATH": str(
-                    path_bin if whitaker_location == "path" else tool_bin
-                ),
+                "PATH": str(path_bin if whitaker_location == "path" else tool_bin),
                 "CARGO": str(cargo),
             }
         ),
@@ -291,8 +289,7 @@ def test_makefile_resolves_whitaker_fallback(
         )
     else:
         assert result.returncode == 0, (
-            f"stdout:\n{result.stdout}\n"
-            f"stderr:\n{result.stderr}"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )
         assert marker.exists(), (
             f"expected generated lint target to execute {whitaker_location} Whitaker\n"
