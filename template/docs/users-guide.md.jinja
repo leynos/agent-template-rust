@@ -10,6 +10,15 @@ settings, and documented starter code. Library projects render `src/lib.rs`.
 Application projects render `src/main.rs`, `src/lib.rs`, release automation,
 and `[package.metadata.binstall]` metadata for binary installation.
 
+{% if enable_polonius -%}
+This project enables the Polonius alpha borrow checker
+(`-Zpolonius=next`) on its dated nightly toolchain. The checked-in Cargo
+configuration supplies the flag to normal builds and editor tooling, while the
+Makefile and workflows re-state it wherever they override `RUSTFLAGS`. See the
+[Polonius policy](polonius.md) before changing the toolchain or borrow-centric
+APIs.
+
+{% endif -%}
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so local debug builds
 link quickly. Coverage generation uses `lld` instead because LLVM coverage

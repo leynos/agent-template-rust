@@ -2,6 +2,12 @@
 
 This is a generated project using [Copier](https://copier.readthedocs.io/).
 
+{% if enable_polonius -%}
+This project uses the Polonius alpha borrow checker (`-Zpolonius=next`) on the
+dated nightly pinned in `rust-toolchain.toml`. See
+[the Polonius policy](docs/polonius.md) for the compiler and API contract.
+
+{% endif -%}
 ## Documentation
 
 - [Documentation contents](docs/contents.md)

@@ -1,4 +1,4 @@
-name: Coverage (main)
+{% raw %}name: Coverage (main)
 
 # CodeScene accepts `cs-coverage upload` only for analysed branches, so
 # main-branch coverage is uploaded here on push; pull requests generate
@@ -48,14 +48,14 @@ jobs:
       - name: Log coverage linker configuration
         run: |
           echo "Coverage linker: clang"
-          echo "Coverage RUSTFLAGS: -C link-arg=-fuse-ld=lld"
+          echo "Coverage RUSTFLAGS:{% endraw %}{% if enable_polonius %} -Zpolonius=next{% endif %}{% raw %} -C link-arg=-fuse-ld=lld"
           echo "Coverage CFLAGS: -fuse-ld=lld"
           echo "Coverage LDFLAGS: -fuse-ld=lld"
       - name: Test and Measure Coverage
         uses: leynos/shared-actions/.github/actions/generate-coverage@18bed1ca49a6de3d8882bd72635a32ae3f023d57
         env:
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: clang
-          RUSTFLAGS: -C link-arg=-fuse-ld=lld
+          RUSTFLAGS:{% endraw %}{% if enable_polonius %} -Zpolonius=next{% endif %}{% raw %} -C link-arg=-fuse-ld=lld
           CFLAGS: -fuse-ld=lld
           LDFLAGS: -fuse-ld=lld
         with:
@@ -71,3 +71,4 @@ jobs:
           format: lcov
           access-token: ${{ env.CS_ACCESS_TOKEN }}
           installer-checksum: ${{ vars.CODESCENE_CLI_SHA256 }}
+{% endraw %}

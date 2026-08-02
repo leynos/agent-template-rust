@@ -19,6 +19,9 @@ The template requires **Copier 9.0** or later to avoid incompatibilities.
   enabled【F:template/Cargo.toml†L1-L9】.
 - **Pinned toolchain** file specifying a configurable nightly release
   【F:template/rust-toolchain.toml.jinja†L1-L3】.
+- **Optional Polonius support**, recommended and enabled by default for
+  applications, with coherent Cargo, Makefile, coverage, release, and agent
+  guidance that can be disabled for wider library compiler compatibility.
 - **Project metadata prompts** for repository URL, homepage, crates.io keywords,
   crates.io categories, nightly date, and optional Linux development target.
 - **Fast generated tooling** including Cranelift debug code generation, Linux
@@ -115,6 +118,7 @@ flowchart LR
 Additional details are in [`docs/testing.md`](docs/testing.md).
 
 User-facing generated-project behaviour is documented in
-[`docs/users-guide.md`](docs/users-guide.md). Parent-template development
-requirements are documented in
+[`docs/users-guide.md`](docs/users-guide.md), with upgrade guidance in the
+[`0.2.0 migration guide`](docs/migrations/0.2.0.md). Parent-template
+development requirements are documented in
 [`docs/developers-guide.md`](docs/developers-guide.md).

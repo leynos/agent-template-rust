@@ -4,9 +4,36 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from pytest_copier.plugin import CopierFixture
 
 from tests.helpers.rendering import APP, LIB, render_project
+
+
+def test_template_rejects_unsafe_nightly_date(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """Reject a nightly date that could inject shell into release builds."""
+    with pytest.raises(ValueError, match="must use YYYY-MM-DD"):
+        copier.copy(
+            tmp_path,
+            project_name="UnsafeNightly",
+            package_name="unsafe_nightly",
+            rust_nightly_date="2025-06-10; echo INJECTED",
+        )
+
+
+def test_template_rejects_nightly_date_with_trailing_newline(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """Reject a nightly date with content after the expected date."""
+    with pytest.raises(ValueError, match="must use YYYY-MM-DD"):
+        copier.copy(
+            tmp_path,
+            project_name="InvalidNightly",
+            package_name="invalid_nightly",
+            rust_nightly_date="2025-06-10\n",
+        )
 
 
 def test_template_renders(tmp_path: Path, copier: CopierFixture) -> None:
@@ -41,6 +68,12 @@ def test_template_renders_app_flavour(tmp_path: Path, copier: CopierFixture) -> 
     assert (project / ".github" / "workflows" / "release.yml").exists(), (
         "expected release workflow to exist for app flavour"
     )
+    assert "-Zpolonius=next" in (project / ".cargo/config.toml").read_text(), (
+        "expected app flavour to enable recommended Polonius support by default"
+    )
+    assert (project / "docs/polonius.md").exists(), (
+        "expected app flavour to document default Polonius support"
+    )
     project.run("make all")
 
 
@@ -58,5 +91,11 @@ def test_template_renders_lib_flavour(tmp_path: Path, copier: CopierFixture) -> 
     )
     assert not (project / ".github" / "workflows" / "release.yml").exists(), (
         "expected release workflow to be omitted for lib flavour"
+    )
+    assert "-Zpolonius=next" not in (project / ".cargo/config.toml").read_text(), (
+        "expected lib flavour to retain wider compiler compatibility by default"
+    )
+    assert not (project / "docs/polonius.md").exists(), (
+        "expected lib flavour to omit Polonius policy by default"
     )
     project.run("make all")

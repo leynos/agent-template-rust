@@ -47,7 +47,7 @@ jobs:
           persist-credentials: false
       - uses: leynos/shared-actions/.github/actions/setup-rust@18bed1ca49a6de3d8882bd72635a32ae3f023d57
         with:
-          toolchain: stable
+          toolchain: {% endraw %}{% if enable_polonius %}nightly-{{ rust_nightly_date }}{% else %}stable{% endif %}{% raw %}
       - name: Cache cross binary
         id: cache-cross
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
@@ -74,13 +74,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-${{ matrix.target }}-
       - name: Build release binary
-        # Use +stable to override rust-toolchain.toml (which specifies nightly
-        # with Cranelift for development) and ensure release builds use stable.
+        # Select the generated project's supported compiler explicitly and
+        # omit repository-local linker and Cranelift configuration.
         env:
-          # Build release artifacts without repository-local linker flags,
-          # including mold rustflags from .cargo/config.toml.
-          RUSTFLAGS: ""
-        run: cross +stable build --release --target ${{ matrix.target }}
+          RUSTFLAGS: {% endraw %}{% if enable_polonius %}-Zpolonius=next{% else %}""{% endif %}{% raw %}
+        run: cross +{% endraw %}{% if enable_polonius %}nightly-{{ rust_nightly_date }}{% else %}stable{% endif %}{% raw %} build --release --target ${{ matrix.target }}
       - name: Prepare artifact
         run: |
           mkdir -p artifacts/${{ matrix.os }}-${{ matrix.arch }}

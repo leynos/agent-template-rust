@@ -34,6 +34,17 @@ mutants into new tests.
 
 ## Tooling
 
+{% if enable_polonius -%}
+### Polonius borrow checker
+
+This project compiles with the Polonius alpha analysis
+(`-Zpolonius=next`) on the dated nightly pinned in `rust-toolchain.toml`.
+`.cargo/config.toml` supplies the flag by default; Makefile recipes and
+workflows that set `RUSTFLAGS` must re-state it because the environment value
+overrides Cargo configuration. See [the Polonius policy](polonius.md) for the
+borrow-centric API and audit-tag conventions.
+
+{% endif -%}
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so debug builds link
 quickly. Coverage generation uses `lld` because LLVM coverage tooling expects

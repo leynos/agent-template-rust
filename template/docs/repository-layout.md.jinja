@@ -25,6 +25,9 @@ compact and omits build output such as `target/`.
 ├── docs/
 │   ├── contents.md
 │   ├── developers-guide.md
+{% if enable_polonius %}
+│   ├── polonius.md
+{% endif %}
 │   ├── repository-layout.md
 │   ├── users-guide.md
 │   └── ...
@@ -70,6 +73,10 @@ compact and omits build output such as `target/`.
   public build and test commands.
 - `docs/developers-guide.md`: Explains the contributor workflow and local
   tooling used to work on the generated project.
+{% if enable_polonius %}
+- `docs/polonius.md`: Records the Polonius toolchain contract, borrow-centric
+  design guidance, and audited borrow-checker classifications.
+{% endif %}
 - `docs/repository-layout.md`: Documents the repository tree and path
   responsibilities.
 {% if flavour == 'app' %}

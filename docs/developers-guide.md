@@ -19,9 +19,11 @@ so Python test dependencies must be added to that invocation before tests
 import them. Keep long runs logged through `tee` into `/tmp`, following the
 example in `AGENTS.md`.
 
-The tests render both library and application projects, run generated public
-gates such as `make all`, validate generated Makefiles with `mbake`, and parse
-generated `Cargo.toml` files as TOML.
+The tests render both library and application projects with Polonius enabled
+and disabled, run generated public gates such as `make all`, validate generated
+Makefiles with `mbake`, and parse generated Cargo and workflow configuration.
+The Polonius contract checks every `RUSTFLAGS` override, including Linux mold
+linking, LLVM coverage, and cross-platform application releases.
 
 ## Formatting, Linting, and Type Checking
 

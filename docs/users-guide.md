@@ -11,6 +11,12 @@ metadata used in the generated `Cargo.toml`:
 
 - `flavour` selects `lib` or `app` and determines the generated structure and
   release metadata.
+- `enable_polonius` enables the nightly Polonius borrow checker
+  (`-Zpolonius=next`). It defaults to enabled for applications, where
+  borrow-centric internal APIs can evolve with the project, and disabled for
+  libraries, which commonly need wider compiler compatibility. Either default
+  can be overridden. Existing projects should follow the
+  [0.2.0 migration guide](migrations/0.2.0.md) when adopting this prompt.
 - `package_description` becomes `[package].description`.
 - `repository_url` becomes `[package].repository` and is used by generated
   app projects for cargo-binstall release URLs.
@@ -34,6 +40,13 @@ Generated projects use Rust 2024, a pinned nightly toolchain, strict lint
 settings, and documented starter code. Library projects render `src/lib.rs`.
 Application projects render `src/main.rs`, `src/lib.rs`, release automation, and
 `[package.metadata.binstall]` metadata for binary installation.
+
+When Polonius is enabled, the generated Cargo configuration, Makefile, coverage
+workflows, and application release workflow preserve `-Zpolonius=next`. The
+Linux target-specific `mold` flags repeat it because Cargo selects target
+rustflags instead of merging them with `[build].rustflags`. The generated
+project also includes `docs/polonius.md` and matching `AGENTS.md` guidance for
+borrow-centric APIs.
 
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so local debug builds
