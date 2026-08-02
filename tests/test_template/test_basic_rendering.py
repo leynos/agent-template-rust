@@ -23,6 +23,19 @@ def test_template_rejects_unsafe_nightly_date(
         )
 
 
+def test_template_rejects_nightly_date_with_trailing_newline(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """Reject a nightly date with content after the expected date."""
+    with pytest.raises(ValueError, match="must use YYYY-MM-DD"):
+        copier.copy(
+            tmp_path,
+            project_name="InvalidNightly",
+            package_name="invalid_nightly",
+            rust_nightly_date="2025-06-10\n",
+        )
+
+
 def test_template_renders(tmp_path: Path, copier: CopierFixture) -> None:
     """Template renders with default values and passes public gates."""
     project = render_project(

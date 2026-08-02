@@ -78,7 +78,9 @@ def _assert_makefile(makefile: str, *, enabled: bool, dev_target: str) -> None:
         "DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_LINKER_FLAGS)"
         in makefile
     )
-    assert "RUSTDOC_FLAGS ?= $(POLONIUS_FLAGS)" in makefile
+    assert "RUSTDOC_FLAGS ?= $(POLONIUS_FLAGS)" in makefile, (
+        "RUSTDOC_FLAGS must inherit POLONIUS_FLAGS"
+    )
     linker_default = next(
         line for line in makefile.splitlines() if line.startswith("DEV_LINKER_FLAGS ?=")
     )
@@ -98,14 +100,20 @@ def _assert_makefile(makefile: str, *, enabled: bool, dev_target: str) -> None:
         for line in compile_lines
     ), f"compile recipes must use composed Rust flags: {compile_lines!r}"
     coverage_recipe = makefile.partition("coverage:")[2].partition("\n\n")[0]
-    assert 'RUSTFLAGS="$(COVERAGE_RUST_FLAGS)"' in coverage_recipe
+    assert 'RUSTFLAGS="$(COVERAGE_RUST_FLAGS)"' in coverage_recipe, (
+        "coverage recipe must use composed coverage Rust flags"
+    )
     rustdoc_lines = [
         line
         for line in makefile.splitlines()
         if "$(CARGO) test --doc" in line or "$(CARGO) doc" in line
     ]
-    assert len(rustdoc_lines) == 2
-    assert all('RUSTDOCFLAGS="$(RUSTDOC_FLAGS)"' in line for line in rustdoc_lines)
+    assert len(rustdoc_lines) == 2, (
+        f"expected exactly two rustdoc recipes, got: {rustdoc_lines!r}"
+    )
+    assert all('RUSTDOCFLAGS="$(RUSTDOC_FLAGS)"' in line for line in rustdoc_lines), (
+        f"rustdoc recipes must use composed rustdoc flags: {rustdoc_lines!r}"
+    )
 
 
 def _assert_coverage_workflow(workflow: str, job_name: str, *, enabled: bool) -> None:
