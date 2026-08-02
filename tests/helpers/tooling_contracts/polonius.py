@@ -78,8 +78,11 @@ def _assert_makefile(makefile: str, *, enabled: bool, dev_target: str) -> None:
         "DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_LINKER_FLAGS)"
         in makefile
     )
-    assert "RUSTDOC_FLAGS ?= $(POLONIUS_FLAGS)" in makefile, (
-        "RUSTDOC_FLAGS must inherit POLONIUS_FLAGS"
+    assert "RUSTDOC_FLAGS ?=" in makefile
+    assert (
+        "RUSTDOC_FLAGS := --cfg docsrs -D warnings $(POLONIUS_FLAGS) $(RUSTDOC_FLAGS)"
+    ) in makefile, (
+        "RUSTDOC_FLAGS must require POLONIUS_FLAGS while preserving inherited flags"
     )
     linker_default = next(
         line for line in makefile.splitlines() if line.startswith("DEV_LINKER_FLAGS ?=")

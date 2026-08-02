@@ -405,8 +405,8 @@
       RUST_FLAGS := -D warnings $(RUST_FLAGS)
       DEV_LINKER_FLAGS ?= $(if $(filter Linux,$(shell uname -s)),-C link-arg=-fuse-ld=mold)
       DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_LINKER_FLAGS)
-      RUSTDOC_FLAGS ?= $(POLONIUS_FLAGS)
-      RUSTDOC_FLAGS := -D warnings $(RUSTDOC_FLAGS)
+      RUSTDOC_FLAGS ?=
+      RUSTDOC_FLAGS := --cfg docsrs -D warnings $(POLONIUS_FLAGS) $(RUSTDOC_FLAGS)
       CARGO_FLAGS ?= --all-targets --all-features
       CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
       TEST_FLAGS ?= $(CARGO_FLAGS)
@@ -429,9 +429,10 @@
       \t$(CARGO) clean
       \trm -f .typos-oxendict-base.json .typos-oxendict-base.toml
       
+      test: export RUSTFLAGS := $(DEV_RUST_FLAGS)
       test: ## Run tests with warnings treated as errors
-      \tRUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
-      \tRUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) test --doc --workspace --all-features
+      \t$(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
+      \tRUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
       
       target/%/$(TARGET): ## Build binary in debug or release mode
       \tRUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release) --bin $(TARGET)
