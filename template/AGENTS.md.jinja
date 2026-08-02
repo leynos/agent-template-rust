@@ -272,11 +272,10 @@ built lazily. See `docs/polonius.md` for the full contract.
 - Prefer `mockall` for ad hoc mocks/stubs.
 - **Inject the environment instead.** Any behaviour depending upon environment
   variables must accept an injected environment: `mockable::Env`, with
-  `mockable::DefaultEnv` supplied in production and `mockable::MockEnv` in
-  tests. A narrow closure seam of the same shape is acceptable where a trait
-  object would be disproportionate. Production code must not reach for
-  `std::env::var`/`var_os` outside the thin adapter that constructs the
-  injected value.
+  `mockable::DefaultEnv` supplied at the production composition root and
+  `mockable::MockEnv` in tests. A narrow closure seam of the same shape is
+  acceptable where a trait object would be disproportionate. Production code
+  must not reach for `std::env::var`/`var_os` outside that composition root.
 - **Process-wide locks are not an escape hatch.** Serializing environment
   mutation behind a shared `Mutex`, `OnceLock`, or `serial_test` attribute is
   not an accepted fallback. It serializes the suite, defeats property-based
@@ -284,10 +283,10 @@ built lazily. See `docs/polonius.md` for the full contract.
   dependency embedded in the production signature. Where injection looks
   impossible the signature is wrong; correct the signature.
 - **Subprocess isolation is the sole exemption.** End-to-end behavioural tests
-  invoking `netsuke` through `assert_cmd` may configure the environment via
-  `Command::env`/`Command::env_clear`, because the mutation is confined to the
-  child process. A test manipulating the environment in-process does not
-  qualify, whatever layer it claims to occupy.
+  invoking the generated application binary through `assert_cmd` may configure
+  the environment via `Command::env`/`Command::env_clear`, because the mutation
+  is confined to the child process. A test manipulating the environment
+  in-process does not qualify, whatever layer it claims to occupy.
 
 ### Dependency management
 

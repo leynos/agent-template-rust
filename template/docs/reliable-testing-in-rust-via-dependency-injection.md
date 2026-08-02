@@ -29,11 +29,15 @@ ______________________________________________________________________
 
 ### 1. Add `mockable`
 
-First, add the crate to development dependencies in `Cargo.toml`.
+First, add the crate as a production dependency, then enable its `mock` feature
+for tests in `Cargo.toml`.
 
 ```toml
-[dev-dependencies]
+[dependencies]
 mockable = "0.3"
+
+[dev-dependencies]
+mockable = { version = "0.3", features = ["mock"] }
 ```
 
 ### 2. The untestable code (before)
@@ -58,8 +62,8 @@ The function is refactored to accept a generic type that implements the
 use mockable::Env;
 
 pub fn get_api_key(env: &impl Env) -> Option<String> {
-    match env.var("API_KEY") {
-        Ok(key) if !key.is_empty() => Some(key),
+    match env.string("API_KEY") {
+        Some(key) if !key.is_empty() => Some(key),
         _ => None,
     }
 }
@@ -70,33 +74,39 @@ environment is now explicit and injectable.
 
 ### 4. Writing isolated unit tests
 
-Tests can use `MockEnv`, an in-memory mock, to simulate any environmental
-condition without touching the actual process environment.
+Tests can configure `MockEnv` to simulate any environmental condition without
+touching the actual process environment.
 
 ```rust,no_run
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mockable::{MockEnv, Env};
+    use mockable::MockEnv;
 
     #[test]
     fn test_get_api_key_present() {
         let mut env = MockEnv::new();
-        env.set_var("API_KEY", "secret123");
-        assert_eq!(get_api_key(&env), Some("secret123".to_string()));
+        env.expect_string()
+            .return_const(Some("secret123".to_string()));
+        assert_eq!(
+            get_api_key(&env),
+            Some("secret123".to_string()),
+            "expected the injected API key"
+        );
     }
 
     #[test]
     fn test_get_api_key_missing() {
-        let env = MockEnv::new();
-        assert_eq!(get_api_key(&env), None);
+        let mut env = MockEnv::new();
+        env.expect_string().return_const(None);
+        assert_eq!(get_api_key(&env), None, "expected a missing API key");
     }
 
     #[test]
     fn test_get_api_key_present_but_empty() {
         let mut env = MockEnv::new();
-        env.set_var("API_KEY", "");
-        assert_eq!(get_api_key(&env), None);
+        env.expect_string().return_const(Some(String::new()));
+        assert_eq!(get_api_key(&env), None, "expected an empty API key to be absent");
     }
 }
 ```
@@ -106,14 +116,14 @@ due to external state.
 
 ### 5. Usage in production code
 
-In production code, inject the "real" implementation, `RealEnv`, which calls
-the actual `std::env` functions.
+At the production composition root, inject `DefaultEnv`, which reads from the
+actual process environment.
 
 ```rust,no_run
-use mockable::RealEnv;
+use mockable::DefaultEnv;
 
 fn main() {
-    let env = RealEnv::new();
+    let env = DefaultEnv::new();
     if let Some(api_key) = get_api_key(&env) {
         println!("API Key found!");
     } else {
@@ -186,7 +196,7 @@ mod tests {
 }
 ```
 
-In production, an instance of `RealClock::new()` would be used.
+In production, an instance of `DefaultClock` would be used.
 
 ______________________________________________________________________
 
@@ -200,10 +210,8 @@ ______________________________________________________________________
   `impl Env` or `impl Clock`.
 - **`Mock*` for Tests:** Use `MockEnv` and `MockClock` in unit tests for
   isolated, deterministic control.
-- **`Real*` for Production:** Use `RealEnv` and `RealClock` in the application
-  to interact with the actual system.
-- **`RealEnv` is NOT a Scope Guard:** `RealEnv` directly mutates the global
-  process environment without automatic cleanup. For integration tests that
-  require modifying the live environment, consider a crate such as
-  [temp_env](https://crates.io/crates/temp-env). For unit tests, `MockEnv` is
-  preferable.
+- **`Default*` for Production:** Supply `DefaultEnv` and adapters such as
+  `DefaultClock` at the application composition root to interact with the
+  actual system.
+- **`DefaultEnv` is an Ambient Boundary:** `DefaultEnv` reads the process-global
+  environment. Keep it at the composition root, and use `MockEnv` for tests.
