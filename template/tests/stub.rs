@@ -6,8 +6,9 @@
 
 #[test]
 fn replace_this_stub_when_real_tests_exist() {
+    let package_name = env!("CARGO_PKG_NAME");
     assert!(
-        std::env::var_os("CARGO_MANIFEST_DIR").is_some(),
-        "CARGO_MANIFEST_DIR should be set by Cargo when running tests"
+        !package_name.is_empty(),
+        "Cargo should provide a non-empty package name"
     );
 }

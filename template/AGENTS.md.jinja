@@ -56,6 +56,10 @@
   conventions and practices in [developers' guide](docs/developers-guide.md).
 - **Style:** All documentation must adhere to the
   [documentation style guide](docs/documentation-style-guide.md).
+- **Completed execplans:** Completed execplans are historical documents and
+  should reflect the state of the repository at time of implementation. Do not
+  retroactively update completed execplan documents to reflect subsequent
+  changes in API, structures, or behaviour.
 
 ## Change quality & committing
 
@@ -186,19 +190,18 @@ built lazily. See `docs/polonius.md` for the full contract.
   adhering to separation of concerns and CQRS.
 - Where a function has too many parameters, group related parameters in
   meaningfully named structs.
-- Where a function is returning a large error, consider using `Arc` to reduce
-  the amount of data returned.
+- Keep returned error types semantically focused and small. If a necessary
+  payload makes an error variant large, place that payload behind `Box`; use
+  `Arc` only when shared ownership or cheap cloning is required.
 - Ensure that new features are validated with unit tests using `rstest` and
   behavioural tests using `rstest-bdd` where applicable. Cover happy paths,
   unhappy paths, and relevant edge cases.
-- Add snapshot tests using `insta` where multivariant output format consistency
-  is relevant to the requirements. Snapshots must capture meaningful,
-  reviewer-useful contracts rather than generic dumps of broad objects. Keep
-  snapshots focused on stable output boundaries, pair them with semantic
-  assertions for business rules and schema contracts, and normalize
-  nondeterministic fields before snapshotting. Do not accept brittle snapshots
-  that churn after unrelated changes; update snapshots only after confirming a
-  snapshot failure identifies a real contract change.
+- Add snapshot tests using `insta` where structured output, user-interface
+  output, diagnostics, or other multivariant output formats need meaningful,
+  stable assertions.
+- Add compile-time behaviour tests using `trybuild` where macro expansion,
+  trait bounds, feature-gated APIs, or other compile-fail and compile-pass
+  contracts are relevant to the requirements.
 - Add end-to-end tests where a change affects externally observable workflows,
   integration contracts, persistence, command-line behaviour, network
   boundaries, UI flows, or other system-level behaviour.
@@ -263,11 +266,24 @@ built lazily. See `docs/polonius.md` for the full contract.
 - Use `rstest` fixtures for shared setup.
 - Replace duplicated tests with `#[rstest(...)]` parameterized cases.
 - Prefer `mockall` for ad hoc mocks/stubs.
-- For testing of functionality depending upon environment variables, dependency
-  injection and the `mockable` crate are the preferred option.
-- If mockable cannot be used, env mutations in tests MUST be wrapped in shared
-  guards and mutexes placed in a shared `test_utils` or `test_helpers` crate.
-  Direct environment mutation is FORBIDDEN in tests.
+- **Inject the environment instead.** Any behaviour depending upon environment
+  variables must accept an injected environment: `mockable::Env`, with
+  `mockable::DefaultEnv` supplied in production and `mockable::MockEnv` in
+  tests. A narrow closure seam of the same shape is acceptable where a trait
+  object would be disproportionate. Production code must not reach for
+  `std::env::var`/`var_os` outside the thin adapter that constructs the
+  injected value.
+- **Process-wide locks are not an escape hatch.** Serializing environment
+  mutation behind a shared `Mutex`, `OnceLock`, or `serial_test` attribute is
+  not an accepted fallback. It serializes the suite, defeats property-based
+  tests that run many cases within one process, and leaves the ambient
+  dependency embedded in the production signature. Where injection looks
+  impossible the signature is wrong; correct the signature.
+- **Subprocess isolation is the sole exemption.** End-to-end behavioural tests
+  invoking `netsuke` through `assert_cmd` may configure the environment via
+  `Command::env`/`Command::env_clear`, because the mutation is confined to the
+  child process. A test manipulating the environment in-process does not
+  qualify, whatever layer it claims to occupy.
 
 ### Dependency management
 

@@ -40,8 +40,14 @@ def _assert_makefile_contracts(makefile: str) -> None:
     assert "$(CARGO) $(TEST_CMD)" in makefile, (
         "expected generated Makefile test target to use the selected test command"
     )
-    assert "$(CARGO) test --doc --workspace --all-features" in makefile, (
+    assert "RUSTDOC_FLAGS ?= --cfg docsrs -D warnings" in makefile, (
+        "expected generated Makefile to enable docsrs cfg and deny Rustdoc warnings"
+    )
+    assert "$(CARGO) test --doc --all-features $(BUILD_JOBS)" in makefile, (
         "expected generated Makefile test target to run doctests"
+    )
+    assert 'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) doc --no-deps' in makefile, (
+        "expected generated Makefile lint target to deny Rustdoc warnings"
     )
     assert "coverage: ## Generate lcov coverage with lld" in makefile, (
         "expected generated Makefile to include an lld-backed coverage target"
