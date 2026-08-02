@@ -151,6 +151,9 @@
             dict({
               'name': 'Setup Rust',
               'uses': 'leynos/shared-actions/.github/actions/setup-rust@<sha>',
+              'with': dict({
+                'rustflags': '-Zpolonius=next',
+              }),
             }),
             dict({
               'if': "runner.os == 'Linux'",
@@ -315,6 +318,9 @@
             dict({
               'name': 'Setup Rust',
               'uses': 'leynos/shared-actions/.github/actions/setup-rust@<sha>',
+              'with': dict({
+                'rustflags': '-Zpolonius=next',
+              }),
             }),
             dict({
               'if': "runner.os == 'Linux'",
@@ -553,6 +559,7 @@
             dict({
               'uses': 'leynos/shared-actions/.github/actions/setup-rust@<sha>',
               'with': dict({
+                'rustflags': '-Zpolonius=next',
                 'toolchain': 'nightly-2025-06-10',
               }),
             }),
@@ -595,9 +602,6 @@
               }),
             }),
             dict({
-              'env': dict({
-                'RUSTFLAGS': '-Zpolonius=next',
-              }),
               'name': 'Build release binary',
               'run': 'cross +nightly-2025-06-10 build --release --target ${{ matrix.target }}',
             }),

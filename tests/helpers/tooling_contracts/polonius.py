@@ -29,21 +29,28 @@ def _named_step(workflow: str, job_name: str, step_name: str) -> dict[str, Any]:
     return matches[0]
 
 
-def _setup_rust_step(release_workflow: str) -> dict[str, Any]:
-    """Return the setup-rust step from the release workflow."""
-    parsed = parse_yaml_mapping(release_workflow, "release workflow")
-    jobs = require_mapping(parsed, "jobs", "release workflow")
-    build = require_mapping(jobs, "build", "release workflow jobs")
-    steps = require_sequence(build, "steps", "release build job")
+def _setup_rust_step(workflow: str, job_name: str) -> dict[str, Any]:
+    """Return the setup-rust step from a rendered workflow job."""
+    parsed = parse_yaml_mapping(workflow, f"{job_name} workflow")
+    jobs = require_mapping(parsed, "jobs", f"{job_name} workflow")
+    job = require_mapping(jobs, job_name, f"{job_name} workflow jobs")
+    steps = require_sequence(job, "steps", f"{job_name} job")
     matches = [
         step
         for step in steps
         if isinstance(step, dict) and "actions/setup-rust@" in str(step.get("uses"))
     ]
-    assert len(matches) == 1, "expected one setup-rust step in release workflow"
+    assert len(matches) == 1, f"expected one setup-rust step in {job_name} workflow"
     return matches[0]
 
-
+def _assert_setup_rust_rustflags(
+    workflow: str, job_name: str, *, enabled: bool
+) -> None:
+    """Assert setup-rust receives the selected Polonius configuration."""
+    setup = _setup_rust_step(workflow, job_name)
+    setup_inputs = require_mapping(setup, "with", f"{job_name} setup-rust step")
+    expected = POLONIUS_FLAG if enabled else "-D warnings"
+    assert setup_inputs.get("rustflags") == expected
 def _assert_cargo_config(cargo_config: str, *, enabled: bool, dev_target: str) -> None:
     """Assert Cargo's build and target rustflags retain Polonius as required."""
     config = tomllib.loads(cargo_config)
@@ -134,21 +141,20 @@ def _assert_release_workflow(
     """Assert release artefacts use a compiler compatible with the source."""
     toolchain_config = tomllib.loads(rust_toolchain)
     expected_toolchain = str(toolchain_config["toolchain"]["channel"])
-    setup = _setup_rust_step(release_workflow)
+    setup = _setup_rust_step(release_workflow, "build")
     setup_inputs = require_mapping(setup, "with", "release setup-rust step")
     toolchain = str(setup_inputs.get("toolchain", ""))
     build = _named_step(release_workflow, "build", "Build release binary")
-    env = require_mapping(build, "env", "release build step")
-    rustflags = str(env.get("RUSTFLAGS", ""))
     command = str(build.get("run", ""))
     if enabled:
         assert toolchain == expected_toolchain
-        assert rustflags == POLONIUS_FLAG
+        assert setup_inputs.get("rustflags") == POLONIUS_FLAG
         assert f"cross +{expected_toolchain} build" in command
     else:
         assert toolchain == "stable"
-        assert rustflags == ""
+        assert setup_inputs.get("rustflags") == "-D warnings"
         assert "cross +stable build" in command
+    assert "env" not in build
 
 
 def assert_polonius_toolchain_contracts(
@@ -211,6 +217,10 @@ def assert_polonius_toolchain_contracts(
     """
     _assert_cargo_config(cargo_config, enabled=enabled, dev_target=dev_target)
     _assert_makefile(makefile, enabled=enabled, dev_target=dev_target)
+    _assert_setup_rust_rustflags(ci_workflow, "build-test", enabled=enabled)
+    _assert_setup_rust_rustflags(
+        coverage_main_workflow, "coverage-upload", enabled=enabled
+    )
     _assert_coverage_workflow(ci_workflow, "build-test", enabled=enabled)
     _assert_coverage_workflow(
         coverage_main_workflow, "coverage-upload", enabled=enabled
