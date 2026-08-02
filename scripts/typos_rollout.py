@@ -1,12 +1,25 @@
-"""Refresh and render shared en-GB-oxendict ``typos`` configuration."""
+"""Build ``typos`` configuration from a validated shared Oxford dictionary.
+
+This module parses and validates shared and repository-local TOML dictionaries,
+merges their non-conflicting policy, and renders deterministic ``typos.toml``
+output. It refreshes a size-bounded local cache from local or HTTPS sources,
+persists freshness metadata atomically, serializes cross-process writers, and
+falls back observably to a valid stale cache when a remote refresh fails.
+``generate_typos_config.py`` uses these primitives as its refresh, merge,
+validation, caching, and rendering implementation.
+"""
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import email.utils
+import fcntl
 import json
+import logging
 import pathlib
 import tempfile
+import time
 import tomllib
 import typing as typ
 import urllib.error
@@ -18,6 +31,9 @@ if typ.TYPE_CHECKING:
 
 SCHEMA_VERSION = 1
 HTTP_NOT_MODIFIED = 304
+MAX_DICTIONARY_BYTES = 1024 * 1024
+READ_CHUNK_BYTES = 64 * 1024
+LOGGER = logging.getLogger(__name__)
 SUFFIX_PAIRS = (
     ("ise", "ize"),
     ("ises", "izes"),
@@ -56,6 +72,55 @@ class _CacheTargets:
 
     cache: pathlib.Path
     metadata: pathlib.Path
+
+
+class DictionaryTooLargeError(ValueError):
+    """Signal that a dictionary source exceeds the configured safety limit."""
+
+
+def _read_bounded_stream(
+    stream: typ.BinaryIO,
+    *,
+    declared_size: int | None = None,
+) -> bytes:
+    """Read at most ``MAX_DICTIONARY_BYTES`` from a binary stream."""
+    if declared_size is not None and declared_size > MAX_DICTIONARY_BYTES:
+        message = (
+            f"dictionary declares {declared_size} bytes; "
+            f"limit is {MAX_DICTIONARY_BYTES}"
+        )
+        raise DictionaryTooLargeError(message)
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = stream.read(min(READ_CHUNK_BYTES, MAX_DICTIONARY_BYTES + 1 - total))
+        if not chunk:
+            return b"".join(chunks)
+        chunks.append(chunk)
+        total += len(chunk)
+        if total > MAX_DICTIONARY_BYTES:
+            message = f"dictionary exceeds {MAX_DICTIONARY_BYTES} byte limit"
+            raise DictionaryTooLargeError(message)
+
+
+def _read_bounded_path(path: pathlib.Path) -> bytes:
+    """Read a dictionary path without allowing unbounded allocation."""
+    declared_size = path.stat().st_size
+    with path.open("rb") as stream:
+        return _read_bounded_stream(stream, declared_size=declared_size)
+
+
+@contextlib.contextmanager
+def _cache_lock(cache: pathlib.Path) -> typ.Iterator[None]:
+    """Serialize cache and metadata mutations across local processes."""
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = cache.with_name(f"{cache.name}.lock")
+    with lock_path.open("a+b") as stream:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
 def _string_list(table: cabc.Mapping[str, object], key: str) -> tuple[str, ...]:
@@ -105,7 +170,7 @@ def _dictionary_from_text(text: str) -> Dictionary:
 
 def load_dictionary(path: pathlib.Path) -> Dictionary:
     """Load a validated shared dictionary from *path*."""
-    return _dictionary_from_text(path.read_text(encoding="utf-8"))
+    return _dictionary_from_text(_read_bounded_path(path).decode())
 
 
 def merge_dictionaries(base: Dictionary, local: Dictionary) -> Dictionary:
@@ -294,7 +359,7 @@ def _refresh_local(
         source_stat.st_mtime_ns,
     ):
         return RefreshResult("current", cache)
-    content = source.read_bytes()
+    content = _read_bounded_path(source)
     _dictionary_from_text(content.decode())
     _atomic_write(cache, content)
     _write_metadata(
@@ -345,6 +410,36 @@ def _write_remote_cache(
     return RefreshResult("refreshed", targets.cache)
 
 
+def _content_length(headers: cabc.Mapping[str, str]) -> int | None:
+    """Return a valid non-negative HTTP Content-Length when supplied."""
+    raw_length = headers.get("Content-Length")
+    if raw_length is None:
+        return None
+    try:
+        length = int(raw_length)
+    except ValueError:
+        return None
+    return length if length >= 0 else None
+
+
+def _stale_cache_result(
+    cache: pathlib.Path,
+    *,
+    category: str,
+    status: int | None = None,
+) -> RefreshResult:
+    """Report a bounded degraded-refresh warning and reuse a valid cache."""
+    age_seconds = max(0, min(int(time.time() - cache.stat().st_mtime), 999_999_999))
+    LOGGER.warning(
+        "dictionary refresh degraded operation=https-refresh category=%s "
+        "status=%s cache_age_seconds=%d",
+        category,
+        status if status is not None else "none",
+        age_seconds,
+    )
+    return RefreshResult("stale-cache", cache)
+
+
 def _refresh_http(
     source: str,
     cache: pathlib.Path,
@@ -362,21 +457,29 @@ def _refresh_http(
                 return RefreshResult("current", cache)
             if _valid_cache(cache) and _remote_is_not_newer(saved, response.headers):
                 return RefreshResult("current", cache)
+            content = _read_bounded_stream(
+                response,
+                declared_size=_content_length(response.headers),
+            )
             return _write_remote_cache(
                 source,
                 _CacheTargets(cache, metadata),
-                response.read(),
+                content,
                 response.headers,
             )
     except urllib.error.HTTPError as error:
         if error.code == HTTP_NOT_MODIFIED and _valid_cache(cache):
             return RefreshResult("current", cache)
         if _valid_cache(cache):
-            return RefreshResult("stale-cache", cache)
+            return _stale_cache_result(cache, category="http", status=error.code)
         raise
-    except (OSError, urllib.error.URLError):
+    except urllib.error.URLError:
         if _valid_cache(cache):
-            return RefreshResult("stale-cache", cache)
+            return _stale_cache_result(cache, category="network")
+        raise
+    except OSError:
+        if _valid_cache(cache):
+            return _stale_cache_result(cache, category="os")
         raise
 
 
@@ -388,11 +491,12 @@ def refresh_base(
     offline: bool = False,
 ) -> RefreshResult:
     """Refresh an untracked base cache when the authoritative copy is newer."""
-    if offline:
-        if not _valid_cache(cache):
-            message = f"no cached shared dictionary at {cache}"
-            raise FileNotFoundError(message)
-        return RefreshResult("offline-cache", cache)
-    if isinstance(source, pathlib.Path) or "://" not in str(source):
-        return _refresh_local(pathlib.Path(source), cache, metadata)
-    return _refresh_http(str(source), cache, metadata)
+    with _cache_lock(cache):
+        if offline:
+            if not _valid_cache(cache):
+                message = f"no cached shared dictionary at {cache}"
+                raise FileNotFoundError(message)
+            return RefreshResult("offline-cache", cache)
+        if isinstance(source, pathlib.Path) or "://" not in str(source):
+            return _refresh_local(pathlib.Path(source), cache, metadata)
+        return _refresh_http(str(source), cache, metadata)

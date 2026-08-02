@@ -20,12 +20,17 @@ Generated projects refresh the tracked shared dictionary published by
 generator merges that base with tracked `typos.local.toml` and writes a
 deterministic, tracked `typos.toml`.
 
-The refresh validates data before atomic replacement, keeps a valid cache when
-its authority is not newer, and supports explicit offline reuse. The generated
-Makefile pins `typos`, exposes `make spelling`, includes spelling in
-`make all`, and runs it through Continuous Integration (CI). The template
-repository uses the same mechanism for its own Markdown and rendered Markdown
-sources.
+The refresh bounds dictionary inputs, validates data before atomic replacement,
+serializes cache and metadata writers with a cross-process lock, keeps a valid
+cache when its authority is not newer, reports bounded stale-cache diagnostics,
+and supports explicit offline reuse.
+
+The template repository always uses this mechanism through `make spelling`.
+Generated repositories include it when the `en_gb_oxendict` Copier option is
+enabled (the default): their Makefile pins `typos`, exposes `make spellcheck`,
+includes that gate in `make all` and `make markdownlint`, and runs it through
+Continuous Integration (CI). Disabled renders omit the files, wiring, and
+documentation entirely.
 
 ## Consequences
 
@@ -36,3 +41,5 @@ sources.
   local exceptions.
 - A fresh checkout needs network access to collect the shared base before its
   first spelling run.
+- Concurrent generator processes serialize refreshes; a crashed writer may
+  leave an empty lock file, which is harmless and remains ignored.

@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import importlib.util
+import io
+import email.message
+import fcntl
 import json
 import os
 import pathlib
@@ -13,6 +16,7 @@ import subprocess  # noqa: S404 - runs the pinned, trusted typos binary via uv.
 import sys
 import tomllib
 import typing as typ
+import urllib.error
 
 import pytest
 from hypothesis import given
@@ -25,6 +29,22 @@ REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPTS_ROOT = REPOSITORY_ROOT / "scripts"
 SCRIPT_PATH = SCRIPTS_ROOT / "generate_typos_config.py"
 COMMITTED_CONFIG = REPOSITORY_ROOT / "typos.toml"
+
+
+class FakeHttpResponse(io.BytesIO):
+    """Provide the response surface consumed by the rollout HTTP reader."""
+
+    status = 200
+
+    def __init__(self, content: bytes, headers: dict[str, str]) -> None:
+        super().__init__(content)
+        self.headers = headers
+
+    def __enter__(self) -> FakeHttpResponse:
+        return self
+
+    def __exit__(self, *unused: object) -> None:
+        self.close()
 
 
 @pytest.fixture(name="generator", scope="module")
@@ -157,6 +177,174 @@ def test_offline_generation_requires_then_reuses_valid_cache(
     result = generator.main(repository=repository, source=source, offline=True)
 
     assert result.status == "offline-cache"
+
+
+def test_oversized_local_dictionary_is_rejected_without_cache_mutation(
+    generator: types.ModuleType,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Local sources over the fixed input limit never reach the cache."""
+    repository, source = prepare_repository(tmp_path)
+    source.write_bytes(b"x" * (generator.rollout.MAX_DICTIONARY_BYTES + 1))
+
+    with pytest.raises(
+        generator.rollout.DictionaryTooLargeError,
+        match="dictionary declares",
+    ):
+        generator.main(repository=repository, source=source)
+
+    assert not (repository / ".typos-oxendict-base.toml").exists()
+    assert not (repository / ".typos-oxendict-base.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("headers", "content", "message"),
+    [
+        ({"Content-Length": "1048577"}, b"", "dictionary declares"),
+        ({}, b"x" * 1_048_577, "dictionary exceeds"),
+    ],
+    ids=["declared-size", "streamed-size"],
+)
+def test_oversized_http_dictionary_is_rejected_without_cache_mutation(
+    generator: types.ModuleType,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    headers: dict[str, str],
+    content: bytes,
+    message: str,
+) -> None:
+    """HTTP sources are bounded with and without Content-Length."""
+    repository, _ = prepare_repository(tmp_path)
+    response = FakeHttpResponse(content, headers)
+    monkeypatch.setattr(
+        generator.rollout.urllib.request,
+        "urlopen",
+        lambda *args, **kwargs: response,
+    )
+
+    with pytest.raises(generator.rollout.DictionaryTooLargeError, match=message):
+        generator.main(repository=repository, source="https://example.invalid/base")
+
+    assert not (repository / ".typos-oxendict-base.toml").exists()
+    assert not (repository / ".typos-oxendict-base.json").exists()
+
+
+def test_http_failure_reports_bounded_stale_cache_diagnostic(
+    generator: types.ModuleType,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A degraded HTTP refresh identifies status and cache age without its URL."""
+    repository, source = prepare_repository(tmp_path)
+    generator.main(repository=repository, source=source)
+    monkeypatch.setattr(
+        generator.rollout.urllib.request,
+        "urlopen",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            urllib.error.HTTPError(
+                "https://secret.invalid/dictionary",
+                503,
+                "unavailable",
+                email.message.Message(),
+                None,
+            )
+        ),
+    )
+
+    with caplog.at_level("WARNING", logger=generator.rollout.__name__):
+        result = generator.main(
+            repository=repository,
+            source="https://example.invalid/base",
+        )
+
+    assert result.status == "stale-cache"
+    record = caplog.records[-1]
+    assert record.levelname == "WARNING"
+    assert "operation=https-refresh" in record.message
+    assert "category=http" in record.message
+    assert "status=503" in record.message
+    assert "cache_age_seconds=" in record.message
+    assert "secret.invalid" not in record.message
+    assert "example.invalid" not in record.message
+
+
+def test_metadata_failure_cleans_up_and_retries_changed_source(
+    generator: types.ModuleType,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An interrupted metadata write leaves valid cache state for a clean retry."""
+    repository, source = prepare_repository(tmp_path)
+    cache = repository / ".typos-oxendict-base.toml"
+    metadata = repository / ".typos-oxendict-base.json"
+    original_write_metadata = generator.rollout._write_metadata
+
+    def fail_metadata(*args: object, **kwargs: object) -> None:
+        raise OSError("simulated metadata failure")
+
+    monkeypatch.setattr(generator.rollout, "_write_metadata", fail_metadata)
+    with pytest.raises(OSError, match="simulated metadata failure"):
+        generator.main(repository=repository, source=source)
+
+    assert generator.rollout.load_dictionary(cache)
+    assert not metadata.exists()
+    temporary_files = [
+        path
+        for path in repository.glob(f".{cache.name}.*")
+        if path.name != f"{cache.name}.lock"
+    ]
+    assert temporary_files == []
+
+    monkeypatch.setattr(generator.rollout, "_write_metadata", original_write_metadata)
+    source.write_text(dictionary_text(stem="retried"), encoding="utf-8")
+    result = generator.main(repository=repository, source=source)
+
+    assert result.status == "refreshed"
+    assert metadata.exists()
+    assert '"retriedise" = "retriedize"' in generator.render_config(repository)
+
+
+def test_cache_lock_serializes_generator_processes(
+    generator: types.ModuleType,
+    tmp_path: pathlib.Path,
+) -> None:
+    """A second process waits for the cache owner and then refreshes cleanly."""
+    repository, source = prepare_repository(tmp_path)
+    cache = repository / ".typos-oxendict-base.toml"
+    lock_path = cache.with_name(f"{cache.name}.lock")
+    lock_path.touch()
+    child_code = (
+        "import pathlib, sys; "
+        "sys.path.insert(0, sys.argv[1]); "
+        "import generate_typos_config as generator; "
+        "generator.main(repository=pathlib.Path(sys.argv[2]), "
+        "source=pathlib.Path(sys.argv[3]))"
+    )
+
+    with lock_path.open("a+b") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        process = subprocess.Popen(  # noqa: S603 - argv contains trusted test paths.
+            [
+                sys.executable,
+                "-c",
+                child_code,
+                str(SCRIPTS_ROOT),
+                str(repository),
+                str(source),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        with pytest.raises(subprocess.TimeoutExpired):
+            process.wait(timeout=0.2)
+        fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+    stdout, stderr = process.communicate(timeout=10)
+    assert process.returncode == 0, f"stdout={stdout}\nstderr={stderr}"
+    assert generator.rollout.load_dictionary(cache)
+    assert (repository / ".typos-oxendict-base.json").exists()
 
 
 def test_rendered_config_is_deterministic_valid_toml(

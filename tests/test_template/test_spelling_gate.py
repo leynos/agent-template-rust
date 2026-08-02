@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import tomllib
+import tempfile
 from pathlib import Path
 
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 from pytest_copier.plugin import CopierFixture
 
 from tests.helpers.generated_files import read_generated_text
@@ -66,6 +69,9 @@ def test_spelling_gate_enabled_by_default(
     )
     assert "scripts/generate_typos_config.py" in repository_layout, (
         "expected generated layout to document the typos.toml generator"
+    )
+    assert "Spelling policy" in read_generated_text(
+        project / "docs/developers-guide.md"
     )
 
 
@@ -141,6 +147,74 @@ def test_spelling_gate_disabled_leaves_no_trace(
     )
 
     developers_guide = read_generated_text(project / "docs/developers-guide.md")
-    assert "Spelling gate" not in developers_guide, (
+    assert "Spelling policy" not in developers_guide, (
         "expected disabled render developer guide to omit the spelling section"
     )
+    users_guide = read_generated_text(project / "docs/users-guide.md")
+    assert "spellcheck" not in users_guide
+    assert "en-GB-oxendict" not in users_guide
+
+
+@settings(
+    max_examples=12,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
+@given(
+    flavour=st.sampled_from(["app", "lib"]),
+    enable_polonius=st.booleans(),
+    en_gb_oxendict=st.booleans(),
+    polonius_path=st.sampled_from(
+        [".cargo/config.toml", "rust-toolchain.toml", "docs/polonius.md"]
+    ),
+)
+def test_spelling_and_polonius_options_are_independent(
+    tmp_path: Path,
+    copier: CopierFixture,
+    flavour: str,
+    enable_polonius: bool,
+    en_gb_oxendict: bool,
+    polonius_path: str,
+) -> None:
+    """Spelling traces vary only with spelling while Polonius output stays fixed."""
+    case_root = Path(tempfile.mkdtemp(dir=tmp_path))
+    project = render_project(
+        case_root / "selected",
+        copier,
+        project_name="OptionIndependence",
+        package_name="option_independence",
+        flavour=flavour,
+        enable_polonius=enable_polonius,
+        en_gb_oxendict=en_gb_oxendict,
+    )
+    counterpart = render_project(
+        case_root / "counterpart",
+        copier,
+        project_name="OptionIndependence",
+        package_name="option_independence",
+        flavour=flavour,
+        enable_polonius=enable_polonius,
+        en_gb_oxendict=not en_gb_oxendict,
+    )
+
+    assert (project / "typos.toml").exists() is en_gb_oxendict
+    assert (project / "scripts" / "generate_typos_config.py").exists() is (
+        en_gb_oxendict
+    )
+    makefile = read_generated_text(project / "Makefile")
+    assert ("spellcheck" in makefile) is en_gb_oxendict
+
+    selected_path = project / polonius_path
+    counterpart_path = counterpart / polonius_path
+    assert selected_path.exists() is counterpart_path.exists()
+    if selected_path.exists():
+        assert selected_path.read_bytes() == counterpart_path.read_bytes()
+    selected_polonius_lines = [
+        line for line in makefile.splitlines() if "POLONIUS" in line
+    ]
+    counterpart_polonius_lines = [
+        line
+        for line in read_generated_text(counterpart / "Makefile").splitlines()
+        if "POLONIUS" in line
+    ]
+    assert selected_polonius_lines == counterpart_polonius_lines
