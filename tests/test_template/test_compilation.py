@@ -23,6 +23,7 @@ def test_template_compiles(tmp_path: Path, copier: CopierFixture, flavour: str) 
     )
     project.run("cargo check --all-targets --all-features")
 
+
 def test_documented_environment_injection_example_compiles(
     tmp_path: Path, copier: CopierFixture
 ) -> None:
@@ -105,6 +106,7 @@ pub fn get_or_insert<'values>(
     )
 
     project.run("make typecheck")
+
 
 def _fenced_block_after(documentation: str, heading: str, language: str) -> str:
     """Extract the first fenced code block following a documentation heading."""

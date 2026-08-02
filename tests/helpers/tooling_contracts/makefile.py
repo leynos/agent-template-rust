@@ -47,23 +47,19 @@ def _assert_makefile_contracts(makefile: str) -> None:
         "expected generated Makefile to preserve inherited Rustdoc flags"
     )
     assert (
-        "RUSTDOC_FLAGS := --cfg docsrs -D warnings "
-        "$(POLONIUS_FLAGS) $(RUSTDOC_FLAGS)"
+        "RUSTDOC_FLAGS := --cfg docsrs -D warnings $(POLONIUS_FLAGS) $(RUSTDOC_FLAGS)"
     ) in makefile, (
         "expected generated Makefile to require docsrs cfg and deny Rustdoc warnings"
     )
     assert (
-        'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
-        "$(CARGO) test --doc --workspace --all-features"
+        'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features'
     ) in makefile, (
         "expected generated Makefile test target to run doctests with Rustdoc flags"
     )
     assert (
         'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" '
         "$(CARGO) doc --no-deps"
-    ) in makefile, (
-        "expected generated Makefile lint target to deny Rustdoc warnings"
-    )
+    ) in makefile, "expected generated Makefile lint target to deny Rustdoc warnings"
     assert "coverage: ## Generate lcov coverage with lld" in makefile, (
         "expected generated Makefile to include an lld-backed coverage target"
     )
