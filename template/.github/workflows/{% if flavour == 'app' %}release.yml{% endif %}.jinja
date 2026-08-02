@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
         with:
           persist-credentials: false
-      - uses: leynos/shared-actions/.github/actions/setup-rust@47b337e4f230b591891656534d4ffad868131740
+      - uses: leynos/shared-actions/.github/actions/setup-rust@80c8e8b4b9e8ab223d18d2360aa1feba6c7335e8
         with:
           toolchain: {% endraw %}{% if enable_polonius %}nightly-{{ rust_nightly_date }}{% else %}stable{% endif %}{% raw %}
           rustflags: {% endraw %}{% if enable_polonius %}-Zpolonius=next{% else %}-D warnings{% endif %}{% raw %}
