@@ -53,6 +53,7 @@ def _setup_rust_step(workflow: str, job_name: str) -> dict[str, Any]:
     assert len(matches) == 1, f"expected one setup-rust step in {job_name} workflow"
     return matches[0]
 
+
 def _assert_setup_rust_rustflags(
     workflow: str, job_name: str, *, enabled: bool
 ) -> None:
@@ -65,6 +66,7 @@ def _assert_setup_rust_rustflags(
         f"expected {job_name} setup-rust rustflags to be {expected!r}, got {actual!r}"
     )
 
+
 def _assert_rust_setup_log(workflow: str, job_name: str) -> None:
     """Assert post-setup diagnostics expose only bounded Rust configuration."""
     log_step = _named_step(workflow, job_name, "Log Rust compiler configuration")
@@ -74,6 +76,8 @@ def _assert_rust_setup_log(workflow: str, job_name: str) -> None:
         f"expected {job_name} Rust setup log commands to be {expected!r}, "
         f"got {actual!r}"
     )
+
+
 def _assert_cargo_config(cargo_config: str, *, enabled: bool, dev_target: str) -> None:
     """Assert Cargo's build and target rustflags retain Polonius as required."""
     config = tomllib.loads(cargo_config)
@@ -167,6 +171,7 @@ def _assert_coverage_workflow(workflow: str, job_name: str, *, enabled: bool) ->
         f"got {actual_log!r}"
     )
 
+
 def _assert_shared_action_passthrough_revision(
     workflow: str, workflow_name: str
 ) -> None:
@@ -187,6 +192,8 @@ def _assert_shared_action_passthrough_revision(
         f"passthrough revision {RUSTFLAGS_PASSTHROUGH_REVISION!r}, "
         f"got {unexpected!r}"
     )
+
+
 def _assert_release_workflow(
     release_workflow: str, rust_toolchain: str, *, enabled: bool
 ) -> None:
