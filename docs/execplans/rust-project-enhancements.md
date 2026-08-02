@@ -118,6 +118,10 @@ new paths must extend those tests.
   defaults, flag propagation across Cargo, Make, coverage, CI, and release
   builds, generated policy guidance, and enabled/disabled contract and
   compilation coverage. Recorded the extension in ADR-004.
+- [x] 2026-08-02T18:19:55Z: Routed generated CI, coverage, and application
+  release compiler flags through the shared `setup-rust` action's `rustflags`
+  input, preserved the base flag in coverage overrides, and added rendered
+  workflow contracts and contributor guidance for the capability boundary.
 
 ## Surprises & Discoveries
 
@@ -129,6 +133,11 @@ indexed there. GrepAI can still help with indexed sibling projects, and exact
 file reads are used for this template repository.
 
 Branch changes have been committed and pushed as recorded below.
+
+The shared `setup-rust` action did not accept a `rustflags` input before
+revision `47b337e4f230b591891656534d4ffad868131740`. The generated workflows
+therefore require that capability-bearing revision until the contract can
+probe the capability independently of its commit SHA.
 
 CodeRabbit recommended changing GitHub Action pins back to version tags such as
 `actions/checkout@v6.0.2`. That is intentionally not applied because the
@@ -157,6 +166,13 @@ and preserve `-Zpolonius=next` wherever `RUSTFLAGS` are replaced; this permits
 borrow-centric application internals without imposing nightly compatibility on
 generated libraries. ADR-004 records the alternatives and accepted risks.
 
+Use the shared `setup-rust` `rustflags` input as the single base-flag boundary
+for generated workflows. Coverage must repeat the selected base alongside its
+`lld` flag because its step-level environment replaces `RUSTFLAGS`; release
+inherits the setup value and exists only in application renders. Treat the
+passthrough revision as a narrow capability-pin exception, not a new
+architectural decision, so ADR-004 does not require amendment.
+
 ## Outcomes & Retrospective
 
 The template now renders projects with Cranelift debug codegen, Linux mold
@@ -171,3 +187,10 @@ in by default, libraries retain wider compiler compatibility by default, and
 all supported flag-override paths preserve the selected compiler contract.
 Rendered-project tests exercise both choices, and generated documentation
 explains the nightly dependency and borrow-centric design policy.
+
+The shared-action passthrough follow-up moves the release build's redundant
+base `RUSTFLAGS` environment to `setup-rust`, while coverage retains its
+combined override and repeats the selected base flag. Contract coverage now
+protects the setup input, the repeated coverage flags, and the application-only
+release path; developer documentation records why the initial passthrough
+revision is temporarily capability-bound.

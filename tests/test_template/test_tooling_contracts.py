@@ -23,8 +23,13 @@ from tests.helpers.tooling_contracts import (
     assert_generated_tooling_contracts,
     assert_polonius_toolchain_contracts,
 )
+from tests.helpers.tooling_contracts.polonius import (
+    _assert_coverage_workflow,
+    _assert_release_workflow,
+    _assert_setup_rust_rustflags,
+    _assert_shared_action_passthrough_revision,
+)
 from tests.helpers.tooling_contracts.workflows import _assert_ci_workflow_contracts
-
 
 POLONIUS_RENDER_CASES = tuple(
     (flavour, enable_polonius, dev_target)
@@ -36,6 +41,80 @@ POLONIUS_RENDER_CASES = tuple(
         "",
     )
 )
+
+
+def test_polonius_contract_rejects_stale_shared_action_revision() -> None:
+    """Reject a shared action revision without the rustflags passthrough."""
+    workflow = "uses: leynos/shared-actions/.github/actions/setup-rust@" + "0" * 40
+
+    with pytest.raises(AssertionError, match="rustflags passthrough revision"):
+        _assert_shared_action_passthrough_revision(workflow, "CI workflow")
+
+
+def test_polonius_contract_allows_independent_shared_action_revision() -> None:
+    """Allow unrelated shared actions to advance independently."""
+    workflow = """uses: leynos/shared-actions/.github/actions/setup-rust@47b337e4f230b591891656534d4ffad868131740
+uses: leynos/shared-actions/.github/actions/generate-coverage@0000000000000000000000000000000000000000
+"""
+
+    _assert_shared_action_passthrough_revision(workflow, "CI workflow")
+
+
+def test_polonius_contract_rejects_missing_setup_rustflags() -> None:
+    """Reject setup-rust when its rustflags input is absent."""
+    workflow = """jobs:
+  build-test:
+    steps:
+      - uses: leynos/shared-actions/.github/actions/setup-rust@47b337e4f230b591891656534d4ffad868131740
+        with: {}
+"""
+
+    with pytest.raises(AssertionError, match="setup-rust rustflags"):
+        _assert_setup_rust_rustflags(workflow, "build-test", enabled=True)
+
+
+def test_polonius_contract_rejects_incorrect_coverage_log() -> None:
+    """Reject a coverage diagnostic that reports the wrong flags."""
+    workflow = """jobs:
+  build-test:
+    steps:
+      - name: Log coverage linker configuration
+        run: |
+          echo "Coverage RUSTFLAGS: -D warnings"
+      - name: Test and Measure Coverage
+        env:
+          RUSTFLAGS: -Zpolonius=next -C link-arg=-fuse-ld=lld
+"""
+
+    with pytest.raises(AssertionError, match="coverage log"):
+        _assert_coverage_workflow(workflow, "build-test", enabled=True)
+
+
+def test_polonius_contract_rejects_release_rustflags_env_override() -> None:
+    """Reject a release build step that overrides setup-rust flags."""
+    workflow = """jobs:
+  build:
+    steps:
+      - uses: leynos/shared-actions/.github/actions/setup-rust@47b337e4f230b591891656534d4ffad868131740
+        with:
+          toolchain: nightly-2025-06-10
+          rustflags: -Zpolonius=next
+      - name: Log Rust compiler configuration
+        run: |
+          rustc --version
+          printf 'Base RUSTFLAGS: %s\\n' "$RUSTFLAGS"
+      - name: Build release binary
+        env:
+          RUSTFLAGS: -D warnings
+        run: cross +nightly-2025-06-10 build --release
+"""
+
+    with pytest.raises(AssertionError, match="release build env to be absent"):
+        _assert_release_workflow(
+            workflow,
+            '[toolchain]\nchannel = "nightly-2025-06-10"\n',
+            enabled=True,
+        )
 
 
 @pytest.mark.parametrize(

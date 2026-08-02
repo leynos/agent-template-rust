@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-import tomllib
+import re
 from typing import Any
+
+import tomllib
 
 from tests.helpers.generated_files import (
     parse_yaml_mapping,
@@ -12,6 +14,13 @@ from tests.helpers.generated_files import (
 )
 
 POLONIUS_FLAG = "-Zpolonius=next"
+RUSTFLAGS_PASSTHROUGH_REVISION = "47b337e4f230b591891656534d4ffad868131740"
+_SETUP_RUST_USES_RE = re.compile(
+    r"^leynos/shared-actions/\.github/actions/setup-rust@[0-9a-f]{40}$"
+)
+_SHARED_ACTION_USES_RE = re.compile(
+    r"uses:\s+(?P<reference>leynos/shared-actions/[^\s]+)"
+)
 
 
 def _named_step(workflow: str, job_name: str, step_name: str) -> dict[str, Any]:
@@ -29,19 +38,44 @@ def _named_step(workflow: str, job_name: str, step_name: str) -> dict[str, Any]:
     return matches[0]
 
 
-def _setup_rust_step(release_workflow: str) -> dict[str, Any]:
-    """Return the setup-rust step from the release workflow."""
-    parsed = parse_yaml_mapping(release_workflow, "release workflow")
-    jobs = require_mapping(parsed, "jobs", "release workflow")
-    build = require_mapping(jobs, "build", "release workflow jobs")
-    steps = require_sequence(build, "steps", "release build job")
+def _setup_rust_step(workflow: str, job_name: str) -> dict[str, Any]:
+    """Return the setup-rust step from a rendered workflow job."""
+    parsed = parse_yaml_mapping(workflow, f"{job_name} workflow")
+    jobs = require_mapping(parsed, "jobs", f"{job_name} workflow")
+    job = require_mapping(jobs, job_name, f"{job_name} workflow jobs")
+    steps = require_sequence(job, "steps", f"{job_name} job")
     matches = [
         step
         for step in steps
-        if isinstance(step, dict) and "actions/setup-rust@" in str(step.get("uses"))
+        if isinstance(step, dict)
+        and _SETUP_RUST_USES_RE.fullmatch(str(step.get("uses", "")))
     ]
-    assert len(matches) == 1, "expected one setup-rust step in release workflow"
+    assert len(matches) == 1, f"expected one setup-rust step in {job_name} workflow"
     return matches[0]
+
+
+def _assert_setup_rust_rustflags(
+    workflow: str, job_name: str, *, enabled: bool
+) -> None:
+    """Assert setup-rust receives the selected Polonius configuration."""
+    setup = _setup_rust_step(workflow, job_name)
+    setup_inputs = require_mapping(setup, "with", f"{job_name} setup-rust step")
+    expected = POLONIUS_FLAG if enabled else "-D warnings"
+    actual = setup_inputs.get("rustflags")
+    assert actual == expected, (
+        f"expected {job_name} setup-rust rustflags to be {expected!r}, got {actual!r}"
+    )
+
+
+def _assert_rust_setup_log(workflow: str, job_name: str) -> None:
+    """Assert post-setup diagnostics expose only bounded Rust configuration."""
+    log_step = _named_step(workflow, job_name, "Log Rust compiler configuration")
+    actual = str(log_step.get("run", "")).splitlines()
+    expected = ["rustc --version", "printf 'Base RUSTFLAGS: %s\\n' \"$RUSTFLAGS\""]
+    assert actual == expected, (
+        f"expected {job_name} Rust setup log commands to be {expected!r}, "
+        f"got {actual!r}"
+    )
 
 
 def _assert_cargo_config(cargo_config: str, *, enabled: bool, dev_target: str) -> None:
@@ -121,11 +155,43 @@ def _assert_makefile(makefile: str, *, enabled: bool, dev_target: str) -> None:
 
 def _assert_coverage_workflow(workflow: str, job_name: str, *, enabled: bool) -> None:
     """Assert coverage's explicit RUSTFLAGS do not shadow Polonius."""
-    coverage = _named_step(workflow, job_name, "Test and Measure Coverage")
-    env = require_mapping(coverage, "env", "coverage step")
-    rustflags = str(env.get("RUSTFLAGS", ""))
-    assert "-C link-arg=-fuse-ld=lld" in rustflags
-    assert (POLONIUS_FLAG in rustflags) is enabled
+    coverage_step = _named_step(workflow, job_name, "Test and Measure Coverage")
+    env = require_mapping(coverage_step, "env", "coverage step")
+    actual = str(env.get("RUSTFLAGS", ""))
+    base_flags = POLONIUS_FLAG if enabled else "-D warnings"
+    expected = f"{base_flags} -C link-arg=-fuse-ld=lld"
+    assert actual == expected, (
+        f"expected {job_name} coverage RUSTFLAGS to be {expected!r}, got {actual!r}"
+    )
+    log_step = _named_step(workflow, job_name, "Log coverage linker configuration")
+    actual_log = str(log_step.get("run", ""))
+    expected_log = f'echo "Coverage RUSTFLAGS: {expected}"'
+    assert expected_log in actual_log, (
+        f"expected {job_name} coverage log to contain {expected_log!r}, "
+        f"got {actual_log!r}"
+    )
+
+
+def _assert_shared_action_passthrough_revision(
+    workflow: str, workflow_name: str
+) -> None:
+    """Assert affected shared-action refs include the rustflags capability."""
+    references = [
+        match.group("reference")
+        for match in _SHARED_ACTION_USES_RE.finditer(workflow)
+        if "/.github/actions/setup-rust@" in match.group("reference")
+    ]
+    assert references, f"expected shared setup-rust references in {workflow_name}"
+    unexpected = [
+        reference
+        for reference in references
+        if not reference.endswith(f"@{RUSTFLAGS_PASSTHROUGH_REVISION}")
+    ]
+    assert not unexpected, (
+        f"expected {workflow_name} shared-action references to use rustflags "
+        f"passthrough revision {RUSTFLAGS_PASSTHROUGH_REVISION!r}, "
+        f"got {unexpected!r}"
+    )
 
 
 def _assert_release_workflow(
@@ -133,22 +199,33 @@ def _assert_release_workflow(
 ) -> None:
     """Assert release artefacts use a compiler compatible with the source."""
     toolchain_config = tomllib.loads(rust_toolchain)
-    expected_toolchain = str(toolchain_config["toolchain"]["channel"])
-    setup = _setup_rust_step(release_workflow)
+    configured_toolchain = str(toolchain_config["toolchain"]["channel"])
+    setup = _setup_rust_step(release_workflow, "build")
     setup_inputs = require_mapping(setup, "with", "release setup-rust step")
-    toolchain = str(setup_inputs.get("toolchain", ""))
+    actual_toolchain = str(setup_inputs.get("toolchain", ""))
+    actual_rustflags = setup_inputs.get("rustflags")
     build = _named_step(release_workflow, "build", "Build release binary")
-    env = require_mapping(build, "env", "release build step")
-    rustflags = str(env.get("RUSTFLAGS", ""))
-    command = str(build.get("run", ""))
-    if enabled:
-        assert toolchain == expected_toolchain
-        assert rustflags == POLONIUS_FLAG
-        assert f"cross +{expected_toolchain} build" in command
-    else:
-        assert toolchain == "stable"
-        assert rustflags == ""
-        assert "cross +stable build" in command
+    actual_command = str(build.get("run", ""))
+    actual_env = build.get("env")
+    expected_toolchain = configured_toolchain if enabled else "stable"
+    expected_rustflags = POLONIUS_FLAG if enabled else "-D warnings"
+    expected_command = f"cross +{expected_toolchain} build"
+    assert actual_toolchain == expected_toolchain, (
+        f"expected release build toolchain to be {expected_toolchain!r}, "
+        f"got {actual_toolchain!r}"
+    )
+    assert actual_rustflags == expected_rustflags, (
+        f"expected release setup-rust rustflags to be {expected_rustflags!r}, "
+        f"got {actual_rustflags!r}"
+    )
+    assert expected_command in actual_command, (
+        f"expected release build command to contain {expected_command!r}, "
+        f"got {actual_command!r}"
+    )
+    assert "env" not in build, (
+        f"expected release build env to be absent, got {actual_env!r}"
+    )
+    _assert_rust_setup_log(release_workflow, "build")
 
 
 def assert_polonius_toolchain_contracts(
@@ -211,11 +288,22 @@ def assert_polonius_toolchain_contracts(
     """
     _assert_cargo_config(cargo_config, enabled=enabled, dev_target=dev_target)
     _assert_makefile(makefile, enabled=enabled, dev_target=dev_target)
+    _assert_setup_rust_rustflags(ci_workflow, "build-test", enabled=enabled)
+    _assert_setup_rust_rustflags(
+        coverage_main_workflow, "coverage-upload", enabled=enabled
+    )
+    _assert_rust_setup_log(ci_workflow, "build-test")
+    _assert_rust_setup_log(coverage_main_workflow, "coverage-upload")
+    _assert_shared_action_passthrough_revision(ci_workflow, "CI workflow")
+    _assert_shared_action_passthrough_revision(
+        coverage_main_workflow, "coverage-main workflow"
+    )
     _assert_coverage_workflow(ci_workflow, "build-test", enabled=enabled)
     _assert_coverage_workflow(
         coverage_main_workflow, "coverage-upload", enabled=enabled
     )
     if release_workflow is not None:
+        _assert_shared_action_passthrough_revision(release_workflow, "release workflow")
         _assert_release_workflow(release_workflow, rust_toolchain, enabled=enabled)
 
     if enabled:

@@ -25,6 +25,16 @@ Makefiles with `mbake`, and parse generated Cargo and workflow configuration.
 The Polonius contract checks every `RUSTFLAGS` override, including Linux mold
 linking, LLVM coverage, and cross-platform application releases.
 
+Generated CI and coverage workflows, plus the application-only release
+workflow, pass their base compiler flags through the shared `setup-rust`
+action's `rustflags` input. Coverage repeats that base when its explicit
+`RUSTFLAGS` adds the `lld` linker flag because an environment override replaces
+the value supplied during setup. This capability first appears in
+`leynos/shared-actions` revision
+`47b337e4f230b591891656534d4ffad868131740`; using an older revision silently
+drops the input, so the Polonius contract verifies that the changed action
+references use this capability-bearing revision.
+
 ## Generated Lint and Environment Contract
 
 The template treats warnings as failures across generated compilation, tests,
@@ -163,6 +173,12 @@ shared-actions `uses:` ref (correct path, pinned to a full 40-hex commit SHA)
 rather than the exact SHA value, so a routine Dependabot bump does not fail the
 contract. See `template/docs/developers-guide.md.jinja`'s "Workflow pins and
 Dependabot" section for the policy that generated projects inherit.
+
+Prefer a behavioural capability contract over an exact revision assertion. A
+narrow exception is appropriate when no independent capability probe exists:
+assert the first revision that supplies the required input and explain the
+boundary beside the test. Remove that exact-pin assertion once the capability
+can be tested without coupling routine Dependabot updates to a literal SHA.
 
 ## Test Helper Layout
 

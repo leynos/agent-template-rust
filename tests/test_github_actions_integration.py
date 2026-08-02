@@ -15,7 +15,7 @@ from tests.utilities import container_daemon_socket, docker_environment
 
 EVENT = Path(__file__).parent / "fixtures" / "pull_request.event.json"
 ACT_IMAGE = "ubuntu-latest=catthehacker/ubuntu:act-latest"
-ACT_VALIDATION_STEP = "Run tests with act validation"
+RUST_SETUP_LOG_STEP = "Log Rust compiler configuration"
 
 
 def prepare_git_repository(project: CopierProject) -> None:
@@ -55,6 +55,8 @@ def run_act(project: CopierProject, *, artifact_dir: Path) -> tuple[int, str]:
     command = [
         "act",
         "pull_request",
+        "-W",
+        ".github/workflows/ci.yml",
         "-j",
         "build-test",
         "-e",
@@ -113,28 +115,28 @@ def event_text(event: dict[str, object], *keys: str) -> str:
     return ""
 
 
-def assert_ci_exercised_expected_steps(logs: str) -> None:
+def assert_ci_exercised_expected_steps(
+    logs: str, *, expected_base_rustflags: str
+) -> None:
     """Assert that act logs include the expected Rust test gate."""
     saw_test_step = False
     saw_rust = False
+    saw_rust_setup_log = False
     for event in iter_json_log_events(logs):
         output = str(event_text(event, "Output", "output", "message", "msg"))
         step = str(event_text(event, "name", "step_name", "Step", "step"))
-        in_act_test_step = ACT_VALIDATION_STEP in step
-        saw_test_step = saw_test_step or (
-            in_act_test_step and "make test WITH_ACT=1" in output
-        )
+        saw_test_step = saw_test_step or "$ cargo llvm-cov" in output
         saw_rust = saw_rust or (
-            in_act_test_step
-            and (
-                "cargo nextest" in output
-                or "cargo test --doc" in output
-                or "cargo test" in output
-            )
+            "$ cargo llvm-cov nextest" in output or "$ cargo llvm-cov test" in output
+        )
+        saw_rust_setup_log = saw_rust_setup_log or (
+            RUST_SETUP_LOG_STEP in step
+            and f"Base RUSTFLAGS: {expected_base_rustflags}" in output
         )
 
-    assert saw_test_step, f"act-validation test step was not observed:\n{logs}"
-    assert saw_rust, f"Rust tests were not observed:\n{logs}"
+    assert saw_rust_setup_log, f"Rust setup diagnostics were not observed:\n{logs}"
+    assert saw_test_step, f"CI coverage command was not observed:\n{logs}"
+    assert saw_rust, f"Rust coverage tests were not observed:\n{logs}"
 
 
 def xfail_known_act_runtime_limitations(logs: str) -> None:
@@ -157,28 +159,49 @@ def xfail_known_act_runtime_limitations(logs: str) -> None:
         )
 
 
-def assert_act_result(project: CopierProject, code: int, logs: str) -> None:
+def assert_act_result(
+    code: int,
+    logs: str,
+    *,
+    expected_base_rustflags: str,
+) -> None:
     """Assert the act workflow result for a rendered Rust project."""
     xfail_known_act_runtime_limitations(logs)
-    assert_ci_exercised_expected_steps(logs)
+    assert_ci_exercised_expected_steps(
+        logs, expected_base_rustflags=expected_base_rustflags
+    )
     assert code == 0, logs
 
 
 @pytest.mark.act
+@pytest.mark.parametrize(
+    ("enable_polonius", "expected_base_rustflags"),
+    [(False, "-D warnings"), (True, "-Zpolonius=next")],
+    ids=["warnings", "polonius"],
+)
 def test_generated_act_validation_workflow_runs_tests(
     act_ready: None,
     copier: CopierFixture,
     tmp_path: Path,
+    enable_polonius: bool,
+    expected_base_rustflags: str,
 ) -> None:
-    """Validate a generated act-validation workflow through act."""
+    """Validate both generated CI Rust flag branches through act."""
     project = render_project(
-        tmp_path / "act_rust",
+        tmp_path / f"act_rust_{enable_polonius}",
         copier,
         project_name="ActRust",
         package_name="act_rust",
+        enable_polonius=enable_polonius,
     )
     prepare_git_repository(project)
 
-    code, logs = run_act(project, artifact_dir=tmp_path / "rust-artifacts")
+    code, logs = run_act(
+        project, artifact_dir=tmp_path / f"rust-artifacts-{enable_polonius}"
+    )
 
-    assert_act_result(project, code, logs)
+    assert_act_result(
+        code,
+        logs,
+        expected_base_rustflags=expected_base_rustflags,
+    )

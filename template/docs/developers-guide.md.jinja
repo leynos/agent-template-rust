@@ -44,6 +44,13 @@ workflows that set `RUSTFLAGS` must re-state it because the environment value
 overrides Cargo configuration. See [the Polonius policy](polonius.md) for the
 borrow-centric API and audit-tag conventions.
 
+Generated CI and coverage workflows, plus the release workflow rendered for
+applications, pass this base flag through the shared `setup-rust` action's
+`rustflags` input. Library renders do not include `release.yml`. The pinned
+revision must expose that input, and coverage overrides must repeat the
+selected base flag alongside their `lld` linker flag. Contract tests should
+assert these inputs and combined flags.
+
 {% endif -%}
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so debug builds link
@@ -78,6 +85,13 @@ opens a bump PR, the test fails until a human edits the pinned constant to
 match. That defeats the purpose of automated dependency updates and turns a
 routine bump into a manual chore.
 
+The narrow `RUSTFLAGS_PASSTHROUGH_REVISION` exception applies only while no
+independent capability probe can establish that the shared `setup-rust` action
+accepts the required `rustflags` input. In that case, assert the first revision
+that provides the capability and document this boundary beside the test. Remove
+the literal revision assertion once an independent capability probe is
+available.
+
 Contract tests may still verify the *shape* of a reusable-workflow caller.
 They must not verify the specific SHA value.
 
@@ -102,4 +116,7 @@ def test_uses_pinned_full_sha(caller_step):
 
 If a workflow's behaviour genuinely depends on a feature only present from a
 particular commit onwards, express that as a comment or a changelog note, not
-as a test assertion on the SHA string.
+as a test assertion on the SHA string. The sole exception is the
+`RUSTFLAGS_PASSTHROUGH_REVISION` boundary above: until an independent probe can
+confirm that `setup-rust` supports `rustflags`, document and assert the first
+capable revision. Remove that literal revision assertion once the probe exists.
