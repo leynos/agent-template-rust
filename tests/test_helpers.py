@@ -151,9 +151,10 @@ def test_generated_project_env_properties(
         monkeypatch.setenv(variable, value)
     ordinary_value = f"ordinary-{parent_value}"
     parent_path = f"parent-path-{parent_value}"
+    parent_cargo = f"parent-cargo-{parent_value}"
     monkeypatch.setenv("ORDINARY_VARIABLE", ordinary_value)
     monkeypatch.setenv("PATH", parent_path)
-    monkeypatch.setenv("CARGO", f"parent-cargo-{parent_value}")
+    monkeypatch.setenv("CARGO", parent_cargo)
 
     env = generated_project_env(overrides)
 
@@ -172,6 +173,11 @@ def test_generated_project_env_properties(
         assert env.get(variable) == value, (
             f"expected override {variable}={value!r}; "
             f"actual={env.get(variable)!r}, overrides={overrides}"
+        )
+    if "CARGO" not in overrides:
+        assert env.get("CARGO") == parent_cargo, (
+            f"expected inherited CARGO={parent_cargo!r}; "
+            f"actual={env.get('CARGO')!r}, overrides={overrides}"
         )
     assert env.get("ORDINARY_VARIABLE") == ordinary_value, (
         f"expected ORDINARY_VARIABLE={ordinary_value!r}; "
