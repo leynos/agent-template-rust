@@ -56,6 +56,8 @@ def run_act(project: CopierProject, *, artifact_dir: Path) -> tuple[int, str]:
     command = [
         "act",
         "pull_request",
+        "-W",
+        ".github/workflows/ci.yml",
         "-j",
         "build-test",
         "-e",
@@ -114,7 +116,9 @@ def event_text(event: dict[str, object], *keys: str) -> str:
     return ""
 
 
-def assert_ci_exercised_expected_steps(logs: str) -> None:
+def assert_ci_exercised_expected_steps(
+    logs: str, *, expected_base_rustflags: str
+) -> None:
     """Assert that act logs include the expected Rust test gate."""
     saw_test_step = False
     saw_rust = False
@@ -135,7 +139,8 @@ def assert_ci_exercised_expected_steps(logs: str) -> None:
             )
         )
         saw_rust_setup_log = saw_rust_setup_log or (
-            RUST_SETUP_LOG_STEP in step and "Base RUSTFLAGS: -D warnings" in output
+            RUST_SETUP_LOG_STEP in step
+            and f"Base RUSTFLAGS: {expected_base_rustflags}" in output
         )
 
     assert saw_rust_setup_log, f"Rust setup diagnostics were not observed:\n{logs}"
@@ -163,28 +168,51 @@ def xfail_known_act_runtime_limitations(logs: str) -> None:
         )
 
 
-def assert_act_result(project: CopierProject, code: int, logs: str) -> None:
+def assert_act_result(
+    project: CopierProject,
+    code: int,
+    logs: str,
+    *,
+    expected_base_rustflags: str,
+) -> None:
     """Assert the act workflow result for a rendered Rust project."""
     xfail_known_act_runtime_limitations(logs)
-    assert_ci_exercised_expected_steps(logs)
+    assert_ci_exercised_expected_steps(
+        logs, expected_base_rustflags=expected_base_rustflags
+    )
     assert code == 0, logs
 
 
 @pytest.mark.act
+@pytest.mark.parametrize(
+    ("enable_polonius", "expected_base_rustflags"),
+    [(False, "-D warnings"), (True, "-Zpolonius=next")],
+    ids=["warnings", "polonius"],
+)
 def test_generated_act_validation_workflow_runs_tests(
     act_ready: None,
     copier: CopierFixture,
     tmp_path: Path,
+    enable_polonius: bool,
+    expected_base_rustflags: str,
 ) -> None:
-    """Validate a generated act-validation workflow through act."""
+    """Validate both generated CI Rust flag branches through act."""
     project = render_project(
-        tmp_path / "act_rust",
+        tmp_path / f"act_rust_{enable_polonius}",
         copier,
         project_name="ActRust",
         package_name="act_rust",
+        enable_polonius=enable_polonius,
     )
     prepare_git_repository(project)
 
-    code, logs = run_act(project, artifact_dir=tmp_path / "rust-artifacts")
+    code, logs = run_act(
+        project, artifact_dir=tmp_path / f"rust-artifacts-{enable_polonius}"
+    )
 
-    assert_act_result(project, code, logs)
+    assert_act_result(
+        project,
+        code,
+        logs,
+        expected_base_rustflags=expected_base_rustflags,
+    )
