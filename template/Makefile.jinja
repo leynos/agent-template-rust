@@ -26,7 +26,7 @@ DEV_LINKER_FLAGS ?= $(if $(filter Linux,$(shell uname -s)),-C link-arg=-fuse-ld=
 DEV_LINKER_FLAGS ?=
 {% endif -%}
 DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_LINKER_FLAGS)
-RUSTDOC_FLAGS ?=
+RUSTDOC_FLAGS ?= $(POLONIUS_FLAGS)
 RUSTDOC_FLAGS := -D warnings $(RUSTDOC_FLAGS)
 CARGO_FLAGS ?= --all-targets --all-features
 CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
@@ -52,7 +52,7 @@ clean: ## Remove build artifacts
 
 test: ## Run tests with warnings treated as errors
 	RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
-	RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) test --doc --workspace --all-features
+	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) test --doc --workspace --all-features
 
 target/%/$(TARGET): ## Build binary in debug or release mode
 	RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release){% if flavour == 'app' %} --bin $(TARGET){% endif %}

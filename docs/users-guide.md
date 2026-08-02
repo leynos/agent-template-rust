@@ -15,7 +15,8 @@ metadata used in the generated `Cargo.toml`:
   (`-Zpolonius=next`). It defaults to enabled for applications, where
   borrow-centric internal APIs can evolve with the project, and disabled for
   libraries, which commonly need wider compiler compatibility. Either default
-  can be overridden.
+  can be overridden. Existing projects should follow the
+  [0.2.0 migration guide](migrations/0.2.0.md) when adopting this prompt.
 - `package_description` becomes `[package].description`.
 - `repository_url` becomes `[package].repository` and is used by generated
   app projects for cargo-binstall release URLs.

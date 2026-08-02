@@ -16,16 +16,13 @@ surface.
 
 ## Decision
 
-In the context of generating Rust applications and libraries with different
-compiler-compatibility needs, facing the tension between borrow-centric APIs
-and Polonius's nightly-only status, we decided for an `enable_polonius` Copier
-choice that defaults on for applications and off for libraries and propagates
-the selected flag through Cargo, Make, coverage, Continuous Integration (CI),
-and release builds, and against enabling Polonius universally, disabling it
-universally, or waiting for stabilization before exposing it, to achieve an
-explicit and consistently enforced per-project toolchain contract, accepting
-that opted-in projects depend on a dated nightly and must keep every
-`RUSTFLAGS` override synchronized.
+An `enable_polonius` Copier choice defaults to enabled for applications and
+disabled for libraries, with either default available for explicit override.
+Enabled projects propagate `-Zpolonius=next` through Cargo, Make, coverage,
+Continuous Integration (CI) and release builds. This consistent propagation
+establishes a single, explicit toolchain contract across every supported build
+surface. Enabled projects require a dated nightly toolchain, and every explicit
+`RUSTFLAGS` value must remain synchronized with the configured Polonius flag.
 
 ## Progress and outcome
 

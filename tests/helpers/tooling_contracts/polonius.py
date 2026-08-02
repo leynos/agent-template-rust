@@ -48,8 +48,12 @@ def _assert_cargo_config(cargo_config: str, *, enabled: bool, dev_target: str) -
     """Assert Cargo's build and target rustflags retain Polonius as required."""
     config = tomllib.loads(cargo_config)
     build_flags = config.get("build", {}).get("rustflags", [])
+    rustdoc_flags = config.get("build", {}).get("rustdocflags", [])
     assert (POLONIUS_FLAG in build_flags) is enabled, (
         "expected build.rustflags Polonius state to match the Copier answer"
+    )
+    assert (POLONIUS_FLAG in rustdoc_flags) is enabled, (
+        "expected build.rustdocflags Polonius state to match the Copier answer"
     )
     if "linux" not in dev_target:
         return
@@ -74,6 +78,7 @@ def _assert_makefile(makefile: str, *, enabled: bool, dev_target: str) -> None:
         "DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_LINKER_FLAGS)"
         in makefile
     )
+    assert "RUSTDOC_FLAGS ?= $(POLONIUS_FLAGS)" in makefile
     linker_default = next(
         line for line in makefile.splitlines() if line.startswith("DEV_LINKER_FLAGS ?=")
     )
@@ -92,6 +97,15 @@ def _assert_makefile(makefile: str, *, enabled: bool, dev_target: str) -> None:
         "$(DEV_RUST_FLAGS)" in line or "$(COVERAGE_RUST_FLAGS)" in line
         for line in compile_lines
     ), f"compile recipes must use composed Rust flags: {compile_lines!r}"
+    coverage_recipe = makefile.partition("coverage:")[2].partition("\n\n")[0]
+    assert 'RUSTFLAGS="$(COVERAGE_RUST_FLAGS)"' in coverage_recipe
+    rustdoc_lines = [
+        line
+        for line in makefile.splitlines()
+        if "$(CARGO) test --doc" in line or "$(CARGO) doc" in line
+    ]
+    assert len(rustdoc_lines) == 2
+    assert all('RUSTDOCFLAGS="$(RUSTDOC_FLAGS)"' in line for line in rustdoc_lines)
 
 
 def _assert_coverage_workflow(workflow: str, job_name: str, *, enabled: bool) -> None:

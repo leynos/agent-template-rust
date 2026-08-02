@@ -4,9 +4,23 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from pytest_copier.plugin import CopierFixture
 
 from tests.helpers.rendering import APP, LIB, render_project
+
+
+def test_template_rejects_unsafe_nightly_date(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """Reject a nightly date that could inject shell into release builds."""
+    with pytest.raises(ValueError, match="must use YYYY-MM-DD"):
+        copier.copy(
+            tmp_path,
+            project_name="UnsafeNightly",
+            package_name="unsafe_nightly",
+            rust_nightly_date="2025-06-10; echo INJECTED",
+        )
 
 
 def test_template_renders(tmp_path: Path, copier: CopierFixture) -> None:
