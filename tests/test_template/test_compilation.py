@@ -68,7 +68,7 @@ edition = "2024"
     )
 
     project.run(
-        "cargo test --manifest-path "
+        'RUSTFLAGS="-D warnings" cargo test --manifest-path '
         "documented-environment-injection/Cargo.toml --all-targets --all-features"
     )
 

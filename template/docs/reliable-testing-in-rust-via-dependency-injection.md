@@ -124,7 +124,7 @@ use mockable::DefaultEnv;
 
 fn main() {
     let env = DefaultEnv::new();
-    if let Some(api_key) = get_api_key(&env) {
+    if get_api_key(&env).is_some() {
         println!("API Key found!");
     } else {
         println!("API Key not configured.");
