@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from tests import utilities
@@ -59,6 +59,19 @@ json_value = st.recursive(
 )
 
 
+environment_value = st.text(
+    alphabet="abcdefghijklmnopqrstuvwxyz0123456789",
+    min_size=1,
+    max_size=12,
+)
+
+generated_project_overrides = st.dictionaries(
+    st.sampled_from(("PATH", "CARGO", "WHITAKER", "OVERRIDE_VARIABLE")),
+    environment_value,
+    max_size=4,
+)
+
+
 def test_generated_project_env_strips_resolution_controls(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -73,17 +86,74 @@ def test_generated_project_env_strips_resolution_controls(
     monkeypatch.setenv("PATH", "inherited-path")
     monkeypatch.setenv("CARGO", "inherited-cargo")
 
-    env = generated_project_env({"PATH": "controlled-path", "CARGO": "cargo"})
+    env = generated_project_env(
+        {
+            "PATH": "controlled-path",
+            "CARGO": "cargo",
+            "WHITAKER": "explicit-whitaker",
+        }
+    )
 
-    assert all(variable not in env for variable in MAKE_RESOLUTION_VARIABLES)
+    assert all(
+        variable not in env for variable in MAKE_RESOLUTION_VARIABLES - {"WHITAKER"}
+    )
     assert env["ORDINARY_VARIABLE"] == "preserved"
     assert env["PATH"] == "controlled-path"
     assert env["CARGO"] == "cargo"
+    assert env["WHITAKER"] == "explicit-whitaker"
     assert os.environ["PATH"] == "inherited-path"
     assert all(
         os.environ[variable] == value for variable, value in inherited_controls.items()
     )
     assert os.environ["CARGO"] == "inherited-cargo"
+
+
+@given(
+    parent_value=environment_value,
+    overrides=generated_project_overrides,
+)
+@settings(
+    max_examples=20,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
+def test_generated_project_env_properties(
+    monkeypatch: pytest.MonkeyPatch,
+    parent_value: str,
+    overrides: dict[str, str],
+) -> None:
+    """Preserve subprocess environment invariants for arbitrary overrides."""
+    inherited_controls = {
+        variable: f"control-{variable.lower()}-{parent_value}"
+        for variable in MAKE_RESOLUTION_VARIABLES
+    }
+    for variable, value in inherited_controls.items():
+        monkeypatch.setenv(variable, value)
+    ordinary_value = f"ordinary-{parent_value}"
+    parent_path = f"parent-path-{parent_value}"
+    monkeypatch.setenv("ORDINARY_VARIABLE", ordinary_value)
+    monkeypatch.setenv("PATH", parent_path)
+    monkeypatch.setenv("CARGO", f"parent-cargo-{parent_value}")
+
+    env = generated_project_env(overrides)
+
+    for variable in MAKE_RESOLUTION_VARIABLES:
+        if variable in overrides:
+            assert env[variable] == overrides[variable]
+        else:
+            assert variable not in env
+    for variable, value in overrides.items():
+        assert env[variable] == value
+    assert env["ORDINARY_VARIABLE"] == ordinary_value
+    assert os.environ["PATH"] == parent_path
+    assert all(
+        os.environ[variable] == value for variable, value in inherited_controls.items()
+    )
+
+    monkeypatch.setenv("ORDINARY_VARIABLE", "parent-after")
+    env["ORDINARY_VARIABLE"] = "child-after"
+
+    assert os.environ["ORDINARY_VARIABLE"] == "parent-after"
+    assert env["ORDINARY_VARIABLE"] == "child-after"
 
 
 def test_generated_project_env_returns_independent_copy(
