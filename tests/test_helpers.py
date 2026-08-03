@@ -96,7 +96,10 @@ def test_generated_project_env_strips_resolution_controls(
     expected_absent = MAKE_RESOLUTION_VARIABLES - {"WHITAKER"}
     assert all(variable not in env for variable in expected_absent), (
         "expected inherited resolution controls to be absent; "
-        f"variables={sorted(expected_absent)}, overrides={overrides}, env={env}"
+        f"variables={sorted(expected_absent)}, "
+        "unexpected_controls="
+        f"{sorted(variable for variable in expected_absent if variable in env)}, "
+        f"overrides={overrides}"
     )
     assert env.get("ORDINARY_VARIABLE") == "preserved", (
         "expected ORDINARY_VARIABLE='preserved'; "
