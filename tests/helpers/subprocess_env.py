@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 
-MAKE_RESOLUTION_VARIABLES = frozenset(
+MAKE_RESOLUTION_VARIABLES: frozenset[str] = frozenset(
     {
         "WHITAKER",
         "GNUMAKEFLAGS",
