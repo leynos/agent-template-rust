@@ -217,8 +217,14 @@ def test_generated_project_env_returns_independent_copy(
     monkeypatch.setenv("ORDINARY_VARIABLE", "after")
     env["ORDINARY_VARIABLE"] = "changed"
 
-    assert env["ORDINARY_VARIABLE"] == "changed"
-    assert os.environ["ORDINARY_VARIABLE"] == "after"
+    assert env["ORDINARY_VARIABLE"] == "changed", (
+        "expected child ORDINARY_VARIABLE='changed'; "
+        f"actual={env['ORDINARY_VARIABLE']!r}"
+    )
+    assert os.environ["ORDINARY_VARIABLE"] == "after", (
+        "expected parent ORDINARY_VARIABLE='after'; "
+        f"actual={os.environ['ORDINARY_VARIABLE']!r}"
+    )
 
 
 def test_read_generated_text_converts_os_errors(tmp_path: Path) -> None:
