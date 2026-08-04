@@ -53,7 +53,7 @@ def test_polonius_contract_rejects_stale_shared_action_revision() -> None:
 
 def test_polonius_contract_allows_independent_shared_action_revision() -> None:
     """Allow unrelated shared actions to advance independently."""
-    workflow = """uses: leynos/shared-actions/.github/actions/setup-rust@47b337e4f230b591891656534d4ffad868131740
+    workflow = """uses: leynos/shared-actions/.github/actions/setup-rust@80c8e8b4b9e8ab223d18d2360aa1feba6c7335e8
 uses: leynos/shared-actions/.github/actions/generate-coverage@0000000000000000000000000000000000000000
 """
 
