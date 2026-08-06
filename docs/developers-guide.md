@@ -80,23 +80,94 @@ The parent gates run Ruff and mypy over the `tests/` tree; install `uv` so
 - `make typecheck` runs `mypy` with the pytest dependency stubs and
   `types-PyYAML`.
 
-## Shared Oxford Spelling Gate
 
-Both the template repository and rendered projects enforce en-GB-oxendict
-Markdown spelling with `typos` 1.48.0. The tracked `typos.toml` is generated;
-never edit its entries manually. Put a verified product name, upstream term, or
-repository-specific correction in `typos.local.toml`, then run:
+## Shared Oxford Spelling Policy
+
+The template repository always enforces en-GB-oxendict Markdown spelling with
+`make spelling`. Rendered projects enforce the same policy only when the
+`en_gb_oxendict` Copier option is enabled; it defaults to enabled and can be
+disabled without leaving spelling files, documentation, or gate wiring. An
+enabled generated project exposes the equivalent gate as `make spellcheck`.
+
+The tracked `typos.toml` is generated; never edit its entries manually. Put a
+verified product name, upstream term, or repository-specific correction in
+`typos.local.toml`, then run:
 
 ```sh
 uv run scripts/generate_typos_config.py
 ```
 
 The generator collects the shared dictionary from `leynos/agent-helper-scripts`
-into the ignored local cache only when the remote source is newer. It validates
-and atomically replaces that cache, retains a newer local copy, and supports
-offline reuse once populated. `make spelling` regenerates the tracked
-configuration before checking maintained Markdown and rendered Markdown
-templates.
+into the ignored local cache only when the remote source is newer. It bounds
+dictionary inputs to 1 MiB, validates them before atomic replacement, and uses
+a cross-process lock to serialize cache and metadata writers. A failed remote
+refresh reuses a valid stale cache with a bounded diagnostic containing the
+failure category or HTTP status and cache age. Explicit offline reuse is
+available once the cache is populated. Parent `make spelling` and generated
+`make spellcheck` regenerate their tracked configuration before checking
+maintained Markdown.
+
+Generated audit coverage is tested without network access by replacing Cargo
+with a fake executable. The regression verifies that `make rust-audit` derives
+the workspace root from `cargo metadata`, ignores manifests outside workspace
+metadata, and invokes `cargo audit` once from the workspace root.
+
+Generated CI skips the `cargo-audit` install, Python setup, and `make audit`
+steps when `github.actor` is `dependabot[bot]`. That keeps whole-lockfile
+advisories from blocking unrelated Dependabot PRs while leaving the audit gate
+in place for human PRs. The compensating control is
+`template/.github/workflows/audit.yml`, which runs weekly and can also be
+triggered manually.
+
+Optional GitHub Actions validation runs rendered workflows through `act`. It is
+disabled by default and only runs when `WITH_ACT=1` is present:
+
+```sh
+make test WITH_ACT=1
+```
+
+The parent Makefile maps `WITH_ACT=1` to `RUN_ACT_VALIDATION=1` for pytest.
+Those checks require `act` and either Docker or Podman. They prepare rendered
+projects as temporary Git repositories, run the generated act-validation
+workflow, and assert black-box evidence for Rust test execution.
+
+Parent CI keeps Act validation in `.github/workflows/act-validation.yml`. The
+main `.github/workflows/ci.yml` workflow runs ordinary `make test` without
+`WITH_ACT=1` so the slower container-backed checks run in parallel instead of
+blocking the main test and coverage path.
+
+The template also renders `.github/workflows/mutation-testing.yml` into
+generated projects; its rendered contract is asserted by
+`_assert_mutation_workflow_contracts` in
+`tests/helpers/tooling_contracts/mutation.py`. Dependabot owns the pinned
+reusable-workflow commit SHA, so the contract test asserts the pin format (a
+full commit SHA) rather than a hard-coded value.
+
+## Shared Oxford Spelling Policy
+
+The template repository always enforces en-GB-oxendict Markdown spelling with
+`make spelling`. Rendered projects enforce the same policy only when the
+`en_gb_oxendict` Copier option is enabled; it defaults to enabled and can be
+disabled without leaving spelling files, documentation, or gate wiring. An
+enabled generated project exposes the equivalent gate as `make spellcheck`.
+
+The tracked `typos.toml` is generated; never edit its entries manually. Put a
+verified product name, upstream term, or repository-specific correction in
+`typos.local.toml`, then run:
+
+```sh
+uv run scripts/generate_typos_config.py
+```
+
+The generator collects the shared dictionary from `leynos/agent-helper-scripts`
+into the ignored local cache only when the remote source is newer. It bounds
+dictionary inputs to 1 MiB, validates them before atomic replacement, and uses
+a cross-process lock to serialize cache and metadata writers. A failed remote
+refresh reuses a valid stale cache with a bounded diagnostic containing the
+failure category or HTTP status and cache age. Explicit offline reuse is
+available once the cache is populated. Parent `make spelling` and generated
+`make spellcheck` regenerate their tracked configuration before checking
+maintained Markdown.
 
 Generated audit coverage is tested without network access by replacing Cargo
 with a fake executable. The regression verifies that `make rust-audit` derives

@@ -1,12 +1,26 @@
-"""Refresh and render shared en-GB-oxendict ``typos`` configuration."""
+"""Build ``typos`` configuration from a validated shared Oxford dictionary.
+
+This module parses and validates shared and repository-local TOML dictionaries,
+merges their non-conflicting policy, and renders deterministic ``typos.toml``
+output. It refreshes a size-bounded local cache from local or HTTPS sources,
+persists freshness metadata atomically, serializes cross-process writers, and
+falls back observably to a valid stale cache when a remote refresh fails.
+``generate_typos_config.py`` uses these primitives as its refresh, merge,
+validation, caching, and rendering implementation.
+"""
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
+import email.message
 import email.utils
+import fcntl
 import json
+import logging
 import pathlib
 import tempfile
+import time
 import tomllib
 import typing as typ
 import urllib.error
@@ -18,6 +32,9 @@ if typ.TYPE_CHECKING:
 
 SCHEMA_VERSION = 1
 HTTP_NOT_MODIFIED = 304
+MAX_DICTIONARY_BYTES = 1024 * 1024
+READ_CHUNK_BYTES = 64 * 1024
+LOGGER = logging.getLogger(__name__)
 SUFFIX_PAIRS = (
     ("ise", "ize"),
     ("ises", "izes"),
@@ -33,7 +50,26 @@ SUFFIX_PAIRS = (
 
 @dataclasses.dataclass(frozen=True)
 class Dictionary:
-    """Curated words and exclusions used to generate a ``typos`` config."""
+    """Curated words and exclusions used to generate a ``typos`` config.
+
+    Attributes
+    ----------
+    stems : tuple[str, ...]
+        Oxford stems expanded through every suffix pair.
+    accepted : tuple[str, ...]
+        Words accepted verbatim.
+    corrections : tuple[tuple[str, str], ...]
+        Explicit misspelling-to-correction mappings.
+    ignore_patterns : tuple[str, ...]
+        Regular expressions excluded from spelling checks.
+    excluded_files : tuple[str, ...]
+        Paths excluded from spelling checks.
+
+    Notes
+    -----
+    Parsing and merging return sorted, duplicate-free collections. A word may
+    have only one correction across explicit and generated mappings.
+    """
 
     stems: tuple[str, ...] = ()
     accepted: tuple[str, ...] = ()
@@ -44,7 +80,21 @@ class Dictionary:
 
 @dataclasses.dataclass(frozen=True)
 class RefreshResult:
-    """Describe whether the untracked shared dictionary cache changed."""
+    """Describe whether the untracked shared dictionary cache changed.
+
+    Attributes
+    ----------
+    status : str
+        One of ``refreshed``, ``current``, ``stale-cache``, or
+        ``offline-cache``.
+    cache : pathlib.Path
+        Path to the validated cache used for generation.
+
+    Notes
+    -----
+    Every returned result identifies a cache that parsed successfully while
+    the refresh lock was held.
+    """
 
     status: str
     cache: pathlib.Path
@@ -56,6 +106,74 @@ class _CacheTargets:
 
     cache: pathlib.Path
     metadata: pathlib.Path
+
+
+class _HttpResponse(typ.Protocol):
+    """Describe the bounded HTTP response surface consumed by refreshes."""
+
+    status: int
+    headers: cabc.Mapping[str, str]
+
+    def read(self, size: int = -1) -> bytes:
+        """Read response bytes."""
+        ...
+
+    def __enter__(self) -> typ.Self:
+        """Enter the response context."""
+        ...
+
+    def __exit__(self, *args: object) -> None:
+        """Exit the response context."""
+        ...
+
+
+class DictionaryTooLargeError(ValueError):
+    """Signal that a dictionary source exceeds the configured safety limit."""
+
+
+def _read_bounded_stream(
+    stream: typ.BinaryIO,
+    *,
+    declared_size: int | None = None,
+) -> bytes:
+    """Read at most ``MAX_DICTIONARY_BYTES`` from a binary stream."""
+    if declared_size is not None and declared_size > MAX_DICTIONARY_BYTES:
+        message = (
+            f"dictionary declares {declared_size} bytes; "
+            f"limit is {MAX_DICTIONARY_BYTES}"
+        )
+        raise DictionaryTooLargeError(message)
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = stream.read(min(READ_CHUNK_BYTES, MAX_DICTIONARY_BYTES + 1 - total))
+        if not chunk:
+            return b"".join(chunks)
+        chunks.append(chunk)
+        total += len(chunk)
+        if total > MAX_DICTIONARY_BYTES:
+            message = f"dictionary exceeds {MAX_DICTIONARY_BYTES} byte limit"
+            raise DictionaryTooLargeError(message)
+
+
+def _read_bounded_path(path: pathlib.Path) -> bytes:
+    """Read a dictionary path without allowing unbounded allocation."""
+    declared_size = path.stat().st_size
+    with path.open("rb") as stream:
+        return _read_bounded_stream(stream, declared_size=declared_size)
+
+
+@contextlib.contextmanager
+def _cache_lock(cache: pathlib.Path) -> typ.Iterator[None]:
+    """Serialize cache and metadata mutations across local processes."""
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = cache.with_name(f"{cache.name}.lock")
+    with lock_path.open("a+b") as stream:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
 def _string_list(table: cabc.Mapping[str, object], key: str) -> tuple[str, ...]:
@@ -104,12 +222,56 @@ def _dictionary_from_text(text: str) -> Dictionary:
 
 
 def load_dictionary(path: pathlib.Path) -> Dictionary:
-    """Load a validated shared dictionary from *path*."""
-    return _dictionary_from_text(path.read_text(encoding="utf-8"))
+    """Load and validate a size-bounded dictionary document.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        TOML dictionary to load.
+
+    Returns
+    -------
+    Dictionary
+        Parsed, normalized dictionary policy.
+
+    Raises
+    ------
+    DictionaryTooLargeError
+        The file exceeds ``MAX_DICTIONARY_BYTES``.
+    OSError
+        The file cannot be opened, inspected, or read.
+    TypeError
+        A required TOML value has the wrong shape.
+    UnicodeDecodeError
+        The file is not UTF-8.
+    ValueError
+        The schema version or a correction value is invalid.
+    tomllib.TOMLDecodeError
+        The file is not valid TOML.
+    """
+    return _dictionary_from_text(_read_bounded_path(path).decode())
 
 
 def merge_dictionaries(base: Dictionary, local: Dictionary) -> Dictionary:
-    """Merge a shared dictionary with a non-conflicting local overlay."""
+    """Merge a shared dictionary with a non-conflicting local overlay.
+
+    Parameters
+    ----------
+    base : Dictionary
+        Shared estate-wide policy.
+    local : Dictionary
+        Narrow repository-specific additions.
+
+    Returns
+    -------
+    Dictionary
+        Sorted union of both policies.
+
+    Raises
+    ------
+    ValueError
+        The dictionaries assign different corrections to the same word.
+    """
     corrections = dict(base.corrections)
     for word, correction in local.corrections:
         existing = corrections.get(word)
@@ -133,7 +295,24 @@ def merge_dictionaries(base: Dictionary, local: Dictionary) -> Dictionary:
 
 
 def generate_word_mappings(dictionary: Dictionary) -> dict[str, str]:
-    """Expand Oxford stems and explicit words into deterministic mappings."""
+    """Expand Oxford stems and explicit words into deterministic mappings.
+
+    Parameters
+    ----------
+    dictionary : Dictionary
+        Validated policy whose stems and explicit entries are expanded.
+
+    Returns
+    -------
+    dict[str, str]
+        Lexically sorted spelling-to-correction mappings.
+
+    Raises
+    ------
+    ValueError
+        Explicit, accepted, or generated entries assign conflicting
+        corrections to the same spelling.
+    """
     mappings = {word: word for word in dictionary.accepted}
 
     def add(word: str, correction: str) -> None:
@@ -169,7 +348,25 @@ def _render_array(name: str, values: tuple[str, ...]) -> list[str]:
 
 
 def render_typos_config(dictionary: Dictionary) -> str:
-    """Render a deterministic, parse-checked ``typos.toml`` document."""
+    """Render a deterministic, parse-checked ``typos.toml`` document.
+
+    Parameters
+    ----------
+    dictionary : Dictionary
+        Policy to serialize.
+
+    Returns
+    -------
+    str
+        Complete TOML document with exactly one trailing newline.
+
+    Raises
+    ------
+    ValueError
+        Generated word mappings conflict.
+    tomllib.TOMLDecodeError
+        The rendered document fails the final TOML validation pass.
+    """
     lines = [
         "# Generated from the shared en-GB-oxendict dictionary.",
         "# Regenerate with scripts/generate_typos_config.py; do not edit by hand.",
@@ -207,7 +404,25 @@ def _atomic_write(path: pathlib.Path, content: bytes) -> None:
 
 
 def write_config(path: pathlib.Path, dictionary: Dictionary) -> None:
-    """Atomically write validated generated configuration to *path*."""
+    """Atomically write validated generated configuration to a path.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Destination replaced after a successful adjacent temporary write.
+    dictionary : Dictionary
+        Policy to validate and render.
+
+    Raises
+    ------
+    OSError
+        The destination directory, temporary file, or replacement cannot be
+        created or written.
+    ValueError
+        Generated word mappings conflict.
+    tomllib.TOMLDecodeError
+        The rendered document fails TOML validation.
+    """
     _atomic_write(path, render_typos_config(dictionary).encode())
 
 
@@ -294,7 +509,7 @@ def _refresh_local(
         source_stat.st_mtime_ns,
     ):
         return RefreshResult("current", cache)
-    content = source.read_bytes()
+    content = _read_bounded_path(source)
     _dictionary_from_text(content.decode())
     _atomic_write(cache, content)
     _write_metadata(
@@ -325,6 +540,40 @@ def _https_request(
     return urllib.request.Request(source, headers=dict(headers))  # noqa: S310 - HTTPS is required above.
 
 
+class _HttpsRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Reject redirect targets that do not retain HTTPS transport."""
+
+    def redirect_request(
+        self,
+        request: urllib.request.Request,
+        file_pointer: typ.BinaryIO,
+        code: int,
+        message: str,
+        headers: email.message.Message,
+        new_url: str,
+    ) -> urllib.request.Request | None:
+        """Validate a redirect target before delegating request creation."""
+        _https_request(new_url, {})
+        return super().redirect_request(
+            request,
+            file_pointer,
+            code,
+            message,
+            headers,
+            new_url,
+        )
+
+
+def _open_https(request: urllib.request.Request) -> _HttpResponse:
+    """Open an HTTPS request with per-redirect scheme validation."""
+    opener = urllib.request.build_opener(_HttpsRedirectHandler())
+    response = opener.open(  # noqa: S310 - requests and redirects are HTTPS-validated.
+        request,
+        timeout=30.0,
+    )
+    return typ.cast("_HttpResponse", response)
+
+
 def _write_remote_cache(
     source: str,
     targets: _CacheTargets,
@@ -345,6 +594,36 @@ def _write_remote_cache(
     return RefreshResult("refreshed", targets.cache)
 
 
+def _content_length(headers: cabc.Mapping[str, str]) -> int | None:
+    """Return a valid non-negative HTTP Content-Length when supplied."""
+    raw_length = headers.get("Content-Length")
+    if raw_length is None:
+        return None
+    try:
+        length = int(raw_length)
+    except ValueError:
+        return None
+    return length if length >= 0 else None
+
+
+def _stale_cache_result(
+    cache: pathlib.Path,
+    *,
+    category: str,
+    status: int | None = None,
+) -> RefreshResult:
+    """Report a bounded degraded-refresh warning and reuse a valid cache."""
+    age_seconds = max(0, min(int(time.time() - cache.stat().st_mtime), 999_999_999))
+    LOGGER.warning(
+        "dictionary refresh degraded operation=https-refresh category=%s "
+        "status=%s cache_age_seconds=%d",
+        category,
+        status if status is not None else "none",
+        age_seconds,
+    )
+    return RefreshResult("stale-cache", cache)
+
+
 def _refresh_http(
     source: str,
     cache: pathlib.Path,
@@ -352,31 +631,43 @@ def _refresh_http(
 ) -> RefreshResult:
     """Refresh a cache from a validated HTTPS source with stale fallback."""
     saved = _read_metadata(metadata)
+    same_source = saved.get("source") == source
+    if not same_source:
+        saved = {}
     request = _https_request(source, _conditional_headers(saved))
     try:
-        with urllib.request.urlopen(  # noqa: S310 - _https_request rejects non-HTTPS URLs.
-            request,
-            timeout=30.0,
-        ) as response:
-            if response.status == HTTP_NOT_MODIFIED and _valid_cache(cache):
+        with _open_https(request) as response:
+            if (
+                response.status == HTTP_NOT_MODIFIED
+                and same_source
+                and _valid_cache(cache)
+            ):
                 return RefreshResult("current", cache)
             if _valid_cache(cache) and _remote_is_not_newer(saved, response.headers):
                 return RefreshResult("current", cache)
+            content = _read_bounded_stream(
+                response,
+                declared_size=_content_length(response.headers),
+            )
             return _write_remote_cache(
                 source,
                 _CacheTargets(cache, metadata),
-                response.read(),
+                content,
                 response.headers,
             )
     except urllib.error.HTTPError as error:
-        if error.code == HTTP_NOT_MODIFIED and _valid_cache(cache):
+        if error.code == HTTP_NOT_MODIFIED and same_source and _valid_cache(cache):
             return RefreshResult("current", cache)
         if _valid_cache(cache):
-            return RefreshResult("stale-cache", cache)
+            return _stale_cache_result(cache, category="http", status=error.code)
         raise
-    except (OSError, urllib.error.URLError):
+    except urllib.error.URLError:
         if _valid_cache(cache):
-            return RefreshResult("stale-cache", cache)
+            return _stale_cache_result(cache, category="network")
+        raise
+    except OSError:
+        if _valid_cache(cache):
+            return _stale_cache_result(cache, category="os")
         raise
 
 
@@ -387,12 +678,53 @@ def refresh_base(
     metadata: pathlib.Path,
     offline: bool = False,
 ) -> RefreshResult:
-    """Refresh an untracked base cache when the authoritative copy is newer."""
-    if offline:
-        if not _valid_cache(cache):
-            message = f"no cached shared dictionary at {cache}"
-            raise FileNotFoundError(message)
-        return RefreshResult("offline-cache", cache)
-    if isinstance(source, pathlib.Path) or "://" not in str(source):
-        return _refresh_local(pathlib.Path(source), cache, metadata)
-    return _refresh_http(str(source), cache, metadata)
+    """Refresh an untracked shared dictionary cache.
+
+    Parameters
+    ----------
+    source : str | pathlib.Path
+        Local path or HTTPS URL selected as the authoritative dictionary.
+    cache : pathlib.Path
+        Untracked cache populated from ``source``.
+    metadata : pathlib.Path
+        Freshness and source-identity sidecar updated with the cache.
+    offline : bool
+        Reuse a valid cache without reading ``source`` when true.
+
+    Returns
+    -------
+    RefreshResult
+        ``refreshed`` after replacement, ``current`` when validators prove the
+        same authority is unchanged, ``stale-cache`` after a diagnosed remote
+        failure, or ``offline-cache`` for explicit offline reuse.
+
+    Raises
+    ------
+    DictionaryTooLargeError
+        A local, cached, or HTTP dictionary exceeds the size limit.
+    FileNotFoundError
+        Offline mode has no valid cache or a local source is absent.
+    OSError
+        Local I/O, locking, or an uncached remote operation fails.
+    TypeError
+        Dictionary TOML values have invalid shapes.
+    UnicodeDecodeError
+        Dictionary content is not UTF-8.
+    urllib.error.HTTPError
+        An HTTP refresh fails and no valid cache is available.
+    urllib.error.URLError
+        A network refresh fails and no valid cache is available.
+    ValueError
+        A URL is not HTTPS or dictionary policy is invalid.
+    tomllib.TOMLDecodeError
+        Dictionary content is not valid TOML.
+    """
+    with _cache_lock(cache):
+        if offline:
+            if not _valid_cache(cache):
+                message = f"no cached shared dictionary at {cache}"
+                raise FileNotFoundError(message)
+            return RefreshResult("offline-cache", cache)
+        if isinstance(source, pathlib.Path) or "://" not in str(source):
+            return _refresh_local(pathlib.Path(source), cache, metadata)
+        return _refresh_http(str(source), cache, metadata)

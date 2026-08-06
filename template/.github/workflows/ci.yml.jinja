@@ -49,9 +49,9 @@ jobs:
             !**/dist/**
       - name: Setup uv
         uses: astral-sh/setup-uv@12d13f90bc3a5a1971bebad4beb09a4dfa962e91
-      - name: Check spelling
-        run: make spelling
-      - name: Install test runner
+{% endraw %}{% if en_gb_oxendict %}{% raw %}      - name: Spelling (typos)
+        run: make spellcheck
+{% endraw %}{% endif %}{% raw %}      - name: Install test runner
         env:
           RUSTFLAGS: ""
         run: cargo binstall --no-confirm --locked cargo-nextest

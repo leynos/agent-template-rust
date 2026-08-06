@@ -1,4 +1,4 @@
-.PHONY: help all clean test build release coverage lint fmt check-fmt markdownlint spelling nixie audit rust-audit
+.PHONY: help all clean test build release coverage lint fmt check-fmt markdownlint nixie audit rust-audit{% if en_gb_oxendict %} spellcheck{% endif %}
 
 SHELL := bash
 
@@ -36,19 +36,23 @@ COVERAGE_LINKER_FLAGS ?= -fuse-ld=lld
 COVERAGE_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) -C link-arg=$(COVERAGE_LINKER_FLAGS)
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
+{% if en_gb_oxendict -%}
 TYPOS_VERSION ?= 1.48.0
 TYPOS := uv tool run typos@$(TYPOS_VERSION)
+{% endif -%}
 WHITAKER ?= $(or $(shell command -v whitaker 2>/dev/null),$(wildcard $(USER_WHITAKER)),whitaker)
 
 build: target/debug/$(TARGET) ## Build debug binary
 release: target/release/$(TARGET) ## Build release binary
 
 all: check-fmt lint test ## Perform a comprehensive check of code
-	+$(MAKE) spelling
+{% if en_gb_oxendict %}	+$(MAKE) spellcheck
+{% endif -%}
 
 clean: ## Remove build artifacts
 	$(CARGO) clean
-	rm -f .typos-oxendict-base.json .typos-oxendict-base.toml
+{% if en_gb_oxendict %}	rm -f .typos-oxendict-base.json .typos-oxendict-base.toml
+{% endif -%}
 
 test: export RUSTFLAGS := $(DEV_RUST_FLAGS)
 test: ## Run tests with warnings treated as errors
@@ -82,13 +86,14 @@ fmt: ## Format Rust and Markdown sources
 check-fmt: ## Verify formatting
 	$(CARGO) fmt --all -- --check
 
-markdownlint: ## Lint Markdown files
+markdownlint:{% if en_gb_oxendict %} spellcheck{% endif %} ## Lint Markdown files{% if en_gb_oxendict %} and enforce en-GB-oxendict spelling{% endif %}
 	$(MDLINT) '**/*.md'
-	+$(MAKE) spelling
-spelling: ## Enforce en-GB-oxendict spelling in Markdown prose
+{% if en_gb_oxendict -%}
+spellcheck: ## Enforce en-GB-oxendict spelling in Markdown prose
 	uv run scripts/generate_typos_config.py
 	find . -type f -name '*.md' -not -path './target/*' -print0 | \
 		xargs -0 $(TYPOS) --config typos.toml --force-exclude
+{% endif -%}
 
 nixie: ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox

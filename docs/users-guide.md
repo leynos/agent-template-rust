@@ -33,6 +33,9 @@ metadata used in the generated `Cargo.toml`:
   the pull-request workflow leaves the changed-line `mode: check` gate deferred
   in a documented comment. Fill it in (and set the `CS_ACCESS_TOKEN` secret)
   once the repository is onboarded to CodeScene.
+- `en_gb_oxendict` (default `true`) adds an en-GB-oxendict spelling gate to
+  generated repositories. Set it to `false` to omit the configuration,
+  generator, Makefile/CI wiring, and generated documentation.
 
 ## Generated Tooling
 
@@ -148,7 +151,8 @@ doctest therefore fails the command.
 
 The generated `Makefile` exposes these public targets:
 
-- `make all` runs formatting checks, linting, tests, and spelling checks.
+- `make all` runs formatting checks, linting, and tests, plus spelling checks
+  when `en_gb_oxendict` is enabled.
 - `make check-fmt` verifies Rust formatting.
 - `make fmt` formats Rust and Markdown sources.
 - `make lint` builds documentation, then runs Clippy and Whitaker, with every
@@ -166,11 +170,11 @@ The generated `Makefile` exposes these public targets:
   dependency bumps; human pull requests still run it. The separate
   `.github/workflows/audit.yml` workflow runs weekly and can also be triggered
   manually to keep the lockfile covered.
-- `make markdownlint` checks Markdown files and enforces en-GB-oxendict
-  spelling through the pinned `typos` release.
-- `make spelling` refreshes the shared Oxford dictionary when its published
+- `make markdownlint` checks Markdown files and, when `en_gb_oxendict` is
+  enabled, depends on `make spellcheck`.
+- `make spellcheck` refreshes the shared Oxford dictionary when its published
   source is newer than the ignored local cache, generates `typos.toml`, and
-  checks Markdown prose.
+  checks Markdown prose through the pinned `typos` release.
 - `make nixie` validates Mermaid diagrams.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the

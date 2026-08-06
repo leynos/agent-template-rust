@@ -20,6 +20,7 @@ def render_project(
     package_name: str,
     flavour: str = LIB,
     enable_polonius: bool | None = None,
+    en_gb_oxendict: bool | None = None,
     license_year: int | None = 2026,
     dev_target: str = "x86_64-unknown-linux-gnu",
 ) -> CopierProject:
@@ -40,6 +41,9 @@ def render_project(
     enable_polonius : bool | None
         Explicit Polonius selection. ``None`` omits the answer so Copier uses
         the flavour-based default; a Boolean overrides that default.
+    en_gb_oxendict : bool | None
+        Explicit spelling-gate selection. ``None`` omits the answer so tests
+        exercise the Copier default; a Boolean overrides that default.
     license_year : int | None
         Copyright year. ``None`` omits the answer so Copier uses its default.
     dev_target : str
@@ -65,6 +69,8 @@ def render_project(
     }
     if enable_polonius is not None:
         answers["enable_polonius"] = enable_polonius
+    if en_gb_oxendict is not None:
+        answers["en_gb_oxendict"] = en_gb_oxendict
     if license_year is not None:
         answers["license_year"] = license_year
 
