@@ -405,10 +405,10 @@ def _assert_ci_workflow_contracts(
     assert "make audit" in ci_workflow, (
         "expected generated CI workflow to run the dependency audit gate"
     )
-    assert "name: Check spelling" in ci_workflow, (
+    assert "name: Spelling (typos)" in ci_workflow, (
         "expected generated CI workflow to identify the spelling gate"
     )
-    assert "run: make spelling" in ci_workflow, (
+    assert "run: make spellcheck" in ci_workflow, (
         "expected generated CI workflow to run the pinned spelling gate"
     )
     assert "coverage uses lld for llvm-tools compatibility" in ci_workflow, (

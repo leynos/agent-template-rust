@@ -1,0 +1,10 @@
+target/
+**/*.rs.bk
+__pycache__/
+*.pyc
+
+{% if en_gb_oxendict %}# Untracked cache of the estate-wide en-GB-oxendict dictionary.
+.typos-oxendict-base.json
+.typos-oxendict-base.toml
+.typos-oxendict-base.toml.lock
+{% endif %}

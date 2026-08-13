@@ -73,7 +73,7 @@ doctest therefore fails the command.
 
 The generated `Makefile` exposes these public targets:
 
-- `make all` runs formatting checks, linting, tests, and spelling checks.
+- `make all` runs formatting checks, linting, and tests{% if en_gb_oxendict %}, plus spelling checks{% endif %}.
 - `make check-fmt` verifies Rust formatting.
 - `make fmt` formats Rust and Markdown sources.
 - `make lint` builds documentation, then runs Clippy and Whitaker, with every
@@ -91,11 +91,12 @@ The generated `Makefile` exposes these public targets:
   whole-lockfile advisories do not block unrelated dependency updates. Human PRs
   still retain the audit gate, and `.github/workflows/audit.yml` runs weekly and
   can also be triggered manually as the compensating control.
-- `make markdownlint` checks Markdown files and enforces en-GB-oxendict
-  spelling through the pinned `typos` release.
-- `make spelling` refreshes the shared Oxford dictionary when its published
+{% if en_gb_oxendict %}- `make markdownlint` checks Markdown files and depends on `make spellcheck`.
+- `make spellcheck` refreshes the shared Oxford dictionary when its published
   source is newer than the ignored local cache, generates `typos.toml`, and
-  checks Markdown prose.
+  checks Markdown prose through the pinned `typos` release.
+{% else %}- `make markdownlint` checks Markdown files.
+{% endif %}
 - `make nixie` validates Mermaid diagrams.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the

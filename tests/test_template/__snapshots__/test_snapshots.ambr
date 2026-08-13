@@ -195,8 +195,8 @@
               'uses': 'astral-sh/setup-uv@<sha>',
             }),
             dict({
-              'name': 'Check spelling',
-              'run': 'make spelling',
+              'name': 'Spelling (typos)',
+              'run': 'make spellcheck',
             }),
             dict({
               'env': dict({
@@ -407,7 +407,7 @@
       }),
     }),
     'makefile': '''
-      .PHONY: help all clean test build release coverage lint fmt check-fmt markdownlint spelling nixie audit rust-audit
+      .PHONY: help all clean test build release coverage lint fmt check-fmt markdownlint nixie audit rust-audit spellcheck
       
       SHELL := bash
       
@@ -443,12 +443,10 @@
       release: target/release/$(TARGET) ## Build release binary
       
       all: check-fmt lint test ## Perform a comprehensive check of code
-      \t+$(MAKE) spelling
-      
+      \t+$(MAKE) spellcheck
       clean: ## Remove build artifacts
       \t$(CARGO) clean
       \trm -f .typos-oxendict-base.json .typos-oxendict-base.toml
-      
       test: export RUSTFLAGS := $(DEV_RUST_FLAGS)
       test: ## Run tests with warnings treated as errors
       \t$(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
@@ -481,14 +479,12 @@
       check-fmt: ## Verify formatting
       \t$(CARGO) fmt --all -- --check
       
-      markdownlint: ## Lint Markdown files
+      markdownlint: spellcheck ## Lint Markdown files and enforce en-GB-oxendict spelling
       \t$(MDLINT) '**/*.md'
-      \t+$(MAKE) spelling
-      spelling: ## Enforce en-GB-oxendict spelling in Markdown prose
+      spellcheck: ## Enforce en-GB-oxendict spelling in Markdown prose
       \tuv run scripts/generate_typos_config.py
       \tfind . -type f -name '*.md' -not -path './target/*' -print0 | \
       \t\txargs -0 $(TYPOS) --config typos.toml --force-exclude
-      
       nixie: ## Validate Mermaid diagrams
       \t$(NIXIE) --no-sandbox
       
