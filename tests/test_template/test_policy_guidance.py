@@ -81,6 +81,18 @@ def test_rendered_agents_requires_injected_environment_and_diagnostics(
             "Do not accept brittle snapshots",
             "Add compile-time behaviour tests using `trybuild`",
             "compile-fail and compile-pass contracts",
+            "Model mutually exclusive states explicitly",
+            "correlated booleans, `Option` fields, sentinel values",
+            "disguising an enum with state-specific payloads",
+            "Choose state representation by who selects the transition",
+            "caller chooses a small, finite sequence of operations",
+            "prefer a runtime ADT",
+            "explicit stack or other runtime structure for unbounded state",
+            "Encapsulate transitions and mandatory finalization in the state owner",
+            "semantic transition/result enums",
+            "consuming methods should perform required cleanup",
+            "Keep genuinely independent booleans as booleans",
+            "not merely to avoid `bool`",
         ),
     )
 
