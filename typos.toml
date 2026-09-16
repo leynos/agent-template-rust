@@ -40,7 +40,6 @@ extend-ignore-re = [
     "--artifact-server-path",
     "Azure\\s+Architecture\\s+Center\\s*\\|\\s*Microsoft\\s+Learn\\b",
     "CARGO_TERM_COLOR",
-    "Center \\| Microsoft Learn",
     "GitHub\\s+Flavored\\s+Markdown\\b(?:\\s\\(GFM\\))?",
     "Provided artifact name input during validation is empty",
     "\\brust-analyzer\\b",
@@ -55,7 +54,6 @@ extend-ignore-re = [
 
 [default.extend-words]
 "ASO" = "ASO"
-"Flavored" = "Flavored"
 "Polonius" = "Polonius"
 "absolutisable" = "absolutizable"
 "absolutisably" = "absolutizably"

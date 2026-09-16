@@ -219,7 +219,7 @@ def test_generated_tooling_contracts(
         users_guide=users_guide,
         polonius_doc=polonius_doc,
     )
-    assert 'accepted = ["Flavored", "mold", "Polonius"]' in typos_overlay
+    assert 'accepted = ["mold", "Polonius"]' in typos_overlay
     assert "`[^`\\n]+`" in typos_overlay, (
         "expected the overlay to keep the inline-code mask the previous "
         "dictionary snapshot provided"
