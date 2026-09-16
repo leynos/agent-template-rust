@@ -3,8 +3,10 @@
 MAKEFLAGS += --no-print-directory
 
 UV := $(shell command -v uvx 2>/dev/null)
-TYPOS_VERSION ?= 1.48.0
-TYPOS := uv tool run typos@$(TYPOS_VERSION)
+TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.1
+TYPOS_CONFIG_BUILDER = uv tool run --from \
+	"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
+	typos-config-builder
 WITH_ACT ?= 0
 ACT_TEST_ENV = $(if $(filter 1 true yes on,$(WITH_ACT)),RUN_ACT_VALIDATION=1,)
 PYTEST_DEPS = --with pytest-copier --with pyyaml --with syrupy --with make-parser --with hypothesis
@@ -36,9 +38,7 @@ typecheck: ## Type-check parent Python tests
 	$(UV) --with mypy $(MYPY_DEPS) mypy tests/
 
 spelling: ## Enforce en-GB-oxendict spelling in parent and template prose
-	uv run scripts/generate_typos_config.py
-	find . -type f \( -name '*.md' -o -name '*.md.jinja' \) -not -path './.git/*' -print0 | \
-		xargs -0 $(TYPOS) --config typos.toml --force-exclude
+	$(TYPOS_CONFIG_BUILDER) gate --repository . --scope all
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \

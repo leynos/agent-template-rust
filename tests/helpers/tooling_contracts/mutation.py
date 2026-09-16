@@ -138,7 +138,7 @@ def _install_runs_unconditionally(
 
 
 def _tokenize_command(command: str) -> list[str]:
-    """Tokenize one command, failing the contract on unparseable shell."""
+    """Tokenize one command, failing the contract on unparsable shell."""
     # Surface malformed shell instead of masking it as a valid install; a
     # setup-commands script that cannot be parsed is not runnable.
     try:

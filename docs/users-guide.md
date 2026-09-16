@@ -167,10 +167,11 @@ The generated `Makefile` exposes these public targets:
   `.github/workflows/audit.yml` workflow runs weekly and can also be triggered
   manually to keep the lockfile covered.
 - `make markdownlint` checks Markdown files and enforces en-GB-oxendict
-  spelling through the pinned `typos` release.
-- `make spelling` refreshes the shared Oxford dictionary when its published
-  source is newer than the ignored local cache, generates `typos.toml`, and
-  checks Markdown prose.
+  spelling.
+- `make spelling` runs the shared `typos-config-builder` gate. It regenerates
+  `typos.toml` from the live shared dictionary and the `typos.local.toml`
+  overlay, then checks Markdown prose, so `typos.toml` is never drift checked
+  in CI.
 - `make nixie` validates Mermaid diagrams.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the

@@ -55,7 +55,6 @@ def _pep723_scripts() -> list[Path]:
 def test_no_pep723_script_ships_the_broken_shebang() -> None:
     """No repository or template script heads a PEP 723 block with the broken form."""
     scripts = _pep723_scripts()
-    assert scripts, "expected at least one PEP 723 script in the repository"
     offenders = [
         path
         for path in scripts

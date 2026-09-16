@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted.
+Accepted. The mechanism is superseded by `typos-config-builder`: the vendored
+generator has been replaced by the shared `gate` command, which regenerates
+`typos.toml` from the live shared dictionary on every run. The policy this
+record decides, a curated estate-wide base merged with a narrow repository
+overlay, is unchanged.
 
 ## Context
 

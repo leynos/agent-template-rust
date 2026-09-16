@@ -62,11 +62,16 @@ full generated workflow locally on Linux.
 
 ## Spelling policy
 
-Markdown uses en-GB-oxendict spelling enforced by the pinned `typos` release.
-The tracked `typos.toml` is generated from the estate-wide shared dictionary
-and the narrow repository overlay in `typos.local.toml`. Run `make spelling` to
-refresh the ignored local shared-base cache when the published source is newer,
-regenerate the tracked configuration, and check maintained prose.
+Markdown uses en-GB-oxendict spelling enforced by the shared
+`typos-config-builder` gate. Run `make spelling`.
+
+`typos.toml` is generated output. The gate regenerates it on every run from the
+live shared estate dictionary and the `typos.local.toml` overlay, so a word
+added to the shared dictionary needs no change here. Because the dictionary is
+live, `typos.toml` must never be drift checked in continuous integration. Add
+narrow repository-specific identifier, API, proper-name, or fixture exceptions
+to `typos.local.toml`; hand-editing `typos.toml` is not supported and any edits
+are overwritten on the next run.
 
 ### Security audit ignores
 
