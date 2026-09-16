@@ -136,8 +136,8 @@ Branch changes have been committed and pushed as recorded below.
 
 The shared `setup-rust` action did not accept a `rustflags` input before
 revision `47b337e4f230b591891656534d4ffad868131740`. The generated workflows
-therefore require that capability-bearing revision until the contract can
-probe the capability independently of its commit SHA.
+therefore require that capability-bearing revision until the contract can probe
+the capability independently of its commit SHA.
 
 CodeRabbit recommended changing GitHub Action pins back to version tags such as
 `actions/checkout@v6.0.2`. That is intentionally not applied because the
@@ -188,9 +188,9 @@ all supported flag-override paths preserve the selected compiler contract.
 Rendered-project tests exercise both choices, and generated documentation
 explains the nightly dependency and borrow-centric design policy.
 
-The shared-action passthrough follow-up moves the release build's redundant
-base `RUSTFLAGS` environment to `setup-rust`, while coverage retains its
-combined override and repeats the selected base flag. Contract coverage now
-protects the setup input, the repeated coverage flags, and the application-only
-release path; developer documentation records why the initial passthrough
-revision is temporarily capability-bound.
+The shared-action passthrough follow-up moves the release build's redundant base
+`RUSTFLAGS` environment to `setup-rust`, while coverage retains its combined
+override and repeats the selected base flag. Contract coverage now protects the
+setup input, the repeated coverage flags, and the application-only release
+path; developer documentation records why the initial passthrough revision is
+temporarily capability-bound.

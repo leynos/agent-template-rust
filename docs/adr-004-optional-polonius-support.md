@@ -29,8 +29,8 @@ surface. Enabled projects require a dated nightly toolchain, and every explicit
 The template now renders the option, pinned toolchain, compiler flags, policy
 guidance, CI and release configuration for the selected state. Parent-template
 contract and compilation tests cover enabled and disabled applications and
-libraries. The implementation and its validation are complete; future
-generated projects retain an explicit opt-out or opt-in as their compatibility
+libraries. The implementation and its validation are complete; future generated
+projects retain an explicit opt-out or opt-in as their compatibility
 requirements change.
 
 ## Risks

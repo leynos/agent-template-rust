@@ -30,10 +30,10 @@ workflow, pass their base compiler flags through the shared `setup-rust`
 action's `rustflags` input. Coverage repeats that base when its explicit
 `RUSTFLAGS` adds the `lld` linker flag because an environment override replaces
 the value supplied during setup. This capability first appears in
-`leynos/shared-actions` revision
-`47b337e4f230b591891656534d4ffad868131740`; using an older revision silently
-drops the input, so the Polonius contract verifies that the changed action
-references use this capability-bearing revision.
+`leynos/shared-actions` revision `47b337e4f230b591891656534d4ffad868131740`;
+using an older revision silently drops the input, so the Polonius contract
+verifies that the changed action references use this capability-bearing
+revision.
 
 ## Generated Lint and Environment Contract
 
