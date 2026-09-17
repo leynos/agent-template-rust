@@ -58,8 +58,9 @@ Each repository retains only `typos.local.toml` for narrow product names,
 upstream terms, and deliberate fixtures. The vendored generator, the rollout
 module, the local `typos` pin, and the pre-generated template `typos.toml` are
 removed. The builder keeps its own untracked dictionary cache at
-`.typos-oxendict-base.toml` and `.typos-oxendict-base.json`, so both `.gitignore`
-files retain those two entries and the generated `make clean` still removes them.
+`.typos-oxendict-base.toml` and `.typos-oxendict-base.json`, so both
+`.gitignore` files retain those two entries and the generated `make clean`
+still removes them.
 
 ## Consequences
 
