@@ -50,17 +50,16 @@ borrow-centric APIs.
 
 Generated CI and coverage workflows, plus the release workflow rendered for
 applications, pass their base compiler flags through the shared `setup-rust`
-action's `rustflags` input. They pass
-`-Zpolonius=next` when Polonius is enabled and retain `-D warnings` otherwise;
-coverage steps then repeat that base alongside their `lld` linker flag when
-they override `RUSTFLAGS`. The pinned shared-action revision must expose this
-input, so dependency updates must preserve the passthrough contract.
+action's `rustflags` input. They pass `-Zpolonius=next` when Polonius is
+enabled and retain `-D warnings` otherwise; coverage steps then repeat that
+base alongside their `lld` linker flag when they override `RUSTFLAGS`. The
+pinned shared-action revision must expose this input, so dependency updates
+must preserve the passthrough contract.
 
-For screen readers: The following flowchart shows how `enable_polonius`
-selects the base Rust flags used by setup and coverage workflows, and by the
-release workflow rendered for applications (library renders omit
-`release.yml`).
-The enabled path uses `-Zpolonius=next`; the disabled path uses `-D warnings`.
+For screen readers: The following flowchart shows how `enable_polonius` selects
+the base Rust flags used by setup and coverage workflows, and by the release
+workflow rendered for applications (library renders omit `release.yml`). The
+enabled path uses `-Zpolonius=next`; the disabled path uses `-D warnings`.
 Coverage adds the `lld` linker flag to either base, while release inherits the
 selected base from `setup-rust` and uses the corresponding nightly or stable
 toolchain.
@@ -101,13 +100,12 @@ tools expect LLVM-compatible linker behaviour.
 ## Validation and Environment Policy
 
 Generated manifests deny `unknown_lints`, `renamed_and_removed_lints`,
-`unsafe_code`, and `missing_docs`. Rustdoc denies
-`missing_crate_level_docs`, `broken_intra_doc_links`,
-`private_intra_doc_links`, `bare_urls`, `invalid_html_tags`,
-`invalid_codeblock_attributes`, and `unescaped_backticks`. Clippy denies
-`missing_assert_message` and uses `disallowed_methods` to reject direct calls
-to process-environment readers, iterators, and mutation functions. Warnings are
-validation failures; these policies are not advisory.
+`unsafe_code`, and `missing_docs`. Rustdoc denies `missing_crate_level_docs`,
+`broken_intra_doc_links`, `private_intra_doc_links`, `bare_urls`,
+`invalid_html_tags`, `invalid_codeblock_attributes`, and `unescaped_backticks`.
+Clippy denies `missing_assert_message` and uses `disallowed_methods` to reject
+direct calls to process-environment readers, iterators, and mutation functions.
+Warnings are validation failures; these policies are not advisory.
 
 Code that depends on environment variables must receive `mockable::Env` (or a
 narrow equivalent closure) as a dependency. The production composition root
@@ -171,7 +169,10 @@ The generated `Makefile` exposes these public targets:
 - `make spelling` runs the shared `typos-config-builder` gate. It regenerates
   `typos.toml` from the live shared dictionary and the `typos.local.toml`
   overlay, then checks Markdown prose, so `typos.toml` is never drift checked
-  in CI.
+  in CI. The gate enumerates its inputs with `git ls-files`, so the project
+  must be a Git repository with its files staged; `make spelling` fails with
+  that instruction when it is not. The first run writes `typos.toml`, which is
+  generated but tracked output: commit it alongside the rest of the project.
 - `make nixie` validates Mermaid diagrams.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
@@ -179,10 +180,10 @@ full generated workflow locally on Linux.
 
 ## Scheduled Mutation Testing
 
-Generated projects include `.github/workflows/mutation-testing.yml`, a scheduled
-GitHub Actions workflow that runs mutation testing with `cargo-mutants`. It is a
-thin caller of the shared `leynos/shared-actions` `mutation-cargo` reusable
-workflow.
+Generated projects include `.github/workflows/mutation-testing.yml`, a
+scheduled GitHub Actions workflow that runs mutation testing with
+`cargo-mutants`. It is a thin caller of the shared `leynos/shared-actions`
+`mutation-cargo` reusable workflow.
 
 Mutation testing measures test-suite quality. It introduces small changes
 (mutants) into the source and confirms the tests fail in response. A surviving

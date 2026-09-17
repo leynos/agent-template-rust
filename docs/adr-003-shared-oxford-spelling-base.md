@@ -2,11 +2,10 @@
 
 ## Status
 
-Accepted. The mechanism is superseded by `typos-config-builder`: the vendored
-generator has been replaced by the shared `gate` command, which regenerates
-`typos.toml` from the live shared dictionary on every run. The policy this
-record decides, a curated estate-wide base merged with a narrow repository
-overlay, is unchanged.
+Accepted. Superseded by [ADR-006](adr-006-shared-typos-config-builder-gate.md),
+which keeps this record's policy but replaces its mechanism. The Decision and
+Consequences below describe the retired vendored generator and are retained as
+history; do not restore them.
 
 ## Context
 

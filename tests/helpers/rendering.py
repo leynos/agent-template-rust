@@ -82,6 +82,11 @@ def stage_generated_repository(project: CopierProject) -> None:
     files staged before ``make spelling``, ``make markdownlint`` or
     ``make all`` can run. Staging here mirrors how a generated project is used
     once it is committed.
+
+    Parameters
+    ----------
+    project : CopierProject
+        Rendered project to initialize and stage.
     """
     for argv in (["git", "init", "--quiet"], ["git", "add", "--all"]):
         subprocess.run(

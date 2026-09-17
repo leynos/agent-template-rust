@@ -85,8 +85,17 @@ def _assert_makefile_contracts(makefile: str) -> None:
     assert "+$(MAKE) spelling" in makefile, (
         "expected generated comprehensive and Markdown gates to enforce spelling"
     )
-    assert "$(TYPOS_CONFIG_BUILDER) gate --repository ." in makefile, (
+    assert "$(TYPOS_CONFIG_BUILDER) gate --repository .\n" in makefile, (
         "expected generated spelling gate to run the shared builder gate"
+    )
+    assert "--scope" not in makefile, (
+        "expected generated spelling gate to use the default Markdown scope"
+    )
+    assert "git rev-parse --is-inside-work-tree" in makefile, (
+        "expected generated spelling gate to require a Git repository"
+    )
+    assert "$$(git ls-files)" in makefile, (
+        "expected generated spelling gate to require staged files"
     )
     assert "scripts/generate_typos_config.py" not in makefile, (
         "expected generated Makefile to drop the retired vendored generator"
