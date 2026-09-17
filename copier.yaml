@@ -17,7 +17,8 @@ _message_after_copy: |
 
   Next steps:
     cd {{ _copier_conf.dst_path }}
-    make all    # Run formatting, linting, and tests
+    git init && git add -A    # The spelling gate enumerates tracked files
+    make all                  # Run formatting, linting, tests, and spelling
 
   Happy coding!
 

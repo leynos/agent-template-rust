@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import shlex
 import shutil
 import subprocess
+from pathlib import Path
 
-from pytest_copier.plugin import CopierFixture
 import pytest
+from pytest_copier.plugin import CopierFixture
 
 from tests.helpers.generated_files import parse_toml_file
 from tests.helpers.rendering import render_project
 from tests.helpers.subprocess_env import generated_project_env
-import shlex
 
 
 def test_clippy_runs(tmp_path: Path, copier: CopierFixture) -> None:

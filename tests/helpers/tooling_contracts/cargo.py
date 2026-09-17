@@ -41,7 +41,7 @@ def _assert_cargo_package_contracts(
             "v{ version }/tooling_example-{ target }{ binary-ext }"
         ), "expected app flavour binstall metadata to include package URL"
         assert binstall.get("pkg-fmt") == "bin", (
-            "expected app flavour binstall metadata to describe binary artifacts"
+            "expected app flavour binstall metadata to describe binary artefacts"
         )
         assert binstall.get("disabled-strategies") == ["quick-install", "compile"], (
             "expected app flavour binstall metadata to disable unsupported strategies"

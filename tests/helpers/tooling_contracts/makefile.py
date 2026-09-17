@@ -75,14 +75,30 @@ def _assert_makefile_contracts(makefile: str) -> None:
     assert "$(WHITAKER) --all -- $(CARGO_FLAGS)" in makefile, (
         "expected generated Makefile lint target to run Whitaker"
     )
-    assert "TYPOS_VERSION ?= 1.48.0" in makefile, (
-        "expected generated Makefile to pin the spelling tool version"
+    assert "TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.1" in makefile, (
+        "expected generated Makefile to pin the shared spelling gate version"
     )
+    assert (
+        "git+https://github.com/leynos/typos-config-builder.git"
+        "@$(TYPOS_CONFIG_BUILDER_VERSION)"
+    ) in makefile, "expected generated Makefile to resolve the gate from the pinned ref"
     assert "+$(MAKE) spelling" in makefile, (
         "expected generated comprehensive and Markdown gates to enforce spelling"
     )
-    assert "uv run scripts/generate_typos_config.py" in makefile, (
-        "expected generated spelling gate to refresh the shared dictionary"
+    assert "$(TYPOS_CONFIG_BUILDER) gate --repository .\n" in makefile, (
+        "expected generated spelling gate to run the shared builder gate"
+    )
+    assert "--scope" not in makefile, (
+        "expected generated spelling gate to use the default Markdown scope"
+    )
+    assert "git rev-parse --is-inside-work-tree" in makefile, (
+        "expected generated spelling gate to require a Git repository"
+    )
+    assert "$$(git ls-files)" in makefile, (
+        "expected generated spelling gate to require staged files"
+    )
+    assert "scripts/generate_typos_config.py" not in makefile, (
+        "expected generated Makefile to drop the retired vendored generator"
     )
     assert 'echo "Whitaker binary: $(WHITAKER)"' in makefile, (
         "expected generated Makefile lint target to log Whitaker resolution"
@@ -133,28 +149,28 @@ def _load_and_parse_makefile_rules(makefile: str) -> dict[str, list[str]]:
     target_names = set(
         re.findall(r"^([a-zA-Z][a-zA-Z_-]*):", makefile, flags=re.MULTILINE)
     )
-    normalised_targets = {
+    normalized_targets = {
         target: target.replace("-", "_") for target in target_names if "-" in target
     }
 
-    def normalise_target(match: re.Match[str]) -> str:
+    def normalize_target(match: re.Match[str]) -> str:
         target = cast("str", match.group(1))
-        return normalised_targets.get(target, target) + ":"
+        return normalized_targets.get(target, target) + ":"
 
-    normalised_makefile = re.sub(
+    normalized_makefile = re.sub(
         r"^([a-zA-Z][a-zA-Z_-]*):",
-        normalise_target,
+        normalize_target,
         makefile.replace("?=", "="),
         flags=re.MULTILINE,
     )
     with tempfile.TemporaryDirectory() as tmp_dir:
         makefile_path = Path(tmp_dir) / "Makefile"
-        makefile_path.write_text(normalised_makefile, encoding="utf-8")
+        makefile_path.write_text(normalized_makefile, encoding="utf-8")
         make_load = import_module("make_parser").make_load
         parsed = cast("dict[str, Any]", make_load(makefile_path))
-    normalised_rules = cast("dict[str, dict[str, list[str]]]", parsed["rules"])
+    normalized_rules = cast("dict[str, dict[str, list[str]]]", parsed["rules"])
     return {
-        target: normalised_rules[normalised_targets.get(target, target)]["commands"]
+        target: normalized_rules[normalized_targets.get(target, target)]["commands"]
         for target in target_names
-        if normalised_targets.get(target, target) in normalised_rules
+        if normalized_targets.get(target, target) in normalized_rules
     }

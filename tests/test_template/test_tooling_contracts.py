@@ -170,12 +170,7 @@ def test_generated_tooling_contracts(
     agents = read_generated_text(project / "AGENTS.md")
     rust_toolchain = read_generated_text(project / "rust-toolchain.toml")
     test_stub = read_generated_text(project / "tests/stub.rs")
-    typos_config = read_generated_text(project / "typos.toml")
     typos_overlay = read_generated_text(project / "typos.local.toml")
-    spelling_generator = read_generated_text(
-        project / "scripts/generate_typos_config.py"
-    )
-    spelling_core = read_generated_text(project / "scripts/typos_rollout.py")
     parsed_ci_workflow = parse_yaml_mapping(ci_workflow, "CI workflow")
 
     release_workflow = (
@@ -224,10 +219,11 @@ def test_generated_tooling_contracts(
         users_guide=users_guide,
         polonius_doc=polonius_doc,
     )
-    assert '[default]\nlocale = "en-gb"' in typos_config
-    assert 'accepted = ["Flavored", "mold", "Polonius"]' in typos_overlay
-    assert "DEFAULT_BASE_URL" in spelling_generator
-    assert "_local_cache_is_current" in spelling_core
+    assert 'accepted = ["mold", "Polonius"]' in typos_overlay
+    assert "`[^`\\n]+`" in typos_overlay, (
+        "expected the overlay to keep the inline-code mask the previous "
+        "dictionary snapshot provided"
+    )
 
 
 @given(case=st.sampled_from(POLONIUS_RENDER_CASES))

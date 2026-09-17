@@ -515,7 +515,7 @@ def _iter_job_steps(jobs: dict[str, Any]) -> list[Any]:
 
 
 def _assert_pinned_step_uses(
-    steps: list[Any], uses_re: "re.Pattern[str]", label: str
+    steps: list[Any], uses_re: re.Pattern[str], label: str
 ) -> None:
     """Assert one workflow step's ``uses:`` fully matches ``uses_re``."""
     assert any(

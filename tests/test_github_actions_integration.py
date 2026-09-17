@@ -19,7 +19,7 @@ RUST_SETUP_LOG_STEP = "Log Rust compiler configuration"
 
 
 def prepare_git_repository(project: CopierProject) -> None:
-    """Initialise a rendered project as a Git repository for act."""
+    """Initialize a rendered project as a Git repository for act."""
     started = time.perf_counter()
     print(f"act phase: git repository preparation started for {project.path}")
     commands = [
@@ -48,7 +48,7 @@ def run_act(project: CopierProject, *, artifact_dir: Path) -> tuple[int, str]:
     started = time.perf_counter()
     phase_logs = [
         f"act phase: setup started for {project.path}",
-        f"act phase: artifact directory {artifact_dir}",
+        f"act phase: artefact directory {artifact_dir}",
     ]
     artifact_dir.mkdir(parents=True, exist_ok=True)
     env = docker_environment()

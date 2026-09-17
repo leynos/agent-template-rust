@@ -435,8 +435,10 @@
       COVERAGE_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) -C link-arg=$(COVERAGE_LINKER_FLAGS)
       MDLINT ?= markdownlint-cli2
       NIXIE ?= nixie
-      TYPOS_VERSION ?= 1.48.0
-      TYPOS := uv tool run typos@$(TYPOS_VERSION)
+      TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.1
+      TYPOS_CONFIG_BUILDER = uv tool run --from \
+      \t"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
+      \ttypos-config-builder
       WHITAKER ?= $(or $(shell command -v whitaker 2>/dev/null),$(wildcard $(USER_WHITAKER)),whitaker)
       
       build: target/debug/$(TARGET) ## Build debug binary
@@ -445,7 +447,7 @@
       all: check-fmt lint test ## Perform a comprehensive check of code
       \t+$(MAKE) spelling
       
-      clean: ## Remove build artifacts
+      clean: ## Remove build artefacts
       \t$(CARGO) clean
       \trm -f .typos-oxendict-base.json .typos-oxendict-base.toml
       
@@ -485,9 +487,15 @@
       \t$(MDLINT) '**/*.md'
       \t+$(MAKE) spelling
       spelling: ## Enforce en-GB-oxendict spelling in Markdown prose
-      \tuv run scripts/generate_typos_config.py
-      \tfind . -type f -name '*.md' -not -path './target/*' -print0 | \
-      \t\txargs -0 $(TYPOS) --config typos.toml --force-exclude
+      \t@if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+      \t\techo "make spelling needs a Git repository: the gate enumerates tracked files with git ls-files. Run: git init && git add -A" >&2; \
+      \t\texit 1; \
+      \tfi
+      \t@if [ -z "$$(git ls-files)" ]; then \
+      \t\techo "make spelling found no tracked files: the gate enumerates tracked files with git ls-files. Run: git add -A" >&2; \
+      \t\texit 1; \
+      \tfi
+      \t$(TYPOS_CONFIG_BUILDER) gate --repository .
       
       nixie: ## Validate Mermaid diagrams
       \t$(NIXIE) --no-sandbox
