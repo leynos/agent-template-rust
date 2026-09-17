@@ -27,16 +27,16 @@ The repository Makefile exposes the expected entrypoint:
 make test
 ```
 
-Markdown spelling is enforced separately with the pinned `typos` release:
+Spelling is enforced separately by the shared `typos-config-builder` gate:
 
 ```sh
 make spelling
 ```
 
-The tracked `typos.toml` is generated from the estate-wide shared dictionary and
-`typos.local.toml`. Add only narrow product-name, upstream-term, or fixture
-exceptions to the local overlay, then regenerate with
-`uv run scripts/generate_typos_config.py`.
+The gate regenerates `typos.toml` from the live shared dictionary and the
+`typos.local.toml` overlay on every run, so `typos.toml` is never drift checked
+in CI. Add only narrow product-name, upstream-term, or fixture exceptions to
+`typos.local.toml`; never edit generated entries by hand.
 
 That target currently runs:
 

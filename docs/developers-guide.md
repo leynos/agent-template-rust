@@ -30,10 +30,10 @@ workflow, pass their base compiler flags through the shared `setup-rust`
 action's `rustflags` input. Coverage repeats that base when its explicit
 `RUSTFLAGS` adds the `lld` linker flag because an environment override replaces
 the value supplied during setup. This capability first appears in
-`leynos/shared-actions` revision
-`47b337e4f230b591891656534d4ffad868131740`; using an older revision silently
-drops the input, so the Polonius contract verifies that the changed action
-references use this capability-bearing revision.
+`leynos/shared-actions` revision `47b337e4f230b591891656534d4ffad868131740`;
+using an older revision silently drops the input, so the Polonius contract
+verifies that the changed action references use this capability-bearing
+revision.
 
 ## Generated Lint and Environment Contract
 
@@ -83,20 +83,31 @@ The parent gates run Ruff and mypy over the `tests/` tree; install `uv` so
 ## Shared Oxford Spelling Gate
 
 Both the template repository and rendered projects enforce en-GB-oxendict
-Markdown spelling with `typos` 1.48.0. The tracked `typos.toml` is generated;
-never edit its entries manually. Put a verified product name, upstream term, or
-repository-specific correction in `typos.local.toml`, then run:
+spelling through the shared `typos-config-builder` gate, pinned by
+`TYPOS_CONFIG_BUILDER_VERSION` in each Makefile. Run it with:
 
 ```sh
-uv run scripts/generate_typos_config.py
+make spelling
 ```
 
-The generator collects the shared dictionary from `leynos/agent-helper-scripts`
-into the ignored local cache only when the remote source is newer. It validates
-and atomically replaces that cache, retains a newer local copy, and supports
-offline reuse once populated. `make spelling` regenerates the tracked
-configuration before checking maintained Markdown and rendered Markdown
-templates.
+The gate regenerates `typos.toml` on every run from the live shared estate
+dictionary and the `typos.local.toml` overlay, then runs its own pinned Typos
+release and the shared phrase corrections. A word added to the shared
+dictionary therefore needs no change here, and `typos.toml` must never be drift
+checked in continuous integration.
+
+`typos.toml` is generated output; never edit its entries manually. Put a
+verified product name, upstream term, or repository-specific correction in
+`typos.local.toml`. The parent gate uses `--scope all` because it must also
+cover `*.md.jinja` template sources, which the default Markdown scope skips;
+the generated project gate uses the default Markdown scope.
+
+The gate enumerates its inputs with `git ls-files`, so a rendered project must
+be a Git repository with its files staged before any spelling gate can check
+anything. The generated `make spelling` rule fails with that instruction when
+the project is not yet initialized or staged.
+[ADR-006](adr-006-shared-typos-config-builder-gate.md) records this decision
+and supersedes [ADR-003](adr-003-shared-oxford-spelling-base.md).
 
 Generated audit coverage is tested without network access by replacing Cargo
 with a fake executable. The regression verifies that `make rust-audit` derives

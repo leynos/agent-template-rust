@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from pytest_copier.plugin import CopierFixture, CopierProject
@@ -68,7 +69,33 @@ def render_project(
     if license_year is not None:
         answers["license_year"] = license_year
 
-    return copier.copy(tmp_path, **answers)
+    project = copier.copy(tmp_path, **answers)
+    stage_generated_repository(project)
+    return project
+
+
+def stage_generated_repository(project: CopierProject) -> None:
+    """Initialize and stage the rendered project as a Git repository.
+
+    The generated spelling gate enumerates tracked files through
+    ``git ls-files``, so a rendered project must be a Git repository with its
+    files staged before ``make spelling``, ``make markdownlint`` or
+    ``make all`` can run. Staging here mirrors how a generated project is used
+    once it is committed.
+
+    Parameters
+    ----------
+    project : CopierProject
+        Rendered project to initialize and stage.
+    """
+    for argv in (["git", "init", "--quiet"], ["git", "add", "--all"]):
+        subprocess.run(
+            argv,
+            cwd=project.path,
+            check=True,
+            capture_output=True,
+            timeout=120,
+        )
 
 
 def run_quality_gates(project: CopierProject) -> None:

@@ -6,13 +6,35 @@ schema = 1
 stems = []
 
 [words]
-accepted = ["Flavored", "mold", "Polonius"]
+accepted = ["mold", "Polonius"]
 
 [words.corrections]
 
 [patterns]
 ignore = [
-  'Center \| Microsoft Learn',
+  # Inline code spans were masked by the previous dictionary snapshot; kept
+  # until the shared dictionary rules on it.
+  '`[^`\n]+`',
+  # GitHub Actions and act name the build-output feature "artifact". The
+  # action references, the upload directory, the step names that pair with
+  # them, the act flag, and the test identifiers built from them are upstream
+  # tokens, not prose.
+  'actions/(?:upload|download)-artifact',
+  '(?:upload|download)-artifact action',
+  '_UPLOAD_ARTIFACT_USES_RE',
+  '--artifact-server-path',
+  'artifact_dir',
+  'rust-artifacts-',
+  'artifacts?/',
+  "'?path'?: '?artifacts'?",
+  "'?name'?: '(?:Prepare|Upload release) artifact'",
+  '- name: (?:Prepare|Upload release) artifact',
+  # Quoted verbatim from act's own validation output.
+  'Provided artifact name input during validation is empty',
+  # Cargo's own environment variable.
+  'CARGO_TERM_COLOR',
+  # GitHub's pull_request event activity type.
+  'types: \[[^]]*labeled[^]]*\]',
 ]
 
 [files]
