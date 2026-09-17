@@ -25,7 +25,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@8add2d99854a5b77548eae98cca59202e68fefc8
+        uses: leynos/shared-actions/.github/actions/setup-rust@ee58fd34a2d01b7a5059d710119b264cf2f048a4
       - name: Install mold linker
         if: runner.os == 'Linux'
         run: |
