@@ -144,7 +144,6 @@
             dict({
               'uses': 'actions/checkout@<sha>',
               'with': dict({
-                'fetch-depth': 0,
                 'persist-credentials': False,
               }),
             }),
@@ -286,6 +285,7 @@
               'with': dict({
                 'format': 'lcov',
                 'output-path': 'lcov.info',
+                'publish-artefact': 'false',
                 'with-ratchet': 'true',
               }),
             }),
@@ -305,6 +305,10 @@
       }),
     }),
     'coverage_main_workflow': dict({
+      'concurrency': dict({
+        'cancel-in-progress': False,
+        'group': 'coverage-main-${{ github.ref }}',
+      }),
       'jobs': dict({
         'coverage-upload': dict({
           'env': dict({
@@ -381,16 +385,18 @@
               }),
             }),
             dict({
-              'env': dict({
-                'CS_ACCESS_TOKEN': '${{ secrets.CS_ACCESS_TOKEN }}',
-              }),
-              'if': "env.CS_ACCESS_TOKEN != ''",
+              'id': 'codescene_token',
+              'name': 'Check CodeScene token availability',
+              'run': 'echo "available=${{ secrets.CS_ACCESS_TOKEN != \'\' }}" >> "$GITHUB_OUTPUT"',
+            }),
+            dict({
+              'if': "steps.codescene_token.outputs.available == 'true' && github.ref == 'refs/heads/main'",
               'name': 'Upload coverage data to CodeScene',
               'uses': 'leynos/shared-actions/.github/actions/upload-codescene-coverage@<sha>',
               'with': dict({
-                'access-token': '${{ env.CS_ACCESS_TOKEN }}',
+                'access-token': '${{ secrets.CS_ACCESS_TOKEN }}',
                 'format': 'lcov',
-                'installer-checksum': '${{ vars.CODESCENE_CLI_SHA256 }}',
+                'mode': 'upload',
               }),
             }),
           ]),

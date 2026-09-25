@@ -27,12 +27,6 @@ metadata used in the generated `Cargo.toml`:
 - `license_year` sets the copyright year in `LICENSE`.
 - `dev_target` selects the target-specific Linux linker block generated in
   `.cargo/config.toml`.
-- `codescene_project_id` is the CodeScene project id for the coverage gate. It
-  defaults to empty, and every CodeScene step degrades gracefully while it is
-  unset: the guarded upload in `coverage-main.yml` skips without a token, and
-  the pull-request workflow leaves the changed-line `mode: check` gate deferred
-  in a documented comment. Fill it in (and set the `CS_ACCESS_TOKEN` secret)
-  once the repository is onboarded to CodeScene.
 
 ## Generated Tooling
 
@@ -55,6 +49,20 @@ enabled and retain `-D warnings` otherwise; coverage steps then repeat that
 base alongside their `lld` linker flag when they override `RUSTFLAGS`. The
 pinned shared-action revision must expose this input, so dependency updates
 must preserve the passthrough contract.
+
+CodeScene coverage belongs to `main`. The generated `ci.yml` measures coverage
+on pull requests for its own ratchet and never receives the CodeScene token or
+contacts CodeScene. `coverage-main.yml` runs on pushes to `main` and on
+dispatch, advances the ratchet baseline, and is the only CodeScene caller. A
+`Check CodeScene token availability` step (id `codescene_token`) runs exactly
+`echo "available=${{ secrets.CS_ACCESS_TOKEN != '' }}" >> "$GITHUB_OUTPUT"`;
+the upload runs only when that output is `true` and `github.ref` is
+`refs/heads/main`, and takes the token as its `access-token` input, so no `env`
+ever holds it. Until the repository has a `CS_ACCESS_TOKEN` secret the upload
+skips cleanly. Publisher runs share the concurrency group
+`coverage-main-${{ github.ref }}` and never cancel one another. A merge made by
+the Dependabot automerge workflow's `GITHUB_TOKEN` fires no push event, so it
+publishes nothing until a dispatch or the next push to `main`.
 
 For screen readers: The following flowchart shows how `enable_polonius` selects
 the base Rust flags used by setup and coverage workflows, and by the release

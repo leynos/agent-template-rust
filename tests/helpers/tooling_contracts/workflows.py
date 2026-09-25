@@ -16,6 +16,10 @@ from tests.helpers.generated_files import (
     require_mapping,
     require_sequence,
 )
+from tests.helpers.tooling_contracts.codescene_publisher import (
+    assert_ci_workflow_reaches_no_codescene,
+    assert_codescene_publisher_contract,
+)
 
 _GENERATE_COVERAGE_USES_RE = re.compile(
     r"^leynos/shared-actions/\.github/actions/generate-coverage@[0-9a-f]{40}$"
@@ -217,9 +221,10 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
     ------
     AssertionError
         Raised when the workflow does not trigger on push to main and
-        ``workflow_dispatch``, omits the pinned shared coverage action, fails
-        to guard the CodeScene upload on ``CS_ACCESS_TOKEN``, or drops the
-        ratchet baseline that pull-request runs compare against.
+        ``workflow_dispatch``, omits the pinned shared coverage action, drops
+        the ratchet baseline that pull-request runs compare against, or
+        breaks the CodeScene token, guard or queue shape held by
+        ``assert_codescene_publisher_contract``.
     pytest.fail.Exception
         Raised by YAML parsing helpers when the workflow cannot be parsed as
         the expected mapping structure.
@@ -263,9 +268,7 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
         "expected coverage-main.yml to use the shared upload action pinned "
         f"to a full 40-hex commit SHA, got {upload_uses!r}"
     )
-    assert upload_steps[0].get("if") == "env.CS_ACCESS_TOKEN != ''", (
-        "expected coverage-main.yml upload to skip cleanly without a token"
-    )
+    assert_codescene_publisher_contract(parsed)
 
 
 def _assert_ci_workflow_contracts(
@@ -369,11 +372,10 @@ def _assert_ci_workflow_contracts(
     ]
     assert build_test_checkout, "expected generated CI build-test checkout step"
     assert all(
-        step.get("with", {}).get("fetch-depth") == 0 for step in build_test_checkout
+        "fetch-depth" not in step.get("with", {}) for step in build_test_checkout
     ), (
-        "expected generated CI coverage checkout to fetch full history "
-        "(fetch-depth: 0) so CodeScene's changed-line gate can reach the "
-        "merge base once the deferred gate is wired"
+        "expected generated CI checkout to keep the default shallow fetch; the "
+        "full history existed only for the retired CodeScene changed-line gate"
     )
     upload_steps = [
         step
@@ -383,13 +385,9 @@ def _assert_ci_workflow_contracts(
     ]
     assert not upload_steps, (
         "expected the generated pull-request CI job to omit the CodeScene "
-        "upload step; uploads belong in coverage-main.yml, and mode: check "
-        "awaits per-project gate enablement"
+        "upload step; coverage-main.yml is the only CodeScene caller"
     )
-    assert "Deferred CodeScene coverage gate" in ci_workflow, (
-        "expected generated CI workflow to document the deferred CodeScene "
-        "coverage gate"
-    )
+    assert_ci_workflow_reaches_no_codescene(ci_workflow)
     assert "cargo-nextest" in ci_workflow, (
         "expected generated CI workflow to install cargo-nextest"
     )

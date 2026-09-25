@@ -30,8 +30,10 @@ The template requires **Copier 9.0** or later to avoid incompatibilities.
 - **Starter code** providing either a binary entry point or a library
   function depending on flavour【F:template/src/{% if flavour == APP
   %}main.rs{% else %}lib.rs{% endif %}.jinja†L1-L10】.
-- **GitHub CI workflow** that formats, lints, tests, and uploads
-  coverage metrics to CodeScene【F:template/.github/workflows/ci.yml†L1-L35】.
+- **GitHub CI workflow** that formats, lints, tests, and holds pull requests
+  to a coverage ratchet【F:template/.github/workflows/ci.yml†L1-L35】, with
+  main's coverage uploaded to CodeScene by a separate push-to-main publisher
+  【F:template/.github/workflows/coverage-main.yml.jinja†L1-L40】.
 - **Release workflow** for cross-platform binaries when the app flavour is used
   【F:template/.github/workflows/{% if flavour == APP %}release.yml{% endif
   %}.jinja†L1-L114】.
@@ -98,7 +100,13 @@ flowchart LR
         CI --> CILint[make lint]
         CI --> Coverage[generate-coverage action]
         Coverage --> Lcov[lcov.info]
-        Lcov --> CodeScene[upload CodeScene coverage]
+        Lcov --> Ratchet[coverage ratchet]
+    end
+
+    subgraph Main_Coverage[Generated .github/workflows/coverage-main.yml]
+        Publisher[coverage-upload job on main]
+        Publisher --> Baseline[ratchet baseline]
+        Publisher --> CodeScene[upload CodeScene coverage]
     end
 
     subgraph Audit_Target[make audit]
