@@ -2,8 +2,9 @@
 
 The generated ``coverage-main.yml`` is the only CodeScene caller. Its upload
 is ``upload-codescene-coverage``, a composite action whose nested steps
-inherit the calling step's ``env``, so the token is bound in no ``env`` at
-all. A check step publishes only whether the token exists, the upload's guard
+inherit the calling step's ``env``, so the generated workflow binds the token
+in no ``env`` of its own; the action binds its ``access-token`` input for its
+own nested steps. A check step publishes only whether the token exists, the upload's guard
 reads that output beside the main-ref guard, and the upload takes the token
 directly as its ``access-token`` input.
 
@@ -59,8 +60,9 @@ def _located_strings(value: object, path: str) -> cabc.Iterator[tuple[str, str]]
         case dict():
             for key, item in value.items():
                 child = f"{path}.{key}" if path else str(key)
-                if isinstance(key, str):
-                    yield child, key
+                # A key names its own entry; a non-string key, such as the
+                # boolean PyYAML makes of `on`, yields nothing.
+                yield from _located_strings(key, child)
                 yield from _located_strings(item, child)
         case list():
             for index, item in enumerate(value):
@@ -101,10 +103,31 @@ def _is_upload(step: dict[str, Any]) -> bool:
     return "upload-codescene-coverage" in str(step.get("uses", ""))
 
 
+def _mapping_steps(workflow: dict[str, Any], job: str) -> list[dict[str, Any]]:
+    """Return the mapping-shaped steps of ``job``, failing when it has none."""
+    match workflow:
+        case {"jobs": {**jobs}} if job in jobs:
+            match jobs[job]:
+                case {"steps": [*steps]}:
+                    return [step for step in steps if _is_mapping(step)]
+                case other:
+                    raise AssertionError(f"expected {job} to list steps, got {other!r}")
+        case _:
+            raise AssertionError(f"expected the workflow to declare job {job!r}")
+
+
+def _is_mapping(value: object) -> bool:
+    """Return whether a parsed YAML value is a mapping."""
+    match value:
+        case dict():
+            return True
+        case _:
+            return False
+
+
 def _publisher_steps(workflow: dict[str, Any]) -> list[dict[str, Any]]:
     """Return the mapping-shaped steps of the ``coverage-upload`` job."""
-    job = workflow["jobs"]["coverage-upload"]
-    return [step for step in job.get("steps", []) if isinstance(step, dict)]
+    return _mapping_steps(workflow, "coverage-upload")
 
 
 def assert_check_step(workflow: dict[str, Any]) -> None:
@@ -129,8 +152,11 @@ def assert_upload_step(workflow: dict[str, Any]) -> None:
     condition = str(upload.get("if", ""))
     assert "||" not in condition, f"expected no disjunction in {condition!r}"
     conjuncts = [part.strip() for part in condition.split("&&")]
-    for required in (AVAILABLE_CONJUNCT, MAIN_REF_CONJUNCT):
-        assert required in conjuncts, f"expected {required!r} in {condition!r}"
+    # Exactly these two, in either order: a further conjunct such as `false`
+    # could make the upload unreachable while both required ones stay present.
+    assert sorted(conjuncts) == sorted([AVAILABLE_CONJUNCT, MAIN_REF_CONJUNCT]), (
+        f"expected exactly the availability and main-ref conjuncts, got {condition!r}"
+    )
     inputs = upload.get("with") or {}
     assert inputs.get("access-token") == UPLOAD_CREDENTIAL_INPUT, inputs
     assert inputs.get("mode") == "upload", inputs
@@ -207,9 +233,8 @@ def _coverage_step(workflow: dict[str, Any], job: str) -> dict[str, Any]:
     """Return the one shared ``generate-coverage`` step in ``job``."""
     steps = [
         step
-        for step in workflow["jobs"][job].get("steps", [])
-        if isinstance(step, dict)
-        and "/.github/actions/generate-coverage@" in str(step.get("uses", ""))
+        for step in _mapping_steps(workflow, job)
+        if "/.github/actions/generate-coverage@" in str(step.get("uses", ""))
     ]
     assert len(steps) == 1, f"expected one coverage step in {job}, found {len(steps)}"
     return steps[0]

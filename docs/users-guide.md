@@ -57,9 +57,10 @@ dispatch, advances the ratchet baseline, and is the only CodeScene caller. A
 `Check CodeScene token availability` step (id `codescene_token`) runs exactly
 `echo "available=${{ secrets.CS_ACCESS_TOKEN != '' }}" >> "$GITHUB_OUTPUT"`;
 the upload runs only when that output is `true` and `github.ref` is
-`refs/heads/main`, and takes the token as its `access-token` input, so no `env`
-ever holds it. Until the repository has a `CS_ACCESS_TOKEN` secret the upload
-skips cleanly. Publisher runs share the concurrency group
+`refs/heads/main`, and takes the token as its `access-token` input, so the
+generated workflow binds it in no `env` of its own; the action binds that input
+for its own nested steps. Until the repository has a `CS_ACCESS_TOKEN` secret
+the upload skips cleanly. Publisher runs share the concurrency group
 `coverage-main-${{ github.ref }}` and never cancel one another. A merge made by
 the Dependabot automerge workflow's `GITHUB_TOKEN` fires no push event, so it
 publishes nothing until a dispatch or the next push to `main`.
