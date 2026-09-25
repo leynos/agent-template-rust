@@ -197,6 +197,23 @@ assert the first revision that supplies the required input and explain the
 boundary beside the test. Remove that exact-pin assertion once the capability
 can be tested without coupling routine Dependabot updates to a literal SHA.
 
+Generated CodeScene coverage follows the estate's main-owned shape. The
+generated `ci.yml` measures coverage for its own ratchet and names no CodeScene
+token, host or command, even in a comment. The generated `coverage-main.yml` is
+the only CodeScene caller: an exact `Check CodeScene token availability` step,
+an upload guarded on exactly its output and `github.ref == 'refs/heads/main'`,
+the token passed only as the action's `access-token` input, no
+`installer-checksum`, and the concurrency group
+`coverage-main-${{ github.ref }}` with `cancel-in-progress: false`. Both lanes
+call `generate-coverage` at one revision, so the pull-request ratchet reads the
+baseline the publisher writes.
+`tests/helpers/tooling_contracts/codescene_publisher.py` holds that shape, and
+`tests/test_template/test_codescene_publisher.py` applies it to lib and app
+renders, with and without Polonius, without building them, so a template change
+that breaks it fails in seconds. `setup-rust` stays on the rustflags
+passthrough revision that the Polonius contract pins exactly, the narrow
+exception described above.
+
 ## Test Helper Layout
 
 Reusable test support lives under `tests/helpers/`:
@@ -209,8 +226,8 @@ Reusable test support lives under `tests/helpers/`:
 - `tests/helpers/generated_files.py` centralizes generated text, TOML, and YAML
   parsing with pytest failure messages.
 - `tests/helpers/tooling_contracts/` contains generated Makefile, Cargo,
-  documentation, CI, release, coverage-action, and mutation-testing contract
-  assertions.
+  documentation, CI, release, coverage-action, CodeScene publisher, and
+  mutation-testing contract assertions.
 - `tests/conftest.py` provides the session-scoped `act_ready` fixture, which
   skips act-dependent tests unless `RUN_ACT_VALIDATION=1` is set and at least
   one container runtime is reachable.
