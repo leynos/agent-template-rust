@@ -27,7 +27,7 @@ and applies the shared phrase corrections that Typos cannot express.
 Both the template repository and generated projects run one command:
 
 ```make
-TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.2
+TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.3
 TYPOS_CONFIG_BUILDER = uv tool run --from \
 	"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
 	typos-config-builder

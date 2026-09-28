@@ -34,7 +34,7 @@ def test_parent_makefile_pins_the_shared_gate_and_drops_the_vendored_generator()
     """The parent Makefile resolves the gate from a pinned builder tag."""
     makefile = (REPOSITORY_ROOT / "Makefile").read_text(encoding="utf-8")
 
-    assert "TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.2" in makefile, (
+    assert "TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.3" in makefile, (
         "expected the parent Makefile to pin the shared spelling gate version"
     )
     assert (
