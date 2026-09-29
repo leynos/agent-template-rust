@@ -75,7 +75,7 @@ def _assert_makefile_contracts(makefile: str) -> None:
     assert "$(WHITAKER) --all -- $(CARGO_FLAGS)" in makefile, (
         "expected generated Makefile lint target to run Whitaker"
     )
-    assert "TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.1" in makefile, (
+    assert "TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.3" in makefile, (
         "expected generated Makefile to pin the shared spelling gate version"
     )
     assert (

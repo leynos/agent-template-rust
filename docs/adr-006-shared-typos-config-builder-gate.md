@@ -71,3 +71,10 @@ still removes them.
   unreachable.
 - `typos.toml` is generated on every run, so a freshly rendered project produces
   it on first gate run and commits it thereafter.
+
+## Addendum, 2026-09-29: pin raised to v0.1.3
+
+The Decision above records the pin as accepted on 2026-09-17. The pin has since
+moved to `v0.1.3`, the release that ships the canonical `AGENTS.md` spelling
+block. The mechanism, the command, and the scope rules are unchanged; only
+`TYPOS_CONFIG_BUILDER_VERSION` in each `Makefile` differs.
