@@ -35,6 +35,16 @@ using an older revision silently drops the input, so the Polonius contract
 verifies that the changed action references use this capability-bearing
 revision.
 
+The parent CI workflows run on GitHub-hosted runners, where the shared
+`setup-rust` action gives sccache a local-disk directory under `runner.temp`,
+restored with `actions/cache` on every event and saved only on a push to
+`main`. Both parent workflows set `expect-cache: any`, so a job takes whichever
+cache backend the runner offers. `ci.yml` runs on pushes to `main` as well as
+pull requests, so its `build-test` job writes the lane that later pull requests
+restore; the default per-job discriminator is therefore enough. The test
+`test_parent_workflows_accept_any_sccache_backend` asserts the input on every
+`setup-rust` step in both parent workflows without naming a revision.
+
 ## Generated Lint and Environment Contract
 
 The template treats warnings as failures across generated compilation, tests,
