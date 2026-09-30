@@ -19,7 +19,6 @@ jobs:
       ACT_VERSION: v0.2.80
       CARGO_TERM_COLOR: always
       BUILD_PROFILE: debug
-      WHITAKER_INSTALLER_REV: 764d5a3199fa2999ae979255e467c9d96fd65780
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -48,28 +47,9 @@ jobs:
           uv tool install mbake
       - name: Check Docker runtime
         run: docker info
-      - name: Cache Whitaker installation
-        id: cache-whitaker
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: |
-            ~/.cargo/bin/whitaker-installer
-            ~/.local/bin/whitaker
-            ~/.dylint_drivers
-            ~/.local/share/whitaker
-          key: whitaker-v2-${{ runner.os }}-${{ env.WHITAKER_INSTALLER_REV }}
       - name: Install Whitaker
-        run: |
-          set -euo pipefail
-          echo "Whitaker cache hit: ${{ steps.cache-whitaker.outputs.cache-hit }}"
-          if [ "${{ steps.cache-whitaker.outputs.cache-hit }}" != "true" ]; then
-            echo "Installing Whitaker installer at ${WHITAKER_INSTALLER_REV}"
-            cargo install --locked \
-              --git https://github.com/leynos/whitaker \
-              --rev "${WHITAKER_INSTALLER_REV}" \
-              whitaker-installer
-          fi
-          whitaker-installer --cranelift
-          echo "Whitaker binary: $(command -v whitaker || true)"
+        uses: leynos/shared-actions/.github/actions/install-whitaker@6dea5677a84fec60ca51b07202570e3af12ffdb4
+        with:
+          cranelift: true
       - name: Test with act validation
         run: make test WITH_ACT=1
