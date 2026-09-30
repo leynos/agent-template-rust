@@ -20,7 +20,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@9a27950942334d69ff79005b3a8db23bf151f43f
+        uses: leynos/shared-actions/.github/actions/setup-rust@c856f4c570e8d83d64318ee2768a4906d0d807f6
         with:
           expect-cache: any
       - name: Install mold linker
