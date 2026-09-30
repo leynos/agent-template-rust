@@ -52,6 +52,8 @@ jobs:
         with:
           globs: '**/*.md'
       - name: Install template test tools
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           cargo binstall --no-confirm --locked cargo-nextest

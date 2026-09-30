@@ -38,6 +38,8 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@bcf05803b55ef01a5ec6368521ee1b42f97bc438
       - name: Install template test tools
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           curl -fsSL "https://github.com/nektos/act/releases/download/${ACT_VERSION}/act_Linux_x86_64.tar.gz" |
