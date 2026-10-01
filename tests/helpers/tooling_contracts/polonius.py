@@ -237,6 +237,8 @@ def assert_polonius_toolchain_contracts(
     rust_toolchain: str,
     ci_workflow: str,
     coverage_main_workflow: str,
+    audit_workflow: str,
+    act_validation_workflow: str,
     release_workflow: str | None,
     agents: str,
     readme: str,
@@ -264,6 +266,10 @@ def assert_polonius_toolchain_contracts(
         Rendered Continuous Integration workflow.
     coverage_main_workflow : str
         Rendered main-branch coverage workflow.
+    audit_workflow : str
+        Rendered scheduled dependency audit workflow.
+    act_validation_workflow : str
+        Rendered act-validation workflow.
     release_workflow : str | None
         Rendered release workflow, or ``None`` when the project has none.
     agents : str
@@ -297,6 +303,10 @@ def assert_polonius_toolchain_contracts(
     _assert_shared_action_passthrough_revision(ci_workflow, "CI workflow")
     _assert_shared_action_passthrough_revision(
         coverage_main_workflow, "coverage-main workflow"
+    )
+    _assert_shared_action_passthrough_revision(audit_workflow, "audit workflow")
+    _assert_shared_action_passthrough_revision(
+        act_validation_workflow, "act-validation workflow"
     )
     _assert_coverage_workflow(ci_workflow, "build-test", enabled=enabled)
     _assert_coverage_workflow(
