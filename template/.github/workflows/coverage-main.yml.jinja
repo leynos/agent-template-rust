@@ -42,7 +42,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@47b337e4f230b591891656534d4ffad868131740
+        uses: leynos/shared-actions/.github/actions/setup-rust@438ad8a99a3580e753189c47391a1652c5f46ed4
         with:
           rustflags: {% endraw %}{% if enable_polonius %}-Zpolonius=next{% else %}-D warnings{% endif %}{% raw %}
       - name: Log Rust compiler configuration
