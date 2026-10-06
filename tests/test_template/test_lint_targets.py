@@ -11,7 +11,7 @@ import pytest
 from pytest_copier.plugin import CopierFixture
 
 from tests.helpers.generated_files import parse_toml_file
-from tests.helpers.rendering import render_project
+from tests.helpers.rendering import ensure_build_tools, render_project
 from tests.helpers.subprocess_env import generated_project_env
 
 
@@ -23,6 +23,7 @@ def test_clippy_runs(tmp_path: Path, copier: CopierFixture) -> None:
         project_name="ClippyExample",
         package_name="clippy_example",
     )
+    ensure_build_tools(project)
     project.run("make lint")
 
 
@@ -124,6 +125,7 @@ def test_make_lint_rejects_environment_policy_violations(
     make = shutil.which("make")
     assert make is not None, "expected make to be available for generated tests"
 
+    ensure_build_tools(project)
     result = subprocess.run(
         [make, "lint"],
         cwd=project.path,
@@ -204,6 +206,7 @@ def test_make_lint_rejects_rust_and_rustdoc_policy_violations(
     make = shutil.which("make")
     assert make is not None, "expected make to be available for generated tests"
 
+    ensure_build_tools(project)
     result = subprocess.run(
         [make, "lint"],
         cwd=project.path,
@@ -245,6 +248,8 @@ def test_makefile_resolves_whitaker_fallback(
     assert bash is not None, "expected bash to be available for generated tests"
     for bin_dir in (path_bin, tool_bin):
         (bin_dir / "bash").symlink_to(bash)
+        (bin_dir / "env").symlink_to("/usr/bin/env")
+        (bin_dir / "uname").symlink_to("/usr/bin/uname")
     cargo.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     cargo.chmod(0o755)
 
@@ -270,6 +275,10 @@ def test_makefile_resolves_whitaker_fallback(
                 "HOME": str(home),
                 "PATH": str(path_bin if whitaker_location == "path" else tool_bin),
                 "CARGO": str(cargo),
+                "CHECK_BUILD_TOOLS": "/bin/true",
+                "BUILD_HOST_OS": "Darwin",
+                "BUILD_HOST_ARCH": "arm64",
+                "BUILD_HOST_TRIPLE": "aarch64-apple-darwin",
             }
         ),
         check=False,

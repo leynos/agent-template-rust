@@ -48,7 +48,7 @@ jobs:
       - uses: leynos/shared-actions/.github/actions/setup-rust@47b337e4f230b591891656534d4ffad868131740
         with:
           toolchain: {% endraw %}{% if enable_polonius %}nightly-{{ rust_nightly_date }}{% else %}stable{% endif %}{% raw %}
-          rustflags: {% endraw %}{% if enable_polonius %}-Zpolonius=next{% else %}-D warnings{% endif %}{% raw %}
+          rustflags: {% endraw %}-D warnings{% if enable_polonius %} -Zpolonius=next{% endif %}{% raw %}
       - name: Log Rust compiler configuration
         run: |-
           rustc --version
@@ -64,6 +64,8 @@ jobs:
           # Clear repository build flags from .cargo/config.toml (mold linker
           # and Cranelift codegen-backend) before installing cross from CROSS_REVISION.
           RUSTFLAGS: ""
+          CARGO_PROFILE_DEV_CODEGEN_BACKEND: llvm
+          CARGO_PROFILE_RELEASE_CODEGEN_BACKEND: llvm
         run: |
           if [ -x "$HOME/.cargo/bin/cross" ]; then
             exit 0
@@ -81,6 +83,9 @@ jobs:
       - name: Build release binary
         # Select the generated project's supported compiler explicitly and
         # omit repository-local linker and Cranelift configuration.
+        env:
+          CARGO_PROFILE_DEV_CODEGEN_BACKEND: llvm
+          CARGO_PROFILE_RELEASE_CODEGEN_BACKEND: llvm
         run: cross +{% endraw %}{% if enable_polonius %}nightly-{{ rust_nightly_date }}{% else %}stable{% endif %}{% raw %} build --release --target ${{ matrix.target }}
       - name: Prepare artifact
         run: |

@@ -100,9 +100,23 @@ def stage_generated_repository(project: CopierProject) -> None:
 
 def run_quality_gates(project: CopierProject) -> None:
     """Run the rendered project's public quality gate."""
+    ensure_build_tools(project)
     project.run("make all")
 
 
 def read_generated_file(project: CopierProject, relative_path: str) -> str:
     """Read a rendered project file as UTF-8 text."""
     return read_generated_text(project / relative_path)
+
+
+def ensure_build_tools(project: CopierProject) -> None:
+    """Install generated-project prerequisites only when preflight fails."""
+    ready = subprocess.run(
+        ["make", "check-build-tools"],
+        cwd=project.path,
+        check=False,
+        capture_output=True,
+        timeout=120,
+    )
+    if ready.returncode:
+        project.run("make install-build-tools")

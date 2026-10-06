@@ -25,15 +25,17 @@ Makefiles with `mbake`, and parse generated Cargo and workflow configuration.
 The Polonius contract checks every `RUSTFLAGS` override, including Linux mold
 linking, LLVM coverage, and cross-platform application releases.
 
-Generated CI and coverage workflows, plus the application-only release
-workflow, pass their base compiler flags through the shared `setup-rust`
-action's `rustflags` input. Coverage repeats that base when its explicit
-`RUSTFLAGS` adds the `lld` linker flag because an environment override replaces
-the value supplied during setup. This capability first appears in
-`leynos/shared-actions` revision `47b337e4f230b591891656534d4ffad868131740`;
-using an older revision silently drops the input, so the Polonius contract
-verifies that the changed action references use this capability-bearing
-revision.
+Generated CI and coverage workflows leave the shared `setup-rust` action's
+`rustflags` input empty, preserving Cargo's configured development flags.
+Coverage selects LLVM and explicit warning, borrow-checker, and lld flags.
+Application releases select LLVM with production flags. The passthrough input
+first appears at revision `47b337e4f230b591891656534d4ffad868131740`; the
+existing narrow capability-boundary assertion remains in place.
+
+Real compiler tests call `ensure_build_tools` before generated public gates. It
+checks prerequisites and runs `make install-build-tools` only when needed.
+Install rustup, clang, lld, mdtablefix 0.6.0, markdownlint-cli2, Whitaker, and
+mbake first. Render-only and controlled-command tests need no Rust compiler.
 
 The parent CI workflows run on GitHub-hosted runners, where the shared
 `setup-rust` action gives sccache a local-disk directory under `runner.temp`,
@@ -151,8 +153,8 @@ workflow, and assert black-box evidence for Rust test execution.
 
 Parent CI keeps Act validation in `.github/workflows/act-validation.yml`. The
 main `.github/workflows/ci.yml` workflow runs ordinary `make test` without
-`WITH_ACT=1` so the slower container-backed checks run in parallel instead of
-blocking the main test and coverage path.
+`WITH_ACT=1`. The separate workflow starts only on manual dispatch; hosted
+tests and coverage remain the ordinary pull-request gate.
 
 The template also renders `.github/workflows/mutation-testing.yml` into
 generated projects; its rendered contract is asserted by

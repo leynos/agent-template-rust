@@ -59,7 +59,7 @@ def _assert_cargo_config_contracts(
     assert 'codegen-backend = "cranelift"' in cargo_config, (
         "expected generated cargo config to enable Cranelift"
     )
-    if "linux" in dev_target:
+    if dev_target == "x86_64-unknown-linux-gnu":
         assert f"[target.{dev_target}]" in cargo_config, (
             "expected generated cargo config to include Linux target settings"
         )

@@ -60,7 +60,7 @@ def _assert_setup_rust_rustflags(
     """Assert setup-rust receives the selected Polonius configuration."""
     setup = _setup_rust_step(workflow, job_name)
     setup_inputs = require_mapping(setup, "with", f"{job_name} setup-rust step")
-    expected = POLONIUS_FLAG if enabled else "-D warnings"
+    expected = ""
     actual = setup_inputs.get("rustflags")
     assert actual == expected, (
         f"expected {job_name} setup-rust rustflags to be {expected!r}, got {actual!r}"
@@ -89,7 +89,7 @@ def _assert_cargo_config(cargo_config: str, *, enabled: bool, dev_target: str) -
     assert (POLONIUS_FLAG in rustdoc_flags) is enabled, (
         "expected build.rustdocflags Polonius state to match the Copier answer"
     )
-    if "linux" not in dev_target:
+    if dev_target != "x86_64-unknown-linux-gnu":
         return
     target_flags = config["target"][dev_target]["rustflags"]
     assert (POLONIUS_FLAG in target_flags) is enabled, (
@@ -109,7 +109,7 @@ def _assert_makefile(makefile: str, *, enabled: bool, dev_target: str) -> None:
         "-C link-arg=$(COVERAGE_LINKER_FLAGS)"
     ) in makefile
     assert (
-        "DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_LINKER_FLAGS)"
+        "DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_THREADS_FLAGS) $(DEV_LINKER_FLAGS)"
         in makefile
     )
     assert "RUSTDOC_FLAGS ?=" in makefile
@@ -121,15 +121,16 @@ def _assert_makefile(makefile: str, *, enabled: bool, dev_target: str) -> None:
     linker_default = next(
         line for line in makefile.splitlines() if line.startswith("DEV_LINKER_FLAGS ?=")
     )
-    if "linux" in dev_target:
-        assert "$(filter Linux,$(shell uname -s))" in linker_default
+    if dev_target == "x86_64-unknown-linux-gnu":
+        assert "$(filter Linux,$(BUILD_HOST_OS))" in linker_default
         assert "-fuse-ld=mold" in linker_default
     else:
         assert linker_default == "DEV_LINKER_FLAGS ?="
     compile_lines = [
         line
         for line in makefile.splitlines()
-        if "RUSTFLAGS=" in line and ("$(CARGO)" in line or "$(WHITAKER)" in line)
+        if re.search(r"(?<!_)RUSTFLAGS=", line)
+        and ("$(CARGO)" in line or "$(WHITAKER)" in line)
     ]
     assert compile_lines, "expected generated compile recipes to set RUSTFLAGS"
     assert all(
@@ -158,7 +159,7 @@ def _assert_coverage_workflow(workflow: str, job_name: str, *, enabled: bool) ->
     coverage_step = _named_step(workflow, job_name, "Test and Measure Coverage")
     env = require_mapping(coverage_step, "env", "coverage step")
     actual = str(env.get("RUSTFLAGS", ""))
-    base_flags = POLONIUS_FLAG if enabled else "-D warnings"
+    base_flags = f"-D warnings {POLONIUS_FLAG}" if enabled else "-D warnings"
     expected = f"{base_flags} -C link-arg=-fuse-ld=lld"
     assert actual == expected, (
         f"expected {job_name} coverage RUSTFLAGS to be {expected!r}, got {actual!r}"
@@ -208,7 +209,7 @@ def _assert_release_workflow(
     actual_command = str(build.get("run", ""))
     actual_env = build.get("env")
     expected_toolchain = configured_toolchain if enabled else "stable"
-    expected_rustflags = POLONIUS_FLAG if enabled else "-D warnings"
+    expected_rustflags = f"-D warnings {POLONIUS_FLAG}" if enabled else "-D warnings"
     expected_command = f"cross +{expected_toolchain} build"
     assert actual_toolchain == expected_toolchain, (
         f"expected release build toolchain to be {expected_toolchain!r}, "
@@ -222,9 +223,10 @@ def _assert_release_workflow(
         f"expected release build command to contain {expected_command!r}, "
         f"got {actual_command!r}"
     )
-    assert "env" not in build, (
-        f"expected release build env to be absent, got {actual_env!r}"
-    )
+    assert actual_env == {
+        "CARGO_PROFILE_DEV_CODEGEN_BACKEND": "llvm",
+        "CARGO_PROFILE_RELEASE_CODEGEN_BACKEND": "llvm",
+    }, f"expected release build env to select LLVM, got {actual_env!r}"
     _assert_rust_setup_log(release_workflow, "build")
 
 

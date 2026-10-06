@@ -40,8 +40,8 @@ def _assert_makefile_contracts(makefile: str) -> None:
     assert "$(CARGO) $(TEST_CMD)" in makefile, (
         "expected generated Makefile test target to use the selected test command"
     )
-    assert "test: export RUSTFLAGS := $(DEV_RUST_FLAGS)" in makefile, (
-        "expected generated Makefile test target to export Rust flags once"
+    assert 'RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(DEV_RUST_FLAGS)"' in makefile, (
+        "expected generated Makefile test target to preserve caller flags and restate development defaults"
     )
     assert "RUSTDOC_FLAGS ?=" in makefile, (
         "expected generated Makefile to preserve inherited Rustdoc flags"
@@ -57,12 +57,12 @@ def _assert_makefile_contracts(makefile: str) -> None:
         "expected generated Makefile test target to run doctests with Rustdoc flags"
     )
     assert (
-        'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" '
+        'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(DEV_RUST_FLAGS)" '
         "$(CARGO) doc --no-deps"
     ) in makefile, "expected generated Makefile lint target to deny Rustdoc warnings"
-    assert "coverage: ## Generate lcov coverage with lld" in makefile, (
-        "expected generated Makefile to include an lld-backed coverage target"
-    )
+    assert (
+        "coverage: check-coverage-tools ## Generate lcov coverage with lld" in makefile
+    ), "expected generated Makefile to include an lld-backed coverage target"
     assert "COVERAGE_LINKER_FLAGS ?= -fuse-ld=lld" in makefile, (
         "expected generated Makefile coverage target to select lld"
     )

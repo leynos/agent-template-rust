@@ -1,8 +1,8 @@
 # Repository layout
 
-This document describes the generated {{ project_name }} repository layout. It
-is the canonical reference for where source code, tests, configuration,
-automation, and long-lived documentation belong.
+This document describes the generated repository layout. It is the canonical
+reference for where source code, tests, configuration, automation, and
+long-lived documentation belong.
 
 ## Top-level tree
 
@@ -17,7 +17,9 @@ compact and omits build output such as `target/`.
 │   ├── dependabot.yml
 │   └── workflows/
 │       ├── act-validation.yml
+│       ├── audit.yml
 │       ├── ci.yml
+│       ├── coverage-main.yml
 │       ├── mutation-testing.yml
 {% if flavour == 'app' %}
 │       └── release.yml
@@ -29,8 +31,16 @@ compact and omits build output such as `target/`.
 │   ├── polonius.md
 {% endif %}
 │   ├── repository-layout.md
+│   ├── rstest-bdd-users-guide.md
 │   ├── users-guide.md
-│   └── ...
+│   └── …
+├── scripts/
+│   ├── build-tools-common.sh
+│   ├── check-build-tools.sh
+│   ├── install-build-tools.sh
+│   └── native-clang-linker.sh
+├── tools/
+│   └── mold/
 ├── src/
 {% if flavour == 'app' %}
 │   ├── lib.rs
@@ -106,6 +116,9 @@ compact and omits build output such as `target/`.
 - `codecov.yml`: Configures coverage reporting behaviour.
 - `rust-toolchain.toml`: Pins the Rust toolchain channel and required
   components.
+- `scripts/`: Holds build-tool installation, capability checks, and the native
+  Clang linker wrapper.
+- `tools/mold/`: Records the linker version and archive checksum.
 
 ## Ownership boundaries
 

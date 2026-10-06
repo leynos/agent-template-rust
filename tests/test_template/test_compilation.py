@@ -8,7 +8,7 @@ import pytest
 from pytest_copier.plugin import CopierFixture
 
 from tests.helpers.generated_files import read_generated_text
-from tests.helpers.rendering import APP, LIB, render_project
+from tests.helpers.rendering import APP, LIB, ensure_build_tools, render_project
 
 
 @pytest.mark.parametrize("flavour", [LIB, APP])
@@ -21,6 +21,7 @@ def test_template_compiles(tmp_path: Path, copier: CopierFixture, flavour: str) 
         package_name="compile_example",
         flavour=flavour,
     )
+    ensure_build_tools(project)
     project.run("cargo check --all-targets --all-features")
 
 
@@ -68,6 +69,7 @@ edition = "2024"
         encoding="utf-8",
     )
 
+    ensure_build_tools(project)
     project.run(
         'RUSTFLAGS="-D warnings" cargo test --manifest-path '
         "documented-environment-injection/Cargo.toml --all-targets --all-features"
@@ -105,6 +107,7 @@ pub fn get_or_insert<'values>(
         encoding="utf-8",
     )
 
+    ensure_build_tools(project)
     project.run("make typecheck")
 
 

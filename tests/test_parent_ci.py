@@ -14,7 +14,7 @@ def test_parent_ci_runs_template_tests_without_act_enabled() -> None:
     """Validate parent main CI keeps act validation separate."""
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
-    assert "ACT_VERSION: v0.2.80" not in workflow, (
+    assert "ACT_VERSION: v0.2.89" not in workflow, (
         "expected parent main CI not to pin the act release"
     )
     assert "act_Linux_x86_64.tar.gz" not in workflow, (
@@ -38,7 +38,9 @@ def test_parent_act_validation_runs_template_tests_with_act_enabled() -> None:
     """Validate parent act workflow runs the act-enabled parent test gate."""
     workflow = Path(".github/workflows/act-validation.yml").read_text(encoding="utf-8")
 
-    assert "ACT_VERSION: v0.2.80" in workflow, (
+    parsed = yaml.safe_load(workflow)
+    assert set(parsed["on"]) == {"workflow_dispatch"}
+    assert "ACT_VERSION: v0.2.89" in workflow, (
         "expected parent act workflow to pin the act release used for workflow tests"
     )
     assert "act_Linux_x86_64.tar.gz" in workflow, (
