@@ -46,18 +46,17 @@ def test_rendered_agents_requires_injected_environment_and_diagnostics(
             "Clippy warnings MUST be disallowed",
             (
                 'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
-                'RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps'
+                'RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(DEV_RUST_FLAGS)" cargo doc --no-deps'
             ),
             "cargo clippy --workspace --all-targets --all-features -- -D warnings",
             (
-                'RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- '
-                "--all-targets --all-features"
+                '$(WHITAKER_CLEAN_ENV) DYLINT_RUSTFLAGS="$(RUST_FLAGS) $(POLONIUS_FLAGS)" '
+                "$(WHITAKER) --all -- $(CARGO_FLAGS)"
             ),
             (
                 "TEST_CMD := $(if $(shell $(CARGO) nextest --version "
                 "2>/dev/null),nextest run,test)"
             ),
-            "test: export RUSTFLAGS := $(DEV_RUST_FLAGS)",
             "$(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)",
             (
                 'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc '

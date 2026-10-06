@@ -304,9 +304,10 @@ def _assert_ci_workflow_contracts(
         and step["with"].get("persist-credentials") is False
         for step in act_steps
     ), "expected generated act-validation job checkout to disable credentials"
-    assert "ACT_VERSION: v0.2.80" in act_workflow, (
-        "expected generated act-validation workflow to pin the act release"
-    )
+    assert re.fullmatch(
+        r"v[0-9]+\.[0-9]+\.[0-9]+",
+        str(act_validation.get("env", {}).get("ACT_VERSION", "")),
+    ), "expected generated act-validation workflow to pin the act release"
     assert "act_Linux_x86_64.tar.gz" in act_workflow, (
         "expected generated act-validation workflow to install the act Linux binary"
     )
@@ -342,7 +343,6 @@ def _assert_ci_workflow_contracts(
     rust_tool_install_step_names = [
         "Install test runner",
         "Install cargo-audit",
-        "Install Whitaker",
     ]
     for step_name in rust_tool_install_step_names:
         matching_steps = [
@@ -358,9 +358,18 @@ def _assert_ci_workflow_contracts(
             f"expected generated CI {step_name} step to clear inherited RUSTFLAGS"
         )
 
-    assert "Cache Whitaker installation" in ci_workflow, (
-        "expected generated CI workflow to cache Whitaker installation"
+    whitaker = [
+        step
+        for step in steps
+        if isinstance(step, dict) and step.get("name") == "Install Whitaker"
+    ]
+    assert len(whitaker) == 1, "expected one shared Whitaker installer"
+    assert _is_pinned_action(
+        str(whitaker[0].get("uses", "")),
+        "leynos/shared-actions/.github/actions/install-whitaker",
     )
+    assert whitaker[0].get("with", {}).get("cranelift") == "true"
+    assert "Cache Whitaker installation" not in ci_workflow
     _assert_pinned_step_uses(
         steps, _SETUP_RUST_USES_RE, "generated CI shared setup-rust action"
     )
@@ -409,9 +418,6 @@ def _assert_ci_workflow_contracts(
     assert "run: make spelling" in ci_workflow, (
         "expected generated CI workflow to run the pinned spelling gate"
     )
-    assert "coverage uses lld for llvm-tools compatibility" in ci_workflow, (
-        "expected generated CI workflow to document mold and lld roles"
-    )
     assert "clang lld mold" in ci_workflow, (
         "expected generated CI workflow to install clang, lld, and mold"
     )
@@ -423,15 +429,6 @@ def _assert_ci_workflow_contracts(
     )
     assert "LDFLAGS: -fuse-ld=lld" in ci_workflow, (
         "expected generated CI workflow coverage to set LDFLAGS for lld"
-    )
-    assert "Whitaker cache hit:" in ci_workflow, (
-        "expected generated CI workflow to log Whitaker cache status"
-    )
-    assert "Installing whitaker-installer" in ci_workflow, (
-        "expected generated CI workflow to log Whitaker installation"
-    )
-    assert "Whitaker binary:" in ci_workflow, (
-        "expected generated CI workflow to log Whitaker binary resolution"
     )
     assert "Log coverage linker configuration" in ci_workflow, (
         "expected generated CI workflow to log coverage linker configuration"

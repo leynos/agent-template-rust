@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from pytest_copier.plugin import CopierFixture
 
-from tests.helpers.rendering import APP, LIB, render_project
+from tests.helpers.rendering import APP, LIB, ensure_build_tools, render_project
 
 
 @pytest.mark.parametrize("flavour", [LIB, APP])
@@ -42,6 +42,7 @@ pub fn doctest_regression_marker() {}
     make = shutil.which("make")
     assert make is not None, "expected make to be available for generated tests"
 
+    ensure_build_tools(project)
     result = subprocess.run(
         [make, "test"],
         cwd=project.path,

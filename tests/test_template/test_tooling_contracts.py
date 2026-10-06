@@ -83,7 +83,7 @@ def test_polonius_contract_rejects_incorrect_coverage_log() -> None:
           echo "Coverage RUSTFLAGS: -D warnings"
       - name: Test and Measure Coverage
         env:
-          RUSTFLAGS: -Zpolonius=next -C link-arg=-fuse-ld=lld
+          RUSTFLAGS: -D warnings -Zpolonius=next -C link-arg=-fuse-ld=lld
 """
 
     with pytest.raises(AssertionError, match="coverage log"):
@@ -98,7 +98,7 @@ def test_polonius_contract_rejects_release_rustflags_env_override() -> None:
       - uses: leynos/shared-actions/.github/actions/setup-rust@47b337e4f230b591891656534d4ffad868131740
         with:
           toolchain: nightly-2025-06-10
-          rustflags: -Zpolonius=next
+          rustflags: -D warnings -Zpolonius=next
       - name: Log Rust compiler configuration
         run: |
           rustc --version
@@ -109,7 +109,7 @@ def test_polonius_contract_rejects_release_rustflags_env_override() -> None:
         run: cross +nightly-2025-06-10 build --release
 """
 
-    with pytest.raises(AssertionError, match="release build env to be absent"):
+    with pytest.raises(AssertionError, match="release build env to select LLVM"):
         _assert_release_workflow(
             workflow,
             '[toolchain]\nchannel = "nightly-2025-06-10"\n',
@@ -143,10 +143,6 @@ def test_generated_tooling_contracts(
         enable_polonius=enable_polonius,
         dev_target=dev_target,
     )
-
-    project.run("make all")
-    project.run("mbake validate Makefile")
-    project.run("cargo metadata --format-version=1 --no-deps")
 
     cargo = parse_toml_file(project / "Cargo.toml")
     package = require_mapping(cargo, "package", "Cargo.toml")

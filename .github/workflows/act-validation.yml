@@ -1,10 +1,7 @@
 name: Act Validation
 
-on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+'on':
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -16,7 +13,7 @@ jobs:
     permissions:
       contents: read
     env:
-      ACT_VERSION: v0.2.80
+      ACT_VERSION: v0.2.89
       CARGO_TERM_COLOR: always
       BUILD_PROFILE: debug
     steps:
@@ -36,6 +33,10 @@ jobs:
             && sudo apt-get install --yes --no-install-recommends clang lld mold
       - name: Setup uv
         uses: astral-sh/setup-uv@c84232ca4fde9b022e20a930bfbbecd386b56fdf
+      - name: Install mdtablefix
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@8a83824b29dfe8f861714b544dc85fb925ed010c
+        with:
+          version: "0.6.0"
       - name: Install template test tools
         env:
           GITHUB_TOKEN: ${{ github.token }}

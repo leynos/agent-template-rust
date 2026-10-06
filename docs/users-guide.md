@@ -25,8 +25,8 @@ metadata used in the generated `Cargo.toml`:
 - `package_categories` becomes `[package].categories`.
 - `rust_nightly_date` selects the pinned nightly toolchain date.
 - `license_year` sets the copyright year in `LICENSE`.
-- `dev_target` selects the target-specific Linux linker block generated in
-  `.cargo/config.toml`.
+- `dev_target` selects the development target; only native x86_64 GNU Linux
+  enables the verified mold linker block in `.cargo/config.toml`.
 
 ## Generated Tooling
 
@@ -42,13 +42,12 @@ rustflags instead of merging them with `[build].rustflags`. The generated
 project also includes `docs/polonius.md` and matching `AGENTS.md` guidance for
 borrow-centric APIs.
 
-Generated CI and coverage workflows, plus the release workflow rendered for
-applications, pass their base compiler flags through the shared `setup-rust`
-action's `rustflags` input. They pass `-Zpolonius=next` when Polonius is
-enabled and retain `-D warnings` otherwise; coverage steps then repeat that
-base alongside their `lld` linker flag when they override `RUSTFLAGS`. The
-pinned shared-action revision must expose this input, so dependency updates
-must preserve the passthrough contract.
+Generated CI and coverage workflows pass an empty `rustflags` input to
+`setup-rust`, leaving Cargo's development configuration active. Make gates
+retain inherited flags and add warning denial, the parallel frontend, and the
+selected borrow checker. Coverage uses explicit warning and optional borrow
+checker flags with LLVM and lld. Application release workflows use production
+flags and LLVM. The shared-action pin must preserve its passthrough capability.
 
 CodeScene coverage belongs to `main`. The generated `ci.yml` measures coverage
 on pull requests for its own ratchet and never receives the CodeScene token or
@@ -67,46 +66,14 @@ publishes nothing until a dispatch or the next push to `main`. Existing
 projects should follow the [0.3.0 migration guide](migrations/0.3.0.md) to
 adopt this shape.
 
-For screen readers: The following flowchart shows how `enable_polonius` selects
-the base Rust flags used by setup and coverage workflows, and by the release
-workflow rendered for applications (library renders omit `release.yml`). The
-enabled path uses `-Zpolonius=next`; the disabled path uses `-D warnings`.
-Coverage adds the `lld` linker flag to either base, while release inherits the
-selected base from `setup-rust` and uses the corresponding nightly or stable
-toolchain.
-
-```mermaid
-flowchart TD
-  start([Workflow start])
-
-  start --> enable_polonius
-
-  enable_polonius{enable_polonius}
-  enable_polonius -->|true| setup_rust_polonius
-  enable_polonius -->|false| setup_rust_warnings
-
-  setup_rust_polonius["Setup Rust (setup-rust)\nwith rustflags = -Zpolonius=next"]
-  setup_rust_warnings["Setup Rust (setup-rust)\nwith rustflags = -D warnings"]
-
-  setup_rust_polonius --> coverage_polonius
-  setup_rust_polonius --> release_polonius
-  setup_rust_warnings --> coverage_warnings
-  setup_rust_warnings --> release_warnings
-
-  coverage_polonius["Test and Measure Coverage (generate-coverage)\nRUSTFLAGS includes -Zpolonius=next and -C link-arg=-fuse-ld=lld"]
-  coverage_warnings["Test and Measure Coverage (generate-coverage)\nRUSTFLAGS includes -D warnings and -C link-arg=-fuse-ld=lld"]
-
-  release_polonius["Build release binary (cross)\nuses nightly toolchain with -Zpolonius=next from setup-rust"]
-  release_warnings["Build release binary (cross)\nuses stable toolchain with -D warnings from setup-rust"]
-```
-
-_Figure 1: Rust flag selection and propagation through generated setup and
-coverage workflows, and the application-only release workflow._
-
-Development builds use Cranelift for debug code generation. On Linux targets,
-`.cargo/config.toml` configures clang to link with `mold` so local debug builds
-link quickly. Coverage generation uses `lld` instead because LLVM coverage
-tools expect LLVM-compatible linker behaviour.
+Development builds use Cranelift and the parallel compiler frontend. The
+supported native x86_64 GNU Linux target uses a Clang wrapper and verified mold
+2.41.0. Other development targets retain their platform linker. Run
+`make install-build-tools` to install the pinned nightly and verified linker;
+`make check-build-tools` reports missing or incompatible prerequisites.
+`make release` and `make package` select LLVM without development flags.
+Coverage uses LLVM and lld. Existing projects can follow the
+[build-standard migration guide](migrations/peregrine-build-standard.md).
 
 ## Validation and Environment Policy
 
@@ -158,7 +125,7 @@ doctest therefore fails the command.
 The generated `Makefile` exposes these public targets:
 
 - `make all` runs formatting checks, linting, tests, and spelling checks.
-- `make check-fmt` verifies Rust formatting.
+- `make check-fmt` verifies Rust and Markdown formatting.
 - `make fmt` formats Rust and Markdown sources.
 - `make lint` builds documentation, then runs Clippy and Whitaker, with every
   warning denied.
@@ -167,7 +134,8 @@ The generated `Makefile` exposes these public targets:
   falls back to `cargo test` otherwise. It denies warnings in normal tests and
   in the separate all-feature workspace doctest run.
 - `make build` builds the debug target.
-- `make release` builds the release target.
+- `make release` builds the production release target.
+- `make package` builds and verifies a publishable Cargo archive.
 - `make coverage` writes `lcov.info` using `cargo llvm-cov` and `lld`.
 - `make audit` derives the Rust workspace root with `cargo metadata` and runs
   `cargo audit` once from that root. Generated CI skips this gate for
@@ -186,8 +154,9 @@ The generated `Makefile` exposes these public targets:
   generated but tracked output: commit it alongside the rest of the project.
 - `make nixie` validates Mermaid diagrams.
 
-Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
-full generated workflow locally on Linux.
+Install `clang`, `lld`, `python3`, and `cargo-audit`, then run
+`make install-build-tools` before running the full generated workflow locally
+on Linux.
 
 ## Scheduled Mutation Testing
 

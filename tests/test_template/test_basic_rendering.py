@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from pytest_copier.plugin import CopierFixture
 
-from tests.helpers.rendering import APP, LIB, render_project
+from tests.helpers.rendering import APP, LIB, ensure_build_tools, render_project
 
 
 def test_template_rejects_unsafe_nightly_date(
@@ -47,6 +47,7 @@ def test_template_renders(tmp_path: Path, copier: CopierFixture) -> None:
     assert (project / "src" / f"{LIB}.rs").exists(), (
         f"expected src/{LIB}.rs to exist in generated project"
     )
+    ensure_build_tools(project)
     project.run("make all")
 
 
@@ -74,6 +75,7 @@ def test_template_renders_app_flavour(tmp_path: Path, copier: CopierFixture) -> 
     assert (project / "docs/polonius.md").exists(), (
         "expected app flavour to document default Polonius support"
     )
+    ensure_build_tools(project)
     project.run("make all")
 
 
@@ -98,4 +100,5 @@ def test_template_renders_lib_flavour(tmp_path: Path, copier: CopierFixture) -> 
     assert not (project / "docs/polonius.md").exists(), (
         "expected lib flavour to omit Polonius policy by default"
     )
+    ensure_build_tools(project)
     project.run("make all")
