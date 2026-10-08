@@ -90,9 +90,9 @@ The parent gates run Ruff and mypy over the `tests/` tree; install `uv` so
 - `make typecheck` runs `mypy` with the pytest dependency stubs and
   `types-PyYAML`.
 
-`make fmt` and `make check-fmt` run `mdtablefix` (version 0.6.0, the same
+`make fmt` and `make check-fmt` run `mdtablefix` (version 0.6.1, the same
 release CI installs); install it once with
-`cargo install --locked mdtablefix --version 0.6.0`. `make fmt` also runs
+`cargo install --locked mdtablefix --version 0.6.1`. `make fmt` also runs
 `markdownlint-cli2`, which CI provides through its GitHub action; locally
 install it with `bun install -g markdownlint-cli2` (or `npm install -g`).
 
