@@ -30,7 +30,7 @@ jobs:
           sudo apt-get update \
             && sudo apt-get install --yes --no-install-recommends clang lld mold
       - name: Setup uv
-        uses: astral-sh/setup-uv@c84232ca4fde9b022e20a930bfbbecd386b56fdf
+        uses: astral-sh/setup-uv@b06acff4b6a41bdd9cdac56507ead0bd7734e757
       - name: Check spelling
         run: make spelling
       - name: Install mdtablefix
