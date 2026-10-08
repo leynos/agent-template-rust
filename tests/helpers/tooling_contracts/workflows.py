@@ -271,6 +271,46 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
     assert_codescene_publisher_contract(parsed)
 
 
+def assert_setup_rust_revision_consistency(
+    workflows: dict[str, str | None],
+) -> None:
+    """Assert rendered setup-rust consumers all use one pinned revision.
+
+    ``None`` values represent workflows that are not generated for a project
+    flavour, such as the app-only release workflow in a library project.
+    """
+    revisions: dict[str, str] = {}
+    for workflow_name, workflow_text in workflows.items():
+        if workflow_text is None:
+            continue
+        parsed = parse_yaml_mapping(workflow_text, workflow_name)
+        jobs = require_mapping(parsed, "jobs", f"{workflow_name} workflow")
+        references = [
+            str(step.get("uses", ""))
+            for step in _iter_job_steps(jobs)
+            if isinstance(step, dict)
+            and str(step.get("uses", "")).startswith(
+                "leynos/shared-actions/.github/actions/setup-rust@"
+            )
+        ]
+        assert len(references) == 1, (
+            f"expected exactly one setup-rust reference in {workflow_name}, "
+            f"got {references!r}"
+        )
+        reference = references[0]
+        assert _SETUP_RUST_USES_RE.fullmatch(reference), (
+            f"expected {workflow_name} setup-rust reference to use a full "
+            f"40-hex commit SHA, got {reference!r}"
+        )
+        revisions[workflow_name] = reference
+
+    assert revisions, "expected at least one rendered setup-rust consumer"
+    assert len(set(revisions.values())) == 1, (
+        "expected rendered setup-rust consumers to use one shared revision, "
+        f"got {revisions!r}"
+    )
+
+
 def _assert_ci_workflow_contracts(
     parsed_ci_workflow: dict[str, Any],
     ci_workflow: str,

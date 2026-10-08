@@ -22,6 +22,7 @@ from tests.helpers.tooling_contracts import (
     assert_coverage_main_workflow_contract,
     assert_generated_tooling_contracts,
     assert_polonius_toolchain_contracts,
+    assert_setup_rust_revision_consistency,
 )
 from tests.helpers.tooling_contracts.polonius import (
     _assert_coverage_workflow,
@@ -45,7 +46,10 @@ POLONIUS_RENDER_CASES = tuple(
 
 def test_polonius_contract_rejects_stale_shared_action_revision() -> None:
     """Reject a shared action revision without the rustflags passthrough."""
-    workflow = "uses: leynos/shared-actions/.github/actions/setup-rust@" + "0" * 40
+    workflow = (
+        "uses: leynos/shared-actions/.github/actions/setup-rust@"
+        "47b337e4f230b591891656534d4ffad868131740"
+    )
 
     with pytest.raises(AssertionError, match="rustflags passthrough revision"):
         _assert_shared_action_passthrough_revision(workflow, "CI workflow")
@@ -53,7 +57,7 @@ def test_polonius_contract_rejects_stale_shared_action_revision() -> None:
 
 def test_polonius_contract_allows_independent_shared_action_revision() -> None:
     """Allow unrelated shared actions to advance independently."""
-    workflow = """uses: leynos/shared-actions/.github/actions/setup-rust@47b337e4f230b591891656534d4ffad868131740
+    workflow = """uses: leynos/shared-actions/.github/actions/setup-rust@438ad8a99a3580e753189c47391a1652c5f46ed4
 uses: leynos/shared-actions/.github/actions/generate-coverage@0000000000000000000000000000000000000000
 """
 
@@ -178,6 +182,15 @@ def test_generated_tooling_contracts(
         if flavour == APP
         else None
     )
+    assert_setup_rust_revision_consistency(
+        {
+            "CI workflow": ci_workflow,
+            "coverage-main workflow": coverage_main_workflow,
+            "audit workflow": audit_workflow,
+            "act-validation workflow": act_workflow,
+            "release workflow": release_workflow,
+        }
+    )
     polonius_path = project / "docs/polonius.md"
     polonius_doc = (
         read_generated_text(polonius_path) if polonius_path.exists() else None
@@ -210,6 +223,8 @@ def test_generated_tooling_contracts(
         rust_toolchain=rust_toolchain,
         ci_workflow=ci_workflow,
         coverage_main_workflow=coverage_main_workflow,
+        audit_workflow=audit_workflow,
+        act_validation_workflow=act_workflow,
         release_workflow=release_workflow,
         agents=agents,
         readme=readme,
@@ -261,6 +276,10 @@ def test_polonius_flag_invariant_across_rendered_configuration_space(
         ci_workflow=read_generated_text(project / ".github/workflows/ci.yml"),
         coverage_main_workflow=read_generated_text(
             project / ".github/workflows/coverage-main.yml"
+        ),
+        audit_workflow=read_generated_text(project / ".github/workflows/audit.yml"),
+        act_validation_workflow=read_generated_text(
+            project / ".github/workflows/act-validation.yml"
         ),
         release_workflow=(
             read_generated_text(release_path) if release_path.exists() else None
