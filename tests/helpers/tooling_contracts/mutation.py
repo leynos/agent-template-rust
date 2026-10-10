@@ -18,7 +18,7 @@ from tests.helpers.generated_files import (
 )
 
 _MUTATION_JOB_PERMISSIONS = {"contents": "read", "id-token": "write"}
-_MUTATION_SETUP_PACKAGES = ("clang", "lld", "mold")
+_MUTATION_LINKER_INPUTS = ("install-mold", "install-clang-lld")
 _MUTATION_REUSABLE_WORKFLOW = (
     "leynos/shared-actions/.github/workflows/mutation-cargo.yml"
 )
@@ -220,15 +220,12 @@ def _assert_mutation_workflow_contracts(mutation_workflow: str) -> None:
     assert inputs.get("extra-args") == "--all-features", (
         "expected mutation job to mirror the CI --all-features test baseline"
     )
-    setup_commands = inputs.get("setup-commands")
-    assert isinstance(setup_commands, str), (
-        "expected mutation job setup-commands to be a string"
-    )
-    installed_packages = _extract_apt_install_packages(setup_commands)
-    assert installed_packages, (
-        "expected mutation job setup-commands to install packages via apt-get"
-    )
-    for package in _MUTATION_SETUP_PACKAGES:
-        assert package in installed_packages, (
-            f"expected mutation job setup-commands apt-get install to include {package}"
+    for linker_input in _MUTATION_LINKER_INPUTS:
+        assert inputs.get(linker_input) == "true", (
+            f"expected mutation job to set {linker_input}: 'true', so setup-rust "
+            "installs the linkers that .cargo/config.toml selects"
         )
+    assert "setup-commands" not in inputs, (
+        "expected mutation job to provision linkers through the install inputs, "
+        "not an apt-get setup-commands script"
+    )

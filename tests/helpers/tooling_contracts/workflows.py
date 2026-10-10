@@ -412,8 +412,14 @@ def _assert_ci_workflow_contracts(
     assert "coverage uses lld for llvm-tools compatibility" in ci_workflow, (
         "expected generated CI workflow to document mold and lld roles"
     )
-    assert "clang lld mold" in ci_workflow, (
-        "expected generated CI workflow to install clang, lld, and mold"
+    assert "install-mold: 'true'" in ci_workflow, (
+        "expected generated CI workflow to install mold through setup-rust"
+    )
+    assert "install-clang-lld: 'true'" in ci_workflow, (
+        "expected generated CI workflow to install clang and lld through setup-rust"
+    )
+    assert "apt-get" not in ci_workflow, (
+        "expected generated CI workflow to have no hand-rolled apt-get step"
     )
     assert "fuse-ld=lld" in ci_workflow, (
         "expected generated CI workflow coverage to use lld linker flags"

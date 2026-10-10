@@ -24,16 +24,11 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@0606ca899ce2995a0c4bc78e660e80832e6e8855
+        uses: leynos/shared-actions/.github/actions/setup-rust@b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea
         with:
           expect-cache: any
-      - name: Install mold linker
-        if: runner.os == 'Linux'
-        run: |
-          set -euo pipefail
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update \
-            && sudo apt-get install --yes --no-install-recommends clang lld mold
+          install-mold: 'true'
+          install-clang-lld: 'true'
       - name: Setup uv
         uses: astral-sh/setup-uv@b06acff4b6a41bdd9cdac56507ead0bd7734e757
       - name: Install template test tools

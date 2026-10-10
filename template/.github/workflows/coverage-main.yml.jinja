@@ -42,21 +42,15 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@47b337e4f230b591891656534d4ffad868131740
+        uses: leynos/shared-actions/.github/actions/setup-rust@b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea
         with:
           rustflags: {% endraw %}{% if enable_polonius %}-Zpolonius=next{% else %}-D warnings{% endif %}{% raw %}
+          install-mold: 'true'
+          install-clang-lld: 'true'
       - name: Log Rust compiler configuration
         run: |-
           rustc --version
           printf 'Base RUSTFLAGS: %s\n' "$RUSTFLAGS"
-      - name: Install mold linker
-        if: runner.os == 'Linux'
-        run: |
-          set -euo pipefail
-          export DEBIAN_FRONTEND=noninteractive
-          # mold accelerates dev builds; coverage uses lld for llvm-tools compatibility.
-          sudo apt-get update \
-            && sudo apt-get install --yes --no-install-recommends clang lld mold
       - name: Install test runner
         env:
           RUSTFLAGS: ""

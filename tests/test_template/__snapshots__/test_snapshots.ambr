@@ -151,6 +151,8 @@
               'name': 'Setup Rust',
               'uses': 'leynos/shared-actions/.github/actions/setup-rust@<sha>',
               'with': dict({
+                'install-clang-lld': 'true',
+                'install-mold': 'true',
                 'rustflags': '-Zpolonius=next',
               }),
             }),
@@ -159,18 +161,6 @@
               'run': '''
                 rustc --version
                 printf 'Base RUSTFLAGS: %s\n' "$RUSTFLAGS"
-              ''',
-            }),
-            dict({
-              'if': "runner.os == 'Linux'",
-              'name': 'Install mold linker',
-              'run': '''
-                set -euo pipefail
-                export DEBIAN_FRONTEND=noninteractive
-                # mold accelerates dev builds; coverage uses lld for llvm-tools compatibility.
-                sudo apt-get update \
-                  && sudo apt-get install --yes --no-install-recommends clang lld mold
-  
               ''',
             }),
             dict({
@@ -330,6 +320,8 @@
               'name': 'Setup Rust',
               'uses': 'leynos/shared-actions/.github/actions/setup-rust@<sha>',
               'with': dict({
+                'install-clang-lld': 'true',
+                'install-mold': 'true',
                 'rustflags': '-Zpolonius=next',
               }),
             }),
@@ -338,18 +330,6 @@
               'run': '''
                 rustc --version
                 printf 'Base RUSTFLAGS: %s\n' "$RUSTFLAGS"
-              ''',
-            }),
-            dict({
-              'if': "runner.os == 'Linux'",
-              'name': 'Install mold linker',
-              'run': '''
-                set -euo pipefail
-                export DEBIAN_FRONTEND=noninteractive
-                # mold accelerates dev builds; coverage uses lld for llvm-tools compatibility.
-                sudo apt-get update \
-                  && sudo apt-get install --yes --no-install-recommends clang lld mold
-  
               ''',
             }),
             dict({
@@ -547,13 +527,8 @@
           'uses': 'leynos/shared-actions/.github/workflows/mutation-cargo.yml@<sha>',
           'with': dict({
             'extra-args': '--all-features',
-            'setup-commands': '''
-              export DEBIAN_FRONTEND=noninteractive
-              # mold accelerates dev builds; coverage uses lld for llvm-tools compatibility.
-              sudo apt-get update \
-                && sudo apt-get install --yes --no-install-recommends clang lld mold
-  
-            ''',
+            'install-clang-lld': 'true',
+            'install-mold': 'true',
           }),
         }),
       }),

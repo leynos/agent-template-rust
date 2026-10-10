@@ -29,11 +29,17 @@ Generated CI and coverage workflows, plus the application-only release
 workflow, pass their base compiler flags through the shared `setup-rust`
 action's `rustflags` input. Coverage repeats that base when its explicit
 `RUSTFLAGS` adds the `lld` linker flag because an environment override replaces
-the value supplied during setup. This capability first appears in
+the value supplied during setup. The `rustflags` capability first appears in
 `leynos/shared-actions` revision `47b337e4f230b591891656534d4ffad868131740`;
 using an older revision silently drops the input, so the Polonius contract
-verifies that the changed action references use this capability-bearing
-revision.
+verifies that the changed action references use one capability-bearing
+revision. That revision is now `b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea`,
+which also carries the `install-mold` and `install-clang-lld` inputs and
+`mutation-cargo.yml`'s `install-clang-lld` forward, so generated CI, coverage
+and mutation workflows provision `clang`, `lld`, and `mold` through those
+inputs rather than an `apt-get` step. The inputs install the packages on Linux
+and fail the job unless the tools resolve on `PATH`; they set no linker flag, so
+`.cargo/config.toml` and the coverage environment still choose the linker.
 
 The parent CI workflows run on GitHub-hosted runners, where the shared
 `setup-rust` action gives sccache a local-disk directory under `runner.temp`,
