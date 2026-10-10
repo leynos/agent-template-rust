@@ -107,3 +107,14 @@ def test_the_helper_rejects_a_hand_rolled_apt_install() -> None:
         assert_setup_rust_installs_linkers(
             [_setup_step(GOOD_INPUTS), by_hand], "fixture"
         )
+
+
+def test_the_helper_rejects_an_apt_install_split_across_shell_lines() -> None:
+    """A package list on a continuation line is still a hand-rolled install."""
+    split = {
+        "name": "Install linkers",
+        "run": "sudo apt-get install --yes \\\n  clang lld mold",
+    }
+
+    with pytest.raises(AssertionError, match="Install linkers"):
+        assert_setup_rust_installs_linkers([_setup_step(GOOD_INPUTS), split], "fixture")

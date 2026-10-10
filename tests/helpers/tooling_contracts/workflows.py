@@ -525,6 +525,11 @@ _SETUP_RUST_LINKER_INPUTS = {"install-mold": "true", "install-clang-lld": "true"
 _HAND_INSTALLED_LINKERS_RE = re.compile(r"apt-get\s+install[^\n]*\b(clang|lld|mold)\b")
 
 
+def _joined_continuations(script: str) -> str:
+    """Join backslash continuations so a split command reads as one line."""
+    return re.sub(r"\\\n\s*", " ", script)
+
+
 def assert_setup_rust_installs_linkers(steps: list[Any], label: str) -> None:
     """Assert every ``setup-rust`` step installs the linkers, and none by hand.
 
@@ -566,7 +571,9 @@ def assert_setup_rust_installs_linkers(steps: list[Any], label: str) -> None:
     by_hand = [
         str(step.get("name", step))
         for step in mappings
-        if _HAND_INSTALLED_LINKERS_RE.search(str(step.get("run", "")))
+        if _HAND_INSTALLED_LINKERS_RE.search(
+            _joined_continuations(str(step.get("run", "")))
+        )
     ]
     assert not by_hand, (
         f"expected {label} to install no linker by hand, got {by_hand!r}"
