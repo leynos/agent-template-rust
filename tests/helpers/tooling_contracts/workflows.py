@@ -242,6 +242,7 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
     jobs = require_mapping(parsed, "jobs", "coverage-main workflow")
     coverage_upload = require_mapping(jobs, "coverage-upload", "coverage-main jobs")
     steps = require_sequence(coverage_upload, "steps", "coverage-main job")
+    assert_setup_rust_installs_linkers(steps, "generated coverage-main workflow")
     coverage_steps = [
         step
         for step in steps
@@ -412,9 +413,7 @@ def _assert_ci_workflow_contracts(
     assert "coverage uses lld for llvm-tools compatibility" in ci_workflow, (
         "expected generated CI workflow to document mold and lld roles"
     )
-    assert "clang lld mold" in ci_workflow, (
-        "expected generated CI workflow to install clang, lld, and mold"
-    )
+    assert_setup_rust_installs_linkers(steps, "generated CI workflow")
     assert "fuse-ld=lld" in ci_workflow, (
         "expected generated CI workflow coverage to use lld linker flags"
     )
@@ -520,3 +519,62 @@ def _assert_pinned_step_uses(
         isinstance(step, dict) and uses_re.fullmatch(str(step.get("uses", "")))
         for step in steps
     ), f"expected {label} pinned to a full 40-hex commit SHA in a workflow step"
+
+
+_SETUP_RUST_LINKER_INPUTS = {"install-mold": "true", "install-clang-lld": "true"}
+_HAND_INSTALLED_LINKERS_RE = re.compile(r"apt-get\s+install[^\n]*\b(clang|lld|mold)\b")
+
+
+def _joined_continuations(script: str) -> str:
+    """Join backslash continuations so a split command reads as one line."""
+    return re.sub(r"\\\n\s*", " ", script)
+
+
+def assert_setup_rust_installs_linkers(steps: list[Any], label: str) -> None:
+    """Assert every ``setup-rust`` step installs the linkers, and none by hand.
+
+    ``.cargo/config.toml`` links with clang and mold and coverage links with
+    lld, so each ``setup-rust`` step must pass ``install-mold`` and
+    ``install-clang-lld`` as the string ``'true'``, the only value the action
+    accepts, and no ``run`` step may apt-install ``clang``, ``lld`` or ``mold``
+    alongside it. The check reads the parsed step, so a comment or an
+    unrelated step that merely contains the text does not satisfy it.
+
+    Parameters
+    ----------
+    steps
+        The parsed ``steps`` of the workflow job, or of every job.
+    label
+        A description of the workflow for assertion messages.
+
+    Raises
+    ------
+    AssertionError
+        Raised when no pinned ``setup-rust`` step exists, when one lacks an
+        input or sets it to another value, or when a ``run`` step installs a
+        linker by hand.
+    """
+    mappings = _step_mappings(steps)
+    setup_rust = [
+        step
+        for step in mappings
+        if _SETUP_RUST_USES_RE.fullmatch(str(step.get("uses", "")))
+    ]
+    assert setup_rust, f"expected {label} to run setup-rust pinned to a full SHA"
+    for step in setup_rust:
+        inputs = step.get("with") or {}
+        for name, expected in _SETUP_RUST_LINKER_INPUTS.items():
+            assert inputs.get(name) == expected, (
+                f"expected {label} setup-rust to set {name}: '{expected}', "
+                f"got {inputs.get(name)!r}"
+            )
+    by_hand = [
+        str(step.get("name", step))
+        for step in mappings
+        if _HAND_INSTALLED_LINKERS_RE.search(
+            _joined_continuations(str(step.get("run", "")))
+        )
+    ]
+    assert not by_hand, (
+        f"expected {label} to install no linker by hand, got {by_hand!r}"
+    )
