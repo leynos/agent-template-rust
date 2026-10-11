@@ -46,13 +46,13 @@ POLONIUS_RENDER_CASES = tuple(
 
 @pytest.mark.parametrize(
     "workflow_name",
-    (
+    [
         "CI workflow",
         "coverage-main workflow",
         "audit workflow",
         "act-validation workflow",
         "release workflow",
-    ),
+    ],
 )
 def test_polonius_contract_rejects_stale_shared_action_revision(
     workflow_name: str,

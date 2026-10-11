@@ -288,9 +288,8 @@ def assert_setup_rust_revision_consistency(
         jobs = require_mapping(parsed, "jobs", f"{workflow_name} workflow")
         references = [
             str(step.get("uses", ""))
-            for step in _iter_job_steps(jobs)
-            if isinstance(step, dict)
-            and str(step.get("uses", "")).startswith(
+            for step in _step_mappings(_iter_job_steps(jobs))
+            if str(step.get("uses", "")).startswith(
                 "leynos/shared-actions/.github/actions/setup-rust@"
             )
         ]

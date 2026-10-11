@@ -90,6 +90,13 @@ opens a bump PR, the test fails until a human edits the pinned constant to
 match. That defeats the purpose of automated dependency updates and turns a
 routine bump into a manual chore.
 
+Generated projects keep their `setup-rust` pins in CI, coverage-main, audit,
+and act-validation together at one shared full commit SHA. Application projects
+also include the release workflow in that set; library projects do not render
+the release workflow. Tests check that the references are consistently
+full-SHA-pinned without asserting a literal SHA, leaving routine pin bumps to
+Dependabot.
+
 The narrow `RUSTFLAGS_PASSTHROUGH_REVISION` exception applies only while no
 independent capability probe can establish that the shared `setup-rust` action
 accepts the required `rustflags` input. In that case, assert the first revision
