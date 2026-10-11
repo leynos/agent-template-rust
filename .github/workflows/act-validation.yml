@@ -47,4 +47,6 @@ jobs:
         with:
           cranelift: true
       - name: Test with act validation
+        env:
+          PYTEST_ADDOPTS: -rx
         run: make test WITH_ACT=1

@@ -50,6 +50,9 @@ def test_parent_act_validation_runs_template_tests_with_act_enabled() -> None:
     assert "make test WITH_ACT=1" in workflow, (
         "expected parent act workflow to run parent tests with act validation enabled"
     )
+    assert "PYTEST_ADDOPTS: -rx" in workflow, (
+        "expected parent act validation to report xfailed test IDs and reasons"
+    )
 
 
 @pytest.mark.parametrize(

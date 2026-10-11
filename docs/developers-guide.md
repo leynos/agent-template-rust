@@ -153,7 +153,12 @@ make test WITH_ACT=1
 The parent Makefile maps `WITH_ACT=1` to `RUN_ACT_VALIDATION=1` for pytest.
 Those checks require `act` and either Docker or Podman. They prepare rendered
 projects as temporary Git repositories, run the generated act-validation
-workflow, and assert black-box evidence for Rust test execution.
+workflow, and assert black-box evidence for Rust test execution. The
+act-validation workflow keeps `PYTEST_ADDOPTS: -rx` so hosted logs show each
+xfail test ID and reason. `act` may reject an upstream action declaring
+`runs.using: node24` before Rust tests can run; archive/output failures may be
+marked as xfail only after logs prove Rust setup and coverage/test execution
+succeeded.
 
 Parent CI keeps Act validation in `.github/workflows/act-validation.yml`. The
 main `.github/workflows/ci.yml` workflow runs ordinary `make test` without
@@ -244,6 +249,17 @@ Reusable test support lives under `tests/helpers/`:
 - `tests/helpers/tooling_contracts/` contains generated Makefile, Cargo,
   documentation, CI, release, coverage-action, CodeScene publisher, and
   mutation-testing contract assertions.
+- `assert_setup_rust_revision_consistency` in
+  `tests/helpers/tooling_contracts/workflows.py` accepts a workflow-name to
+  text-or-`None` mapping. `None` skips workflows unavailable for that project
+  flavour; every included workflow must contain exactly one `setup-rust`
+  reference pinned to a full 40-hex SHA, and all included consumers must use
+  the same revision.
+- `assert_polonius_toolchain_contracts` checks the `setup-rust` revision
+  passthrough in CI and coverage-main. Its `audit_workflow` and
+  `act_validation_workflow` inputs extend those checks to audit and
+  act-validation; release is checked when that application-only workflow is
+  present.
 - `tests/conftest.py` provides the session-scoped `act_ready` fixture, which
   skips act-dependent tests unless `RUN_ACT_VALIDATION=1` is set and at least
   one container runtime is reachable.

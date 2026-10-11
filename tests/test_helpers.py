@@ -551,7 +551,37 @@ def test_act_runtime_limitations_xfail_node24_actions() -> None:
     )
 
     with pytest.raises(pytest.xfail.Exception):
-        xfail_known_act_runtime_limitations(logs)
+        xfail_known_act_runtime_limitations(logs, expected_base_rustflags="-D warnings")
+
+
+def test_act_archive_failure_requires_rust_and_test_signals() -> None:
+    """Do not xfail an archive error before setup and coverage tests run."""
+    logs = (
+        "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times\n"
+        "Provided artifact name input during validation is empty\n"
+    )
+
+    with pytest.raises(
+        AssertionError, match="Rust setup diagnostics were not observed"
+    ):
+        xfail_known_act_runtime_limitations(logs, expected_base_rustflags="-D warnings")
+
+
+def test_act_archive_failure_xfails_after_rust_and_test_signals() -> None:
+    """Classify the known archive failure only after Rust tests are observed."""
+    logs = (
+        '{"name":"Log Rust compiler configuration",'
+        '"Output":"Base RUSTFLAGS: -D warnings"}\n'
+        '{"Output":"$ cargo llvm-cov nextest"}\n'
+        '{"Output":"$ cargo llvm-cov test"}\n'
+        "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times\n"
+        "Provided artifact name input during validation is empty"
+    )
+
+    with pytest.raises(
+        pytest.xfail.Exception, match="after tests and coverage succeed"
+    ):
+        xfail_known_act_runtime_limitations(logs, expected_base_rustflags="-D warnings")
 
 
 @pytest.mark.parametrize(

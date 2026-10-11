@@ -14,6 +14,7 @@ from tests.helpers.tooling_contracts.polonius import (
 from tests.helpers.tooling_contracts.workflows import (
     assert_ci_coverage_action_contract,
     assert_coverage_main_workflow_contract,
+    assert_setup_rust_revision_consistency,
     extract_checkout_steps,
 )
 
@@ -23,5 +24,6 @@ __all__ = [
     "assert_documentation_navigation_contracts",
     "assert_generated_tooling_contracts",
     "assert_polonius_toolchain_contracts",
+    "assert_setup_rust_revision_consistency",
     "extract_checkout_steps",
 ]
