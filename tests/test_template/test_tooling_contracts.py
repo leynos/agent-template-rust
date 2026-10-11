@@ -44,7 +44,19 @@ POLONIUS_RENDER_CASES = tuple(
 )
 
 
-def test_polonius_contract_rejects_stale_shared_action_revision() -> None:
+@pytest.mark.parametrize(
+    "workflow_name",
+    (
+        "CI workflow",
+        "coverage-main workflow",
+        "audit workflow",
+        "act-validation workflow",
+        "release workflow",
+    ),
+)
+def test_polonius_contract_rejects_stale_shared_action_revision(
+    workflow_name: str,
+) -> None:
     """Reject a shared action revision without the rustflags passthrough."""
     workflow = (
         "uses: leynos/shared-actions/.github/actions/setup-rust@"
@@ -52,7 +64,7 @@ def test_polonius_contract_rejects_stale_shared_action_revision() -> None:
     )
 
     with pytest.raises(AssertionError, match="rustflags passthrough revision"):
-        _assert_shared_action_passthrough_revision(workflow, "CI workflow")
+        _assert_shared_action_passthrough_revision(workflow, workflow_name)
 
 
 def test_polonius_contract_allows_independent_shared_action_revision() -> None:
