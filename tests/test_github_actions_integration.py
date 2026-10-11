@@ -139,8 +139,10 @@ def assert_ci_exercised_expected_steps(
     assert saw_rust, f"Rust coverage tests were not observed:\n{logs}"
 
 
-def xfail_known_act_runtime_limitations(logs: str) -> None:
-    """Xfail act limitations that prevent workflow execution from reaching tests."""
+def xfail_known_act_runtime_limitations(
+    logs: str, *, expected_base_rustflags: str
+) -> None:
+    """Xfail known act runtime or coverage-output limitations."""
     if (
         "The runs.using key in action.yml must be one of:" in logs
         and "got node24" in logs
@@ -153,6 +155,9 @@ def xfail_known_act_runtime_limitations(logs: str) -> None:
         "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times" in logs
         and "Provided artifact name input during validation is empty" in logs
     ):
+        assert_ci_exercised_expected_steps(
+            logs, expected_base_rustflags=expected_base_rustflags
+        )
         pytest.xfail(
             "act currently fails in the shared generate-coverage composite "
             "action output/archive phase after tests and coverage succeed"
@@ -166,7 +171,9 @@ def assert_act_result(
     expected_base_rustflags: str,
 ) -> None:
     """Assert the act workflow result for a rendered Rust project."""
-    xfail_known_act_runtime_limitations(logs)
+    xfail_known_act_runtime_limitations(
+        logs, expected_base_rustflags=expected_base_rustflags
+    )
     assert_ci_exercised_expected_steps(
         logs, expected_base_rustflags=expected_base_rustflags
     )
