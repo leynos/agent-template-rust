@@ -19,7 +19,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea
+        uses: leynos/shared-actions/.github/actions/setup-rust@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
         with:
           expect-cache: any
           install-mold: 'true'
@@ -31,7 +31,7 @@ jobs:
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
-        uses: leynos/shared-actions/.github/actions/install-mdtablefix@0606ca899ce2995a0c4bc78e660e80832e6e8855
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
         with:
           version: "0.6.1"
       - name: Check formatting
@@ -53,7 +53,7 @@ jobs:
           cargo binstall --no-confirm --locked cargo-nextest
           uv tool install mbake
       - name: Install Whitaker
-        uses: leynos/shared-actions/.github/actions/install-whitaker@0606ca899ce2995a0c4bc78e660e80832e6e8855
+        uses: leynos/shared-actions/.github/actions/install-whitaker@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
         with:
           cranelift: true
       - name: Test
