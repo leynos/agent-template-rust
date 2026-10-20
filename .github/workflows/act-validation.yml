@@ -24,7 +24,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@e693d81d176d2305e2b736a0be0f9038085dec7f
+        uses: leynos/shared-actions/.github/actions/setup-rust@3e4cba9ff5898f40723b95e09b8d5bae26c1b1f6
         with:
           expect-cache: any
           install-mold: 'true'
@@ -43,7 +43,7 @@ jobs:
       - name: Check Docker runtime
         run: docker info
       - name: Install Whitaker
-        uses: leynos/shared-actions/.github/actions/install-whitaker@e693d81d176d2305e2b736a0be0f9038085dec7f
+        uses: leynos/shared-actions/.github/actions/install-whitaker@3e4cba9ff5898f40723b95e09b8d5bae26c1b1f6
         with:
           cranelift: true
       - name: Test with act validation
