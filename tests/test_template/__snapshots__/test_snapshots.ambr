@@ -134,7 +134,7 @@
           'env': dict({
             'BUILD_PROFILE': 'debug',
             'CARGO_TERM_COLOR': 'always',
-            'WHITAKER_INSTALLER_VERSION': '0.2.6',
+            'WHITAKER_INSTALLER_VERSION': '0.2.11',
           }),
           'permissions': dict({
             'contents': 'read',
