@@ -45,7 +45,12 @@ def write_fake_cargo() -> Callable[..., Path]:
         audit_status: int = 0,
         metadata_status: int = 0,
     ) -> Path:
-        """Write a `cargo` stub to `bin_dir` that logs invocations and returns the given statuses."""
+        """Write a `cargo` stub to `bin_dir`.
+
+        The stub prints `metadata` for `cargo metadata`, exiting with
+        `metadata_status`, and fails `cargo nextest --version`. Every other
+        call is logged to `log_path` and exits with `audit_status`.
+        """
         bin_dir.mkdir(parents=True, exist_ok=True)
         cargo_path = bin_dir / "cargo"
         cargo_path.write_text(

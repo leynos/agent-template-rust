@@ -746,7 +746,16 @@ def test_parent_makefile_test_target_contract() -> None:
         if line.startswith(".PHONY:")
         for target in line.removeprefix(".PHONY:").split()
     }
-    gate_targets = {"help", "check-fmt", "fmt", "lint", "spelling", "typecheck", "test"}
+    gate_targets = {
+        "help",
+        "check-fmt",
+        "fmt",
+        "interrogate",
+        "lint",
+        "spelling",
+        "typecheck",
+        "test",
+    }
     assert gate_targets <= phony, (
         "expected parent Makefile to mark all public gate targets phony"
     )
