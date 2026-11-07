@@ -740,7 +740,14 @@ def test_parent_makefile_test_target_contract() -> None:
     """Validate the parent repository ``test`` target command contract."""
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
-    assert ".PHONY: help check-fmt fmt lint spelling typecheck test" in makefile, (
+    phony = {
+        target
+        for line in makefile.splitlines()
+        if line.startswith(".PHONY:")
+        for target in line.removeprefix(".PHONY:").split()
+    }
+    gate_targets = {"help", "check-fmt", "fmt", "lint", "spelling", "typecheck", "test"}
+    assert gate_targets <= phony, (
         "expected parent Makefile to mark all public gate targets phony"
     )
     assert "UV := $(shell command -v uvx 2>/dev/null)" in makefile, (
