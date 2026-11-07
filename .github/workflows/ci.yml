@@ -28,6 +28,8 @@ jobs:
         uses: astral-sh/setup-uv@0a73d6eb01c0201c8fc84847d0f4425b704ad66d
       - name: Check spelling
         run: make spelling
+      - name: Check docstring coverage
+        run: make interrogate
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.

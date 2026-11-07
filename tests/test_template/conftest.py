@@ -13,6 +13,7 @@ def cargo_metadata_for() -> Callable[[Path, list[Path]], str]:
     """Return a factory for minimal cargo metadata JSON."""
 
     def factory(workspace: Path, manifests: list[Path]) -> str:
+        """Render cargo metadata JSON naming each manifest as a workspace member."""
         packages = ",".join(
             f'{{"id":"fixture {index}","manifest_path":"{manifest}"}}'
             for index, manifest in enumerate(manifests)
@@ -44,6 +45,7 @@ def write_fake_cargo() -> Callable[..., Path]:
         audit_status: int = 0,
         metadata_status: int = 0,
     ) -> Path:
+        """Write a `cargo` stub to `bin_dir` that logs invocations and returns the given statuses."""
         bin_dir.mkdir(parents=True, exist_ok=True)
         cargo_path = bin_dir / "cargo"
         cargo_path.write_text(
