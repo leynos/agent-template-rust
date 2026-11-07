@@ -154,6 +154,10 @@ def _load_and_parse_makefile_rules(makefile: str) -> dict[str, list[str]]:
     }
 
     def normalize_target(match: re.Match[str]) -> str:
+        """Rewrite a hyphenated target name with underscores, keeping the colon.
+
+        A name without a hyphen is returned unchanged.
+        """
         target = cast("str", match.group(1))
         return normalized_targets.get(target, target) + ":"
 
