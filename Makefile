@@ -50,12 +50,16 @@ INTERROGATE_TARGETS ?= tests
 # lone gap.
 INTERROGATE_FLAGS ?= -vv --fail-under 100
 # Cargo target directories hold build output, generated stubs and scratch
-# crates that the repository does not own. Interrogate's `--exclude` takes
-# fnmatch patterns, in which `*` also crosses `/`, so `target` prunes the root
-# directory and `*/target` prunes a nested crate's. A `CARGO_TARGET_DIR` set
-# inside the repository is excluded too.
-INTERROGATE_EXCLUDES ?= --exclude target --exclude '*/target' \
-	$(if $(CARGO_TARGET_DIR),--exclude '$(CARGO_TARGET_DIR)')
+# crates that the repository does not own. Interrogate 1.7.0 resolves each
+# `--exclude` to an absolute path and skips a file when its path matches
+# "<exclude>*" under fnmatch, where `*` also crosses `/`. A pattern must
+# therefore end in `/*`: a bare `target` would also skip `target_utils.py`.
+# `target/*` prunes the root directory and `*/target/*` a nested crate's.
+# `CARGO_TARGET_DIR` and `CARGO_BUILD_TARGET_DIR` are excluded too, with the
+# fnmatch metacharacters in their values escaped so that they match literally.
+fnmatch_escape = $(subst ?,[?],$(subst *,[*],$(subst [,[[],$(1))))
+INTERROGATE_EXCLUDES ?= --exclude 'target/*' --exclude '*/target/*' \
+	$(foreach dir,$(strip $(CARGO_TARGET_DIR) $(CARGO_BUILD_TARGET_DIR)),--exclude '$(call fnmatch_escape,$(dir))/*')
 INTERROGATE ?= uv tool run --python 3.13 --from 'interrogate==$(INTERROGATE_VERSION)' interrogate
 
 # Interrogate rounds its percentage to one decimal, so `--fail-under 100` alone

@@ -3,7 +3,10 @@
 The template tests cover the rendered Makefile. This module covers the parent
 Makefile, which differs deliberately: it gates with ``--scope all`` so the
 `*.md.jinja` payload is checked too. The rule is executed with a stub builder
-so the arguments are asserted without invoking the third-party tool.
+so the arguments are asserted without invoking the third-party tool. It also
+covers the parent ``interrogate`` rule, which runs the pinned tool over
+temporary workspaces to prove that Cargo target directories are excluded and
+that nothing else is.
 """
 
 from __future__ import annotations
@@ -91,10 +94,20 @@ DOCUMENTED_MODULE = (
 UNDOCUMENTED_MODULE = "def undocumented() -> None:\n    pass\n"
 
 
-def _run_interrogate(workdir: Path, **overrides: str) -> subprocess.CompletedProcess:
-    """Run the parent ``interrogate`` rule over *workdir*."""
+def _run_interrogate(
+    workdir: Path, environment_overrides: dict[str, str]
+) -> subprocess.CompletedProcess[str]:
+    """Run the parent ``interrogate`` rule over *workdir*.
+
+    Returns
+    -------
+    subprocess.CompletedProcess[str]
+        The finished ``make`` process with its captured output.
+    """
     environment = {**os.environ, "MAKEFLAGS": ""}
-    environment.pop("CARGO_TARGET_DIR", None)
+    for name in ("CARGO_TARGET_DIR", "CARGO_BUILD_TARGET_DIR"):
+        environment.pop(name, None)
+    environment.update(environment_overrides)
     return subprocess.run(
         [
             "make",
@@ -102,7 +115,6 @@ def _run_interrogate(workdir: Path, **overrides: str) -> subprocess.CompletedPro
             str(REPOSITORY_ROOT / "Makefile"),
             "interrogate",
             "INTERROGATE_TARGETS=.",
-            *(f"{key}={value}" for key, value in overrides.items()),
         ],
         cwd=workdir,
         env=environment,
@@ -113,44 +125,73 @@ def _run_interrogate(workdir: Path, **overrides: str) -> subprocess.CompletedPro
     )
 
 
+def _write(root: Path, name: str, source: str) -> None:
+    """Write *source* to *name* under *root*, creating parent directories."""
+    path = root / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(source, encoding="utf-8")
+
+
 @pytest.mark.parametrize(
-    ("generated", "overrides"),
+    ("generated", "environment"),
     [
         (["target/y.py", "crate/target/debug/x.py"], {}),
         (["build/out/z.py"], {"CARGO_TARGET_DIR": "build/out"}),
+        (["build/[out]/z.py"], {"CARGO_BUILD_TARGET_DIR": "build/[out]"}),
     ],
+    ids=["target-directories", "cargo-target-dir", "metacharacters-are-literal"],
 )
 def test_parent_interrogate_ignores_cargo_target_directories(
-    tmp_path: Path, generated: list[str], overrides: dict[str, str]
+    tmp_path: Path, generated: list[str], environment: dict[str, str]
 ) -> None:
     """Undocumented files under a Cargo target directory do not fail the gate."""
     if shutil.which("make") is None or shutil.which("uvx") is None:
         pytest.skip("make and uvx are required")
-    (tmp_path / "owned.py").write_text(DOCUMENTED_MODULE, encoding="utf-8")
+    _write(tmp_path, "owned.py", DOCUMENTED_MODULE)
     for name in generated:
-        path = tmp_path / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(UNDOCUMENTED_MODULE, encoding="utf-8")
+        _write(tmp_path, name, UNDOCUMENTED_MODULE)
 
-    completed = _run_interrogate(tmp_path, **overrides)
+    completed = _run_interrogate(tmp_path, environment)
 
     assert completed.returncode == 0, (
         f"expected build output to be excluded:\n{completed.stdout}{completed.stderr}"
     )
 
 
-def test_parent_interrogate_still_fails_on_an_undocumented_tracked_file(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("owned", "environment"),
+    [
+        ("owned.py", {}),
+        ("target_utils.py", {}),
+        ("tests/targets/helper.py", {}),
+        ("build/o/owned.py", {"CARGO_TARGET_DIR": "build/[out]"}),
+        ("build/out_helper.py", {"CARGO_TARGET_DIR": "build/out"}),
+    ],
+    ids=[
+        "plain-file",
+        "target-prefix-file",
+        "target-prefix-directory",
+        "character-class-not-expanded",
+        "target-dir-prefix-file",
+    ],
+)
+def test_parent_interrogate_still_fails_on_an_undocumented_owned_file(
+    tmp_path: Path, owned: str, environment: dict[str, str]
 ) -> None:
-    """Excluding target directories does not loosen the gate elsewhere."""
+    """Excluding target directories does not hide or loosen anything else."""
     if shutil.which("make") is None or shutil.which("uvx") is None:
         pytest.skip("make and uvx are required")
-    (tmp_path / "target").mkdir()
-    (tmp_path / "target" / "y.py").write_text(UNDOCUMENTED_MODULE, encoding="utf-8")
-    (tmp_path / "owned.py").write_text(UNDOCUMENTED_MODULE, encoding="utf-8")
+    _write(tmp_path, "target/y.py", UNDOCUMENTED_MODULE)
+    _write(tmp_path, owned, UNDOCUMENTED_MODULE)
 
-    completed = _run_interrogate(tmp_path)
+    completed = _run_interrogate(tmp_path, environment)
 
     assert completed.returncode != 0, (
         f"expected an undocumented owned file to fail:\n{completed.stdout}"
+    )
+    assert Path(owned).name in completed.stdout, (
+        f"expected the report to name {owned}:\n{completed.stdout}"
+    )
+    assert "y.py" not in completed.stdout, (
+        f"expected build output to stay excluded:\n{completed.stdout}"
     )
