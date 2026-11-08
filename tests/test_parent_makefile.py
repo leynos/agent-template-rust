@@ -138,8 +138,14 @@ def _write(root: Path, name: str, source: str) -> None:
         (["target/y.py", "crate/target/debug/x.py"], {}),
         (["build/out/z.py"], {"CARGO_TARGET_DIR": "build/out"}),
         (["build/[out]/z.py"], {"CARGO_BUILD_TARGET_DIR": "build/[out]"}),
+        (["my build/out/z.py"], {"CARGO_TARGET_DIR": "my build/out"}),
     ],
-    ids=["target-directories", "cargo-target-dir", "metacharacters-are-literal"],
+    ids=[
+        "target-directories",
+        "cargo-target-dir",
+        "metacharacters-are-literal",
+        "whitespace-stays-one-path",
+    ],
 )
 def test_parent_interrogate_ignores_cargo_target_directories(
     tmp_path: Path, generated: list[str], environment: dict[str, str]
@@ -166,6 +172,7 @@ def test_parent_interrogate_ignores_cargo_target_directories(
         ("tests/targets/helper.py", {}),
         ("build/o/owned.py", {"CARGO_TARGET_DIR": "build/[out]"}),
         ("build/out_helper.py", {"CARGO_TARGET_DIR": "build/out"}),
+        ("my/owned.py", {"CARGO_TARGET_DIR": "my build"}),
     ],
     ids=[
         "plain-file",
@@ -173,6 +180,7 @@ def test_parent_interrogate_ignores_cargo_target_directories(
         "target-prefix-directory",
         "character-class-not-expanded",
         "target-dir-prefix-file",
+        "whitespace-stays-one-path",
     ],
 )
 def test_parent_interrogate_still_fails_on_an_undocumented_owned_file(

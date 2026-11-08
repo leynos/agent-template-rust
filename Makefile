@@ -59,7 +59,8 @@ INTERROGATE_FLAGS ?= -vv --fail-under 100
 # fnmatch metacharacters in their values escaped so that they match literally.
 fnmatch_escape = $(subst ?,[?],$(subst *,[*],$(subst [,[[],$(1))))
 INTERROGATE_EXCLUDES ?= --exclude 'target/*' --exclude '*/target/*' \
-	$(foreach dir,$(strip $(CARGO_TARGET_DIR) $(CARGO_BUILD_TARGET_DIR)),--exclude '$(call fnmatch_escape,$(dir))/*')
+	$(if $(CARGO_TARGET_DIR),--exclude '$(call fnmatch_escape,$(CARGO_TARGET_DIR))/*') \
+	$(if $(CARGO_BUILD_TARGET_DIR),--exclude '$(call fnmatch_escape,$(CARGO_BUILD_TARGET_DIR))/*')
 INTERROGATE ?= uv tool run --python 3.13 --from 'interrogate==$(INTERROGATE_VERSION)' interrogate
 
 # Interrogate rounds its percentage to one decimal, so `--fail-under 100` alone
