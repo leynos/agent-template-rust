@@ -399,6 +399,25 @@ Include these sections as appropriate to the decision's complexity:
 - **Architectural Rationale:** Explain how the decision aligns with broader
   architectural principles and project goals.
 
+### Amendment and supersession
+
+An accepted ADR is a historical record of the decision made at that time.
+Preserve its original context, decision, and consequences; do not rewrite them
+to describe later behaviour.
+
+- For a clarification that does not change the decision, amend the ADR in
+  place, update its `Date`, and record the change in an `## Amendment` section
+  that states the date and what was clarified.
+- For a changed decision, create a new ADR with the next sequence number. State
+  `Supersedes: [ADR-NNN](adr-NNN-short-description.md)` in the new record, and
+  change the superseded record's `Status` to
+  `Superseded by [ADR-MMM](adr-MMM-short-description.md)` without deleting the
+  original record.
+- Link the replacing ADR from every design document and index that referenced
+  the superseded decision.
+- Run the documentation and spelling gates after either change so links and
+  terminology stay current.
+
 ### Formatting guidance
 
 - Use second-level headings (`##`) for major sections.
