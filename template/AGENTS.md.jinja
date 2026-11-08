@@ -56,6 +56,9 @@
 - **Internal interfaces:** Document internally facing interfaces in the
   relevant component architecture document. Document internally facing
   conventions and practices in [developers' guide](docs/developers-guide.md).
+- **Build tooling:** When changing build tooling, document the effective
+  toolchain, inherited flags, backend and linker selection, and deliberate
+  differences between validation commands.
 - **Style:** All documentation must adhere to the
   [documentation style guide](docs/documentation-style-guide.md).
 - **Accuracy:** Verify changed examples, commands, imports, links, paths, and
@@ -465,6 +468,8 @@ built lazily. See `docs/polonius.md` for the full contract.
 - Avoid first-person prose outside README and BDD feature files; allow
   second-person prose in README, AGENTS, BDD feature files, and agent skill
   directories. These exceptions qualify the documentation style guide.
+- Quoted API names and identifiers retain upstream spelling. Mark them as
+  code using backticks or fenced blocks rather than adding spelling exceptions.
 
 <!-- typos-config-builder:agents-md:start -->
 
