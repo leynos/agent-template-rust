@@ -203,3 +203,21 @@ def test_parent_interrogate_still_fails_on_an_undocumented_owned_file(
     assert "y.py" not in completed.stdout, (
         f"expected build output to stay excluded:\n{completed.stdout}"
     )
+
+
+@pytest.mark.parametrize("tracked", ["target/owned.py", "crate/target/owned.py"])
+def test_parent_interrogate_fails_loudly_on_tracked_python_under_target(
+    tmp_path: Path, tracked: str
+) -> None:
+    """Tracked Python the exclusion would skip fails the gate rather than hide."""
+    if shutil.which("make") is None or shutil.which("git") is None:
+        pytest.skip("make and git are required")
+    _write(tmp_path, "owned.py", DOCUMENTED_MODULE)
+    _write(tmp_path, tracked, DOCUMENTED_MODULE)
+    for command in (["init", "-q"], ["add", "-A"]):
+        subprocess.run(["git", *command], cwd=tmp_path, check=True, timeout=60)
+
+    completed = _run_interrogate(tmp_path, {"GIT_DIR": str(tmp_path / ".git")})
+
+    assert completed.returncode != 0, "expected tracked Python under target/ to fail"
+    assert tracked in completed.stderr, completed.stderr

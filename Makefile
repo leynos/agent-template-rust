@@ -57,6 +57,8 @@ INTERROGATE_FLAGS ?= -vv --fail-under 100
 # `target/*` prunes the root directory and `*/target/*` a nested crate's.
 # `CARGO_TARGET_DIR` and `CARGO_BUILD_TARGET_DIR` are excluded too, with the
 # fnmatch metacharacters in their values escaped so that they match literally.
+# Limitation: owned Python under a directory literally named `target` would be
+# skipped by `*/target/*`, so the recipe fails if Git tracks any such file.
 fnmatch_escape = $(subst ?,[?],$(subst *,[*],$(subst [,[[],$(1))))
 INTERROGATE_EXCLUDES ?= --exclude 'target/*' --exclude '*/target/*' \
 	$(if $(CARGO_TARGET_DIR),--exclude '$(call fnmatch_escape,$(CARGO_TARGET_DIR))/*') \
@@ -68,6 +70,11 @@ INTERROGATE ?= uv tool run --python 3.13 --from 'interrogate==$(INTERROGATE_VERS
 # finds a MISSED row in the report on standard output, which `-vv` or higher
 # prints for each undocumented definition.
 interrogate: ## Enforce complete Python docstring coverage
+	@owned="$$(git ls-files -- ':(glob)target/**/*.py' ':(glob)**/target/**/*.py' 2>/dev/null)"; \
+	  if [ -n "$$owned" ]; then \
+	    printf '%s\n' "interrogate: tracked Python under a target/ directory is excluded from the gate; move it:" "$$owned" >&2; \
+	    exit 1; \
+	  fi
 	@report="$$($(INTERROGATE) $(INTERROGATE_FLAGS) $(INTERROGATE_EXCLUDES) $(INTERROGATE_TARGETS))"; \
 	  status=$$?; \
 	  printf '%s\n' "$$report"; \
