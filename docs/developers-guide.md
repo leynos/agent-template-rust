@@ -92,7 +92,18 @@ The parent gates run Ruff and mypy over the `tests/` tree; install `uv` so
 
 - `make check-fmt` verifies formatting with `ruff format --check`.
 - `make fmt` rewrites formatting with `ruff format`.
-- `make lint` runs `ruff check`.
+- `make lint` runs the `interrogate` docstring gate, then `ruff check`.
+  `interrogate` holds `INTERROGATE_TARGETS` (`tests`) to 100 per cent with no
+  `--ignore-*` flags. `INTERROGATE_EXCLUDES` keeps Cargo target directories
+  (`target/`, any nested `*/target/`, and `CARGO_TARGET_DIR` or
+  `CARGO_BUILD_TARGET_DIR` when set) out of the measurement, because they hold
+  build output the repository does not own. Interrogate 1.7.0 matches an
+  exclusion as an fnmatch prefix of the absolute path, so each pattern ends in
+  `/*` to avoid hiding `target_utils.py`, and the Makefile escapes the
+  metacharacters in the environment values so that they match literally. A
+  target directory chosen any other way (`--target-dir` or `build.target-dir`)
+  is not seen by the Makefile; export `CARGO_TARGET_DIR` as well when one lies
+  inside a scanned path.
 - `make typecheck` runs `mypy` with the pytest dependency stubs and
   `types-PyYAML`.
 
