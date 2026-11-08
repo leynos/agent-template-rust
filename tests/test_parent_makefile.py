@@ -83,3 +83,74 @@ def test_parent_spelling_rule_gates_the_whole_repository(tmp_path: Path) -> None
     assert recorded.read_text(encoding="utf-8").splitlines() == (
         EXPECTED_GATE_ARGUMENTS
     ), "expected the parent gate to cover every tracked file, not only Markdown"
+
+
+DOCUMENTED_MODULE = (
+    '"""Documented."""\n\n\ndef documented() -> None:\n    """Do nothing."""\n'
+)
+UNDOCUMENTED_MODULE = "def undocumented() -> None:\n    pass\n"
+
+
+def _run_interrogate(workdir: Path, **overrides: str) -> subprocess.CompletedProcess:
+    """Run the parent ``interrogate`` rule over *workdir*."""
+    environment = {**os.environ, "MAKEFLAGS": ""}
+    environment.pop("CARGO_TARGET_DIR", None)
+    return subprocess.run(
+        [
+            "make",
+            "-f",
+            str(REPOSITORY_ROOT / "Makefile"),
+            "interrogate",
+            "INTERROGATE_TARGETS=.",
+            *(f"{key}={value}" for key, value in overrides.items()),
+        ],
+        cwd=workdir,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
+    )
+
+
+@pytest.mark.parametrize(
+    ("generated", "overrides"),
+    [
+        (["target/y.py", "crate/target/debug/x.py"], {}),
+        (["build/out/z.py"], {"CARGO_TARGET_DIR": "build/out"}),
+    ],
+)
+def test_parent_interrogate_ignores_cargo_target_directories(
+    tmp_path: Path, generated: list[str], overrides: dict[str, str]
+) -> None:
+    """Undocumented files under a Cargo target directory do not fail the gate."""
+    if shutil.which("make") is None or shutil.which("uvx") is None:
+        pytest.skip("make and uvx are required")
+    (tmp_path / "owned.py").write_text(DOCUMENTED_MODULE, encoding="utf-8")
+    for name in generated:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(UNDOCUMENTED_MODULE, encoding="utf-8")
+
+    completed = _run_interrogate(tmp_path, **overrides)
+
+    assert completed.returncode == 0, (
+        f"expected build output to be excluded:\n{completed.stdout}{completed.stderr}"
+    )
+
+
+def test_parent_interrogate_still_fails_on_an_undocumented_tracked_file(
+    tmp_path: Path,
+) -> None:
+    """Excluding target directories does not loosen the gate elsewhere."""
+    if shutil.which("make") is None or shutil.which("uvx") is None:
+        pytest.skip("make and uvx are required")
+    (tmp_path / "target").mkdir()
+    (tmp_path / "target" / "y.py").write_text(UNDOCUMENTED_MODULE, encoding="utf-8")
+    (tmp_path / "owned.py").write_text(UNDOCUMENTED_MODULE, encoding="utf-8")
+
+    completed = _run_interrogate(tmp_path)
+
+    assert completed.returncode != 0, (
+        f"expected an undocumented owned file to fail:\n{completed.stdout}"
+    )

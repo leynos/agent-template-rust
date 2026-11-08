@@ -49,6 +49,13 @@ INTERROGATE_TARGETS ?= tests
 # `interrogate` recipe below looks for: the rounded percentage alone can pass a
 # lone gap.
 INTERROGATE_FLAGS ?= -vv --fail-under 100
+# Cargo target directories hold build output, generated stubs and scratch
+# crates that the repository does not own. Interrogate's `--exclude` takes
+# fnmatch patterns, in which `*` also crosses `/`, so `target` prunes the root
+# directory and `*/target` prunes a nested crate's. A `CARGO_TARGET_DIR` set
+# inside the repository is excluded too.
+INTERROGATE_EXCLUDES ?= --exclude target --exclude '*/target' \
+	$(if $(CARGO_TARGET_DIR),--exclude '$(CARGO_TARGET_DIR)')
 INTERROGATE ?= uv tool run --python 3.13 --from 'interrogate==$(INTERROGATE_VERSION)' interrogate
 
 # Interrogate rounds its percentage to one decimal, so `--fail-under 100` alone
@@ -56,7 +63,7 @@ INTERROGATE ?= uv tool run --python 3.13 --from 'interrogate==$(INTERROGATE_VERS
 # finds a MISSED row in the report on standard output, which `-vv` or higher
 # prints for each undocumented definition.
 interrogate: ## Enforce complete Python docstring coverage
-	@report="$$($(INTERROGATE) $(INTERROGATE_FLAGS) $(INTERROGATE_TARGETS))"; \
+	@report="$$($(INTERROGATE) $(INTERROGATE_FLAGS) $(INTERROGATE_EXCLUDES) $(INTERROGATE_TARGETS))"; \
 	  status=$$?; \
 	  printf '%s\n' "$$report"; \
 	  test "$$status" -eq 0 || exit "$$status"; \
