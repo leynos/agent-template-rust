@@ -15,8 +15,8 @@ the Makefile and CI workflows re-state `-Zpolonius=next` whenever they set
 Release builds are the deliberate exception. The application release workflow
 uses stable Cargo and clears `RUSTFLAGS`, so a released artefact carries
 neither Polonius nor the other nightly development flags. Source that compiles
-only under Polonius therefore cannot be released by this workflow: keep such
-an API available in an NLL-compatible form, or change the release path
+only under Polonius therefore cannot be released by this workflow: keep such an
+API available in an NLL-compatible form, or change the release path
 deliberately. Verify every borrow-sensitive change under the supported nightly
 configuration before tagging.
 

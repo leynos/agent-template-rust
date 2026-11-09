@@ -139,8 +139,8 @@ full generated workflow locally on Linux.
 Push a `v*.*.*` tag to publish a release. To prove every matrix leg before
 tagging, run the **Release Binary** workflow manually on a branch: the boolean
 `dry-run` input defaults to `true`, so every leg builds and uploads its
-artefacts while the release job stays skipped. A manual run publishes only on
-a tag ref with `dry-run` set to `false`; a branch dispatch can never publish.
+artefacts while the release job stays skipped. A manual run publishes only on a
+tag ref with `dry-run` set to `false`; a branch dispatch can never publish.
 
 {% endif -%}
 ## Scheduled Mutation Testing

@@ -118,14 +118,14 @@ def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
     assert coverage_inputs.get("with-ratchet") == "true", (
         "expected CI coverage step to enable the coverage ratchet"
     )
-    assert coverage_inputs.get("publish-artefact") == "false", (
-        "expected the pull-request lane to leave the report artefact to the publisher"
-    )
     for scope_input in ("all-targets", "all-features", "doctests"):
         assert coverage_inputs.get(scope_input) == "true", (
             f"expected CI coverage step to enable {scope_input}, because it is "
             "the pull request's only test execution and must match make test"
         )
+    assert coverage_inputs.get("publish-artefact") == "false", (
+        "expected the pull-request lane to leave the report artefact to the publisher"
+    )
 
 
 def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
