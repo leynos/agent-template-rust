@@ -87,15 +87,30 @@ doctest therefore fails the command.
 
 The generated `Makefile` exposes these public targets:
 
-- `make all` runs formatting checks, linting, tests, and spelling checks.
-- `make check-fmt` verifies Rust formatting.
+- `make all` runs formatting checks, linting, tests, workflow contracts, and
+  spelling checks.
+- `make check-fmt` verifies Rust formatting and Markdown table formatting.
 - `make fmt` formats Rust and Markdown sources.
-- `make lint` builds documentation, then runs Clippy and Whitaker, with every
-  warning denied.
+- `make lint` runs the strict YAML, GitHub Actions, and shell gates, then
+  builds documentation and runs Clippy and Whitaker, with every warning denied.
+- `make lint-yaml` checks every tracked YAML file with strict yamllint.
+- `make lint-actions` runs actionlint, including shellcheck, over rendered
+  workflows.
+- `make lint-shell` runs shellcheck over tracked scripts.
 - `make typecheck` type-checks the workspace without building.
 - `make test` runs `cargo nextest run` when cargo-nextest is installed and
   falls back to `cargo test` otherwise. It denies warnings in normal tests and
-  in the separate all-feature workspace doctest run.
+  in the separate all-feature workspace doctest run. `.config/nextest.toml`
+  bounds each test and the whole run, and serialises compiler-spawning tests.
+- `make test-ui` runs compile-time contract targets named
+  `tests/compile_*.rs`, or reports an intentional no-op when there are none.
+- `make test-workflow-contracts` runs the pinned shared CV-005 checker over the
+  repository, using the selection in `.github/cv005.toml`.
+- `make install-build-tools` installs the pinned `mold` release, verified
+  against `tools/mold/SHA256SUMS`, and the Cranelift component for the pinned
+  nightly. `make install-cranelift` installs only the component.
+- `make check-build-tools`, `make check-rust-toolchain`, and
+  `make check-coverage-tools` report missing tools and never install anything.
 - `make build` builds the debug target.
 - `make release` builds the release target.
 - `make coverage` writes `lcov.info` using `cargo llvm-cov` and `lld`.
@@ -106,8 +121,6 @@ The generated `Makefile` exposes these public targets:
   dependency updates. Human PRs still retain the audit gate, and
   `.github/workflows/audit.yml` runs weekly and can also be triggered manually
   as the compensating control.
-- `make markdownlint` checks Markdown files and enforces en-GB-oxendict
-  spelling.
 - `make spelling` runs the shared `typos-config-builder` gate. It regenerates
   `typos.toml` from the live shared dictionary and the `typos.local.toml`
   overlay, then checks Markdown prose, so `typos.toml` is never drift checked
@@ -120,6 +133,16 @@ The generated `Makefile` exposes these public targets:
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
 full generated workflow locally on Linux.
 
+{% if flavour == 'app' -%}
+## Releasing
+
+Push a `v*.*.*` tag to publish a release. To prove every matrix leg before
+tagging, run the **Release Binary** workflow manually on a branch: the boolean
+`dry-run` input defaults to `true`, so every leg builds and uploads its
+artefacts while the release job stays skipped. A manual run publishes only on
+a tag ref with `dry-run` set to `false`; a branch dispatch can never publish.
+
+{% endif -%}
 ## Scheduled Mutation Testing
 
 Generated projects include `.github/workflows/mutation-testing.yml`, a

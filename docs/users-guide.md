@@ -35,20 +35,21 @@ settings, and documented starter code. Library projects render `src/lib.rs`.
 Application projects render `src/main.rs`, `src/lib.rs`, release automation, and
 `[package.metadata.binstall]` metadata for binary installation.
 
-When Polonius is enabled, the generated Cargo configuration, Makefile, coverage
-workflows, and application release workflow preserve `-Zpolonius=next`. The
-Linux target-specific `mold` flags repeat it because Cargo selects target
-rustflags instead of merging them with `[build].rustflags`. The generated
-project also includes `docs/polonius.md` and matching `AGENTS.md` guidance for
-borrow-centric APIs.
+When Polonius is enabled, the generated Cargo configuration, Makefile, and
+coverage workflows preserve `-Zpolonius=next`. The Linux target-specific `mold`
+flags repeat it because Cargo selects target rustflags instead of merging them
+with `[build].rustflags`. The generated project also includes
+`docs/polonius.md` and matching `AGENTS.md` guidance for borrow-centric APIs.
+The application release workflow is the deliberate exception: it builds with
+stable Cargo and clears `RUSTFLAGS`, so released artefacts carry no nightly
+development flags.
 
-Generated CI and coverage workflows, plus the release workflow rendered for
-applications, pass their base compiler flags through the shared `setup-rust`
-action's `rustflags` input. They pass `-Zpolonius=next` when Polonius is
-enabled and retain `-D warnings` otherwise; coverage steps then repeat that
-base alongside their `lld` linker flag when they override `RUSTFLAGS`. The
-pinned shared-action revision must expose this input, so dependency updates
-must preserve the passthrough contract.
+Generated CI and coverage workflows pass their base compiler flags through the
+shared `setup-rust` action's `rustflags` input. They pass `-Zpolonius=next`
+when Polonius is enabled and retain `-D warnings` otherwise; coverage steps
+then repeat that base alongside their `lld` linker flag when they override
+`RUSTFLAGS`. The pinned shared-action revision must expose this input, so
+dependency updates must preserve the passthrough contract.
 
 CodeScene coverage belongs to `main`. The generated `ci.yml` measures coverage
 on pull requests for its own ratchet and never receives the CodeScene token or
@@ -68,12 +69,10 @@ projects should follow the [0.3.0 migration guide](migrations/0.3.0.md) to
 adopt this shape.
 
 For screen readers: The following flowchart shows how `enable_polonius` selects
-the base Rust flags used by setup and coverage workflows, and by the release
-workflow rendered for applications (library renders omit `release.yml`). The
-enabled path uses `-Zpolonius=next`; the disabled path uses `-D warnings`.
-Coverage adds the `lld` linker flag to either base, while release inherits the
-selected base from `setup-rust` and uses the corresponding nightly or stable
-toolchain.
+the base Rust flags used by setup and coverage workflows. The enabled path uses
+`-Zpolonius=next`; the disabled path uses `-D warnings`. Coverage adds the
+`lld` linker flag to either base. The application release workflow is separate:
+it always selects stable Cargo with empty `RUSTFLAGS`.
 
 ```mermaid
 flowchart TD
@@ -89,19 +88,15 @@ flowchart TD
   setup_rust_warnings["Setup Rust (setup-rust)\nwith rustflags = -D warnings"]
 
   setup_rust_polonius --> coverage_polonius
-  setup_rust_polonius --> release_polonius
   setup_rust_warnings --> coverage_warnings
-  setup_rust_warnings --> release_warnings
 
   coverage_polonius["Test and Measure Coverage (generate-coverage)\nRUSTFLAGS includes -Zpolonius=next and -C link-arg=-fuse-ld=lld"]
   coverage_warnings["Test and Measure Coverage (generate-coverage)\nRUSTFLAGS includes -D warnings and -C link-arg=-fuse-ld=lld"]
-
-  release_polonius["Build release binary (cross)\nuses nightly toolchain with -Zpolonius=next from setup-rust"]
-  release_warnings["Build release binary (cross)\nuses stable toolchain with -D warnings from setup-rust"]
 ```
 
 _Figure 1: Rust flag selection and propagation through generated setup and
-coverage workflows, and the application-only release workflow._
+coverage workflows. The application-only release workflow uses stable Cargo and
+an empty `RUSTFLAGS` instead._
 
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so local debug builds
@@ -172,15 +167,30 @@ doctest therefore fails the command.
 
 The generated `Makefile` exposes these public targets:
 
-- `make all` runs formatting checks, linting, tests, and spelling checks.
-- `make check-fmt` verifies Rust formatting.
+- `make all` runs formatting checks, linting, tests, workflow contracts, and
+  spelling checks.
+- `make check-fmt` verifies Rust formatting and Markdown table formatting.
 - `make fmt` formats Rust and Markdown sources.
-- `make lint` builds documentation, then runs Clippy and Whitaker, with every
-  warning denied.
+- `make lint` runs the strict YAML, GitHub Actions, and shell gates, then
+  builds documentation and runs Clippy and Whitaker, with every warning denied.
+- `make lint-yaml` checks every tracked YAML file with strict yamllint.
+- `make lint-actions` runs actionlint, including shellcheck, over rendered
+  workflows.
+- `make lint-shell` runs shellcheck over tracked scripts.
 - `make typecheck` type-checks the workspace without building.
 - `make test` runs `cargo nextest run` when cargo-nextest is installed and
   falls back to `cargo test` otherwise. It denies warnings in normal tests and
-  in the separate all-feature workspace doctest run.
+  in the separate all-feature workspace doctest run. `.config/nextest.toml`
+  bounds each test and the whole run, and serialises compiler-spawning tests.
+- `make test-ui` runs compile-time contract targets named `tests/compile_*.rs`,
+  or reports an intentional no-op when there are none.
+- `make test-workflow-contracts` runs the pinned shared CV-005 checker over the
+  repository, using the selection in `.github/cv005.toml`.
+- `make install-build-tools` installs the pinned `mold` release, verified
+  against `tools/mold/SHA256SUMS`, and the Cranelift component for the pinned
+  nightly. `make install-cranelift` installs only the component.
+- `make check-build-tools`, `make check-rust-toolchain`, and
+  `make check-coverage-tools` report missing tools and never install anything.
 - `make build` builds the debug target.
 - `make release` builds the release target.
 - `make coverage` writes `lcov.info` using `cargo llvm-cov` and `lld`.

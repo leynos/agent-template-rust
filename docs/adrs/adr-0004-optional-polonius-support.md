@@ -50,3 +50,15 @@ requirements change.
   across supported build paths.
 - Maintainers must treat the Copier answer, dated channel, and explicit flag
   propagation as one toolchain policy when updating generated projects.
+
+## Amendment: stable release builds
+
+The application release workflow is deliberately exempt from the propagation
+rule above. Released artefacts must build from a stable toolchain with empty
+`RUSTFLAGS`, so a Polonius-enabled project cannot release source that depends
+on the nightly borrow checker. Development, lint, test, and coverage surfaces
+continue to carry `-Zpolonius=next`; only the release matrix pins stable Cargo
+and clears `RUSTFLAGS`. A project that needs Polonius-only source in a release
+must keep an NLL-compatible form, or change the release path deliberately and
+record that decision. The parent contracts in
+`tests/helpers/tooling_contracts/polonius.py` enforce both sides of this split.
