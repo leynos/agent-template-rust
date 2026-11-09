@@ -2,7 +2,7 @@
 name: Release Binary
 
 # A tag push publishes that tag. A dispatch is a dry run by default: every
-# matrix leg builds and uploads its artifact, but no release is created unless
+# matrix leg builds and uploads its artefacts, but no release is created unless
 # the dispatch names a tag ref and sets dry-run to false. A branch dispatch can
 # therefore never publish, even when it asks to.
 on:
@@ -13,7 +13,7 @@ on:
     inputs:
       dry-run:
         description: >-
-          Build every matrix leg and upload the artifacts, but create no
+          Build every matrix leg and upload the artefacts, but create no
           release. Set to false on a tag ref to publish that tag's release.
         type: boolean
         default: true
@@ -124,7 +124,7 @@ jobs:
       - name: Build release binary (cross)
         if: matrix.builder == 'cross'
         env:
-          # Release artifacts carry no repository-local build flags, including
+          # Release artefacts carry no repository-local build flags, including
           # the nightly-only development flags in .cargo/config.toml.
           RUSTFLAGS: ""
           # .cargo/config.toml selects clang for this triple, but the cross

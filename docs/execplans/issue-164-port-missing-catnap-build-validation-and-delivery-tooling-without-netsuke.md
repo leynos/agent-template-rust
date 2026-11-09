@@ -339,7 +339,7 @@ run; recorded skips and platform limits.
   in every profile, before running anything; a generated project with no
   `tests/compile_*.rs` therefore fails `cargo nextest run` outright (exit 96).
   The generated configuration therefore gives the default profile only the
-  bounded timeouts and puts the serialised `nested-cargo` group and the longer
+  bounded timeouts and puts the serialized `nested-cargo` group and the longer
   timeout in a `ui` profile whose override filters on `all()`. `make test-ui`
   selects that profile through `UI_TEST_CMD`, and it only invokes the runner
   when the target list is non-empty. `cargo test` has no profiles, so the lane

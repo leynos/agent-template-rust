@@ -462,7 +462,7 @@
       TEST_FLAGS ?= $(CARGO_FLAGS)
       TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
       # `cargo test` has no profiles. Under nextest, the `ui` profile carries the
-      # serialised `nested-cargo` group and the longer compile-test timeout.
+      # serialized `nested-cargo` group and the longer compile-test timeout.
       UI_TEST_CMD := $(if $(filter nextest run,$(TEST_CMD)),$(TEST_CMD) --profile ui,$(TEST_CMD))
       COVERAGE_LINKER_FLAGS ?= -fuse-ld=lld
       COVERAGE_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) -C link-arg=$(COVERAGE_LINKER_FLAGS)
@@ -874,7 +874,10 @@
               }),
               'uses': 'softprops/action-gh-release@<sha>',
               'with': dict({
-                'files': 'artifacts/*/*',
+                'files': '''
+                  artifacts/*/*
+  
+                ''',
                 'generate_release_notes': True,
               }),
             }),
@@ -893,7 +896,7 @@
           'inputs': dict({
             'dry-run': dict({
               'default': True,
-              'description': "Build every matrix leg and upload the artifacts, but create no release. Set to false on a tag ref to publish that tag's release.",
+              'description': "Build every matrix leg and upload the artefacts, but create no release. Set to false on a tag ref to publish that tag's release.",
               'type': 'boolean',
             }),
           }),

@@ -77,7 +77,7 @@ def _install_yamllint_config(root: Path) -> None:
 
 
 def _stage(root: Path, names: Iterable[str]) -> None:
-    """Initialise *root* as a Git repository and stage the named files."""
+    """Initialize *root* as a Git repository and stage the named files."""
     for command in (["init", "--quiet"], ["add", *names]):
         subprocess.run(
             ["git", *command],

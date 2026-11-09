@@ -21,7 +21,7 @@ ignore = [
   # tokens, not prose.
   'actions/(?:upload|download)-artifact',
   '(?:upload|download)-artifact action',
-  '_UPLOAD_ARTIFACT_USES_RE',
+  '(?:UPLOAD|DOWNLOAD)_ARTIFACT_USES_RE',
   '--artifact-server-path',
   'artifact_dir',
   'rust-artifacts-',
@@ -29,6 +29,7 @@ ignore = [
   "'?path'?: '?artifacts'?",
   "'?name'?: '(?:Prepare|Upload release) artifact'",
   '- name: (?:Prepare|Upload release) artifact',
+  '"(?:Prepare|Upload release) artifact"',
   # Quoted verbatim from act's own validation output.
   'Provided artifact name input during validation is empty',
   # Cargo's own environment variable.

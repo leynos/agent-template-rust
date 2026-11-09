@@ -230,7 +230,7 @@ def _assert_makefile_contracts(makefile: str) -> None:
     assert (
         "UI_TEST_CMD := $(if $(filter nextest run,$(TEST_CMD)),"
         "$(TEST_CMD) --profile ui,$(TEST_CMD))" in makefile
-    ), "expected generated test-ui target to select the serialised nextest profile"
+    ), "expected generated test-ui target to select the serialized nextest profile"
     assert (
         'PATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) '
         "$(UI_TEST_CMD) $(addprefix --test ,$(UI_TEST_TARGETS))" in makefile

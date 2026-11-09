@@ -101,7 +101,7 @@ The generated `Makefile` exposes these public targets:
 - `make test` runs `cargo nextest run` when cargo-nextest is installed and
   falls back to `cargo test` otherwise. It denies warnings in normal tests and
   in the separate all-feature workspace doctest run. `.config/nextest.toml`
-  bounds each test and the whole run, and serialises compiler-spawning tests.
+  bounds each test and the whole run, and serializes compiler-spawning tests.
 - `make test-ui` runs compile-time contract targets named
   `tests/compile_*.rs`, or reports an intentional no-op when there are none.
 - `make test-workflow-contracts` runs the pinned shared CV-005 checker over the
