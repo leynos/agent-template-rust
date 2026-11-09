@@ -1,0 +1,26 @@
+# Bounded, serialised test execution for generated projects.
+#
+# Every run is bounded twice. `slow-timeout` terminates one test that stops
+# making progress (nextest resets the period whenever the test produces
+# output), and `global-timeout` bounds the whole run.
+#
+# A compile-time contract test spawns nested Cargo builds. `make test-ui` runs
+# its `tests/compile_*.rs` targets with the `ui` profile, which puts every
+# selected test in the single `nested-cargo` slot and allows it three slow
+# periods. The profile is separate because nextest validates a `binary(...)`
+# filter against the binaries it finds: a generated project without UI tests
+# would reject the configuration outright.
+[profile.default]
+slow-timeout = { period = "180s", terminate-after = 1, grace-period = "5s" }
+global-timeout = "90m"
+
+[profile.ui]
+inherits = "default"
+
+[[profile.ui.overrides]]
+filter = 'all()'
+test-group = 'nested-cargo'
+slow-timeout = { period = "180s", terminate-after = 3, grace-period = "5s" }
+
+[test-groups.nested-cargo]
+max-threads = 1

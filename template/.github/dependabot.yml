@@ -1,22 +1,67 @@
 version: 2
 updates:
-  # Enable version updates for GitHub Actions
+  # Group the shared actions so one revision bump updates every caller, and
+  # keep routine GitHub Action minor and patch updates in a single pull
+  # request. Cooldowns hold a fresh release until it has been public for a
+  # week, leaving time to notice a withdrawn or broken release.
   - package-ecosystem: "github-actions"
+    groups:
+      shared-actions:
+        patterns:
+          - 'leynos/shared-actions*'
+      github-actions:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
     directory: "/"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "github-actions"
     schedule:
-      interval: "weekly"
+      interval: "daily"
+    cooldown:
+      default-days: 7
 
-  # Enable version updates for Cargo
+  # Cargo minor and patch updates arrive together; a major update stays on its
+  # own pull request so its migration can be reviewed separately.
   - package-ecosystem: "cargo"
     directory: "/"
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "cargo"
     schedule:
       interval: "daily"
-      
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+
+  # Keep the pinned Rust toolchain current. The toolchain file selects the
+  # nightly the project builds with, so its updates follow the same policy.
+  - package-ecosystem: "rust-toolchain"
+    directory: "/"
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "rust-toolchain"
+    schedule:
+      interval: "daily"
+    cooldown:
+      default-days: 7

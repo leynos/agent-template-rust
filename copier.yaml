@@ -46,6 +46,18 @@ repository_url:
   help: 'Repository URL for Cargo.toml metadata'
   placeholder: 'e.g. https://github.com/example/my_awesome_tool'
 
+github_repository:
+  type: str
+  default: 'example/{{ package_name }}'
+  help: >-
+    GitHub repository as owner/name, used by the workflow contract checks and
+    Dependabot automation
+  placeholder: 'e.g. example/my_awesome_tool'
+  validator: >-
+    {% if not (github_repository | regex_search('^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?/[A-Za-z0-9._-]+\\Z')) %}
+    GitHub repository must use owner/name with a valid owner and repository.
+    {% endif %}
+
 homepage_url:
   type: str
   default: '{{ repository_url }}'
@@ -101,9 +113,9 @@ license_year:
 
 rust_nightly_date:
   type: str
-  default: '2025-06-10'
+  default: '2026-11-06'
   help: 'Rust nightly toolchain date (YYYY-MM-DD)'
-  placeholder: 'e.g. 2025-06-10'
+  placeholder: 'e.g. 2026-11-06'
   validator: >-
     {% if not (rust_nightly_date | regex_search('^[0-9]{4}-[0-9]{2}-[0-9]{2}\\Z')) %}
     Rust nightly date must use YYYY-MM-DD.

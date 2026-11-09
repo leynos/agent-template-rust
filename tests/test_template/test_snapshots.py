@@ -13,6 +13,7 @@ from pytest_copier.plugin import CopierFixture
 from syrupy.assertion import SnapshotAssertion
 
 from tests.helpers.generated_files import (
+    parse_toml_file,
     parse_yaml_mapping,
     read_generated_text,
 )
@@ -59,6 +60,7 @@ def test_generated_structured_file_snapshots(
     )
 
     cargo_config = read_generated_text(project / ".cargo/config.toml")
+    cv005_config = parse_toml_file(project / ".github/cv005.toml")
     makefile = read_generated_text(project / "Makefile")
     makefile_snapshot = makefile.replace("\t", "\\t")
     ci_workflow = parse_yaml_mapping(
@@ -84,6 +86,7 @@ def test_generated_structured_file_snapshots(
         _redact_pinned_shas(
             {
                 "cargo_config": cargo_config,
+                "cv005_config": cv005_config,
                 "makefile": makefile_snapshot,
                 "audit_workflow": audit_workflow,
                 "ci_workflow": ci_workflow,
@@ -94,8 +97,8 @@ def test_generated_structured_file_snapshots(
         )
         == snapshot
     ), (
-        "Snapshot mismatch for template outputs (cargo_config, makefile, "
-        "audit_workflow, ci_workflow, coverage_main_workflow, "
+        "Snapshot mismatch for template outputs (cargo_config, cv005_config, "
+        "makefile, audit_workflow, ci_workflow, coverage_main_workflow, "
         "mutation_workflow, release_workflow)"
     )
 
@@ -207,3 +210,4 @@ def test_redact_pinned_shas_preserves_action_path(path: str, sha: str) -> None:
     assert _redact_pinned_shas({"uses": f"{path}@{sha}"}) == {
         "uses": f"{path}@<sha>"
     }, "expected redaction to replace only the SHA and keep the action path"
+# weave: run 'weave explain tests/test_template/test_snapshots.py' for per-hunk detail, 'weave check' to verify your resolution

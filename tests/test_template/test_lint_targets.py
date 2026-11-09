@@ -245,6 +245,21 @@ def test_makefile_resolves_whitaker_fallback(
     assert bash is not None, "expected bash to be available for generated tests"
     for bin_dir in (path_bin, tool_bin):
         (bin_dir / "bash").symlink_to(bash)
+        # `make lint` runs the YAML, workflow and shell gates before it invokes
+        # Cargo and Whitaker. This case isolates Whitaker resolution, so those
+        # tools are stubbed to succeed rather than removed from PATH. `git`
+        # reports no tracked files to `xargs`, and `uname` names a Linux host
+        # so the development linker flags stay defined.
+        for tool in ("yamllint", "actionlint", "shellcheck", "xargs"):
+            stub = bin_dir / tool
+            stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            stub.chmod(0o755)
+        git_stub = bin_dir / "git"
+        git_stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        git_stub.chmod(0o755)
+        uname_stub = bin_dir / "uname"
+        uname_stub.write_text("#!/bin/sh\necho Linux\n", encoding="utf-8")
+        uname_stub.chmod(0o755)
     cargo.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     cargo.chmod(0o755)
 
@@ -270,6 +285,10 @@ def test_makefile_resolves_whitaker_fallback(
                 "HOME": str(home),
                 "PATH": str(path_bin if whitaker_location == "path" else tool_bin),
                 "CARGO": str(cargo),
+                # The capability preflight inspects the machine rather than
+                # installing anything. This case stubs the toolchain, so it
+                # replaces the preflight with a no-op that always succeeds.
+                "CHECK_BUILD_TOOLS": "true",
             }
         ),
         check=False,

@@ -1,29 +1,42 @@
-{% if enable_polonius -%}
-# Enable the Polonius alpha borrow-checking analysis by default so Cargo,
-# rust-analyzer, and verification tools agree about what borrows are legal.
-# An inherited RUSTFLAGS value overrides this table; the generated Makefile and
-# workflows therefore re-state -Zpolonius=next whenever they set RUSTFLAGS.
+# Repository-wide Cargo defaults for the development build standard.
+#
+# The parallel `rustc` frontend and, on Linux, the `mold` linker are the
+# defaults for every development, test, lint and typecheck build. Cargo
+# discovers this file, so a bare `cargo build` gets them too.
+#
+# Cargo selects one `rustflags` source rather than merging sources: a matching
+# `[target.*]` table replaces `[build] rustflags`, and an assigned `RUSTFLAGS`
+# environment variable replaces both. Every flag is therefore repeated in each
+# source here, and the Makefile composes the same flags into the `RUSTFLAGS`
+# its recipes set. Coverage, the Whitaker lint route and the release recipe
+# assign `RUSTFLAGS` without the development flags on purpose.
+#
+# Cranelift is selected through rustc's nightly flag rather than the unstable
+# Cargo `[profile.dev] codegen-backend` key. Stable Cargo cannot parse that
+# key, and a release build must parse this file; the rustflags route lets the
+# stable release recipe clear `RUSTFLAGS` and drop the nightly flags instead.
 [build]
-rustflags = ["-Zpolonius=next"]
+rustflags = [{% if enable_polonius %}"-Zpolonius=next", {% endif %}"-Zthreads=8", "-Zcodegen-backend=cranelift"]
+{% if enable_polonius -%}
 rustdocflags = ["-Zpolonius=next"]
 {% endif -%}
-[unstable]
-codegen-backend = true
-
-[profile.dev]
-codegen-backend = "cranelift"
-
-{% if dev_target and 'linux' in dev_target -%}
+{% if dev_target and 'linux' in dev_target %}
+# `mold` ships for Linux only. The linker selection lives on the requested
+# development triple; the linker flag lives in the `cfg` table below so every
+# Linux target receives it. Other targets, macOS and Windows included, keep
+# their platform linker.
 [target.{{ dev_target }}]
 linker = "clang"
-{% if enable_polonius -%}
-# Cargo selects target rustflags instead of merging them with build.rustflags,
-# so this target-specific mold configuration must repeat the Polonius flag.
+
+# The `cfg` table replaces `[build] rustflags` whenever it matches, so it must
+# repeat every development flag as well as the linker selection.
+[target.'cfg(target_os = "linux")']
+rustflags = [{% if enable_polonius %}"-Zpolonius=next", {% endif %}"-Zthreads=8", "-Zcodegen-backend=cranelift", "-Clink-arg=-fuse-ld=mold"]
 {% endif -%}
-rustflags = [{% if enable_polonius %}"-Zpolonius=next", {% endif %}"-C", "link-arg=-fuse-ld=mold"]
-{% elif dev_target -%}
-# mold is Linux-only. For faster linking on {{ dev_target }}, add a
-# platform-specific block here. Common options include lld via clang on macOS
-# or BSD targets, and lld-link for Windows MSVC targets on recent Rust
-# toolchains.
+{% if rust_nightly_date >= '2026-07-31' %}
+# Cargo coordinates metadata output itself on dated nightlies from 2026-07-31.
+# A generated project pinning an older nightly omits this table. Never use raw
+# rustc metadata flags; they broke build scripts.
+[unstable]
+embed-metadata = false
 {% endif -%}
