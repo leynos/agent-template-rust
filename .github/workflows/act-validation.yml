@@ -31,6 +31,23 @@ jobs:
           install-clang-lld: 'true'
       - name: Setup uv
         uses: astral-sh/setup-uv@5e83ccf689000bf635d77af2cdbad36ca1397375
+      - name: Install the generated-project toolchain
+        # The template tests run generated `make` targets whose capability
+        # preflight never installs anything. Render the template's own default
+        # project and let rustup install the toolchain and components its
+        # rust-toolchain.toml pins, so the pin has one source.
+        run: |
+          set -euo pipefail
+          project="${RUNNER_TEMP}/template-toolchain"
+          rm -rf "${project}"
+          uvx --with copier copier copy --defaults --trust . "${project}"
+          (cd "${project}" && cargo --version)
+      - name: Install the YAML lint tools
+        uses: leynos/shared-actions/.github/actions/install-yaml-lint@26c918632c5413039a84358fafe012a4399a9ec7
+      - name: Install mdtablefix
+        # `make test` renders projects whose `make all` runs `make check-fmt`,
+        # and that gate calls `mdtablefix --check --git`.
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@38905b4b2caec5b049438e6dc3f3f6b36c04d2df
       - name: Install template test tools
         env:
           GITHUB_TOKEN: ${{ github.token }}

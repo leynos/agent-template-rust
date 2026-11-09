@@ -25,6 +25,14 @@ disabled-strategies = ["quick-install", "compile"]
 
 {% endif -%}
 
+# Development builds keep neither incremental state nor debug information, so
+# the target directory stays small and Cranelift rebuilds stay fast. Set
+# CARGO_PROFILE_DEV_DEBUG=true to debug, or CARGO_INCREMENTAL=1 to rebuild
+# incrementally.
+[profile.dev]
+incremental = false
+debug = 0
+
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 

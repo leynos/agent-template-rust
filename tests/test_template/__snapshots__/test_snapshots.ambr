@@ -108,24 +108,44 @@
       }),
     }),
     'cargo_config': '''
-      # Enable the Polonius alpha borrow-checking analysis by default so Cargo,
-      # rust-analyzer, and verification tools agree about what borrows are legal.
-      # An inherited RUSTFLAGS value overrides this table; the generated Makefile and
-      # workflows therefore re-state -Zpolonius=next whenever they set RUSTFLAGS.
+      # Repository-wide Cargo defaults for the development build standard.
+      #
+      # The parallel `rustc` frontend and, on Linux, the `mold` linker are the
+      # defaults for every development, test, lint and typecheck build. Cargo
+      # discovers this file, so a bare `cargo build` gets them too.
+      #
+      # Cargo selects one `rustflags` source rather than merging sources: a matching
+      # `[target.*]` table replaces `[build] rustflags`, and an assigned `RUSTFLAGS`
+      # environment variable replaces both. Every flag is therefore repeated in each
+      # source here, and the Makefile composes the same flags into the `RUSTFLAGS`
+      # its recipes set. Coverage, the Whitaker lint route and the release recipe
+      # assign `RUSTFLAGS` without the development flags on purpose.
+      #
+      # Cranelift is selected through rustc's nightly flag rather than the unstable
+      # Cargo `[profile.dev] codegen-backend` key. Stable Cargo cannot parse that
+      # key, and a release build must parse this file; the rustflags route lets the
+      # stable release recipe clear `RUSTFLAGS` and drop the nightly flags instead.
       [build]
-      rustflags = ["-Zpolonius=next"]
+      rustflags = ["-Zpolonius=next", "-Zthreads=8", "-Zcodegen-backend=cranelift"]
       rustdocflags = ["-Zpolonius=next"]
-      [unstable]
-      codegen-backend = true
       
-      [profile.dev]
-      codegen-backend = "cranelift"
-      
+      # `mold` ships for Linux only. The linker selection lives on the requested
+      # development triple; the linker flag lives in the `cfg` table below so every
+      # Linux target receives it. Other targets, macOS and Windows included, keep
+      # their platform linker.
       [target.x86_64-unknown-linux-gnu]
       linker = "clang"
-      # Cargo selects target rustflags instead of merging them with build.rustflags,
-      # so this target-specific mold configuration must repeat the Polonius flag.
-      rustflags = ["-Zpolonius=next", "-C", "link-arg=-fuse-ld=mold"]
+      
+      # The `cfg` table replaces `[build] rustflags` whenever it matches, so it must
+      # repeat every development flag as well as the linker selection.
+      [target.'cfg(target_os = "linux")']
+      rustflags = ["-Zpolonius=next", "-Zthreads=8", "-Zcodegen-backend=cranelift", "-Clink-arg=-fuse-ld=mold"]
+      
+      # Cargo coordinates metadata output itself on dated nightlies from 2026-07-31.
+      # A generated project pinning an older nightly omits this table. Never use raw
+      # rustc metadata flags; they broke build scripts.
+      [unstable]
+      embed-metadata = false
   
     ''',
     'ci_workflow': dict({
@@ -134,7 +154,6 @@
           'env': dict({
             'BUILD_PROFILE': 'debug',
             'CARGO_TERM_COLOR': 'always',
-            'WHITAKER_INSTALLER_VERSION': '0.2.11',
           }),
           'permissions': dict({
             'contents': 'read',
@@ -164,6 +183,14 @@
               ''',
             }),
             dict({
+              'name': 'Install rust-analyzer',
+              'run': 'rustup component add rust-analyzer',
+            }),
+            dict({
+              'name': 'Install mdtablefix',
+              'uses': 'leynos/shared-actions/.github/actions/install-mdtablefix@<sha>',
+            }),
+            dict({
               'name': 'Format',
               'run': 'make check-fmt',
             }),
@@ -182,6 +209,14 @@
             dict({
               'name': 'Setup uv',
               'uses': 'astral-sh/setup-uv@<sha>',
+            }),
+            dict({
+              'name': 'Install the YAML lint tools',
+              'uses': 'leynos/shared-actions/.github/actions/install-yaml-lint@<sha>',
+            }),
+            dict({
+              'name': 'Check the CV-005 workflow contracts',
+              'run': 'make test-workflow-contracts',
             }),
             dict({
               'name': 'Check spelling',
@@ -211,38 +246,11 @@
               }),
             }),
             dict({
-              'id': 'cache-whitaker',
-              'name': 'Cache Whitaker installation',
-              'uses': 'actions/cache@<sha>',
-              'with': dict({
-                'key': 'whitaker-v3-${{ runner.os }}-${{ env.WHITAKER_INSTALLER_VERSION }}',
-                'path': '''
-                  ~/.cargo/bin/whitaker-installer
-                  ~/.local/bin/whitaker
-                  ~/.dylint_drivers
-                  ~/.local/share/whitaker
-  
-                ''',
-              }),
-            }),
-            dict({
-              'env': dict({
-                'RUSTFLAGS': '',
-                'WHITAKER_CACHE_HIT': '${{ steps.cache-whitaker.outputs.cache-hit }}',
-              }),
               'name': 'Install Whitaker',
-              'run': '''
-                set -euo pipefail
-                echo "Whitaker cache hit: ${WHITAKER_CACHE_HIT}"
-                if [ "${WHITAKER_CACHE_HIT}" != "true" ]; then
-                  echo "Installing whitaker-installer ${WHITAKER_INSTALLER_VERSION}"
-                  cargo binstall --no-confirm --locked \
-                    whitaker-installer@"${WHITAKER_INSTALLER_VERSION}"
-                fi
-                whitaker-installer --cranelift
-                echo "Whitaker binary: $(command -v whitaker || true)"
-  
-              ''',
+              'uses': 'leynos/shared-actions/.github/actions/install-whitaker@<sha>',
+              'with': dict({
+                'cranelift': 'true',
+              }),
             }),
             dict({
               'if': "github.actor != 'dependabot[bot]'",
@@ -252,6 +260,10 @@
             dict({
               'name': 'Lint',
               'run': 'make lint',
+            }),
+            dict({
+              'name': 'Run compile-time UI tests',
+              'run': 'make test-ui',
             }),
             dict({
               'name': 'Log coverage linker configuration',
@@ -305,6 +317,7 @@
             'BUILD_PROFILE': 'debug',
             'CARGO_TERM_COLOR': 'always',
           }),
+          'environment': 'codescene',
           'permissions': dict({
             'contents': 'read',
           }),
@@ -338,6 +351,10 @@
               }),
               'name': 'Install test runner',
               'run': 'cargo binstall --no-confirm --locked cargo-nextest',
+            }),
+            dict({
+              'name': 'Run compile-time UI tests',
+              'run': 'make test-ui',
             }),
             dict({
               'name': 'Log coverage linker configuration',
@@ -392,8 +409,16 @@
         'workflow_dispatch': None,
       }),
     }),
+    'cv005_config': dict({
+      'repository': 'example/snapshot_example',
+      'selection': dict({
+        'format': 'lcov',
+        'output-path': 'lcov.info',
+        'with-ratchet': 'true',
+      }),
+    }),
     'makefile': '''
-      .PHONY: help all clean test build release coverage lint fmt check-fmt markdownlint spelling nixie audit rust-audit
+      .PHONY: help all clean test test-ui build release coverage lint lint-actions lint-shell lint-yaml fmt check-fmt markdownlint spelling test-workflow-contracts nixie audit rust-audit install-build-tools install-cranelift check-build-tools check-rust-toolchain check-coverage-tools
       
       SHELL := bash
       
@@ -404,48 +429,125 @@
       USER_BIN_PATH := $(HOME)/.cargo/bin:$(HOME)/.local/bin:$(HOME)/.bun/bin
       CARGO ?= cargo
       BUILD_JOBS ?=
+      BUILD_TOOLS_PREFIX ?= $(HOME)/.local
+      BUILD_TOOLS_PATH = $(BUILD_TOOLS_PREFIX)/bin:$$PATH
+      # Capability checks report what the machine has; they never install anything.
+      # Each is overridable so a caller with an equivalent environment can replace it
+      # without editing the target graph.
+      CHECK_BUILD_TOOLS ?= PATH="$(BUILD_TOOLS_PATH)" scripts/check-build-tools.sh
+      CHECK_RUST_TOOLCHAIN ?= PATH="$(BUILD_TOOLS_PATH)" scripts/check-build-tools.sh --toolchain-only
+      CHECK_COVERAGE_TOOLS ?= PATH="$(BUILD_TOOLS_PATH)" scripts/check-build-tools.sh --coverage-only
       # RUSTFLAGS overrides .cargo/config.toml, so recipes that set it must re-state
       # the Polonius flag explicitly.
       POLONIUS_FLAGS ?= -Zpolonius=next
+      # RUSTFLAGS inherited from the environment is appended: assigning RUSTFLAGS in
+      # a recipe replaces both the environment value and the flags Cargo would read
+      # from .cargo/config.toml.
+      INHERITED_RUST_FLAGS := $(RUSTFLAGS)
       RUST_FLAGS ?=
-      RUST_FLAGS := -D warnings $(RUST_FLAGS)
+      RUST_FLAGS := $(INHERITED_RUST_FLAGS) -D warnings $(RUST_FLAGS)
       DEV_LINKER_FLAGS ?= $(if $(filter Linux,$(shell uname -s)),-C link-arg=-fuse-ld=mold)
-      DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_LINKER_FLAGS)
+      # Development builds use Cranelift through rustc's nightly flag and run the
+      # compiler frontend on eight threads. Coverage, Whitaker and release omit both:
+      # instrumented coverage and release linking must keep the platform codegen.
+      DEV_CODEGEN_FLAGS ?= -Zthreads=8 -Zcodegen-backend=cranelift
+      DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_CODEGEN_FLAGS) $(DEV_LINKER_FLAGS)
+      WHITAKER_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS)
+      RELEASE_RUST_FLAGS ?= $(POLONIUS_FLAGS)
+      RELEASE_CARGO ?= $(CARGO)
       RUSTDOC_FLAGS ?=
       RUSTDOC_FLAGS := --cfg docsrs -D warnings $(POLONIUS_FLAGS) $(RUSTDOC_FLAGS)
       CARGO_FLAGS ?= --all-targets --all-features
       CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
       TEST_FLAGS ?= $(CARGO_FLAGS)
       TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
+      # `cargo test` has no profiles. Under nextest, the `ui` profile carries the
+      # serialised `nested-cargo` group and the longer compile-test timeout.
+      UI_TEST_CMD := $(if $(filter nextest run,$(TEST_CMD)),$(TEST_CMD) --profile ui,$(TEST_CMD))
       COVERAGE_LINKER_FLAGS ?= -fuse-ld=lld
       COVERAGE_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) -C link-arg=$(COVERAGE_LINKER_FLAGS)
       MDLINT ?= markdownlint-cli2
+      # `make fmt` and `make check-fmt` call mdtablefix directly. `--git` selects the
+      # Markdown files Git tracks and `--include-untracked` adds the untracked files
+      # Git does not ignore, so a new document is formatted before it is staged.
+      # Both modes need mdtablefix 0.6.0 or later; CI pins the version at the
+      # install-mdtablefix step.
+      MDTABLEFIX ?= mdtablefix
+      MDTABLEFIX_SELECT = --git --include-untracked
+      MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences
+      # Compile-time contract tests are named `tests/compile_*.rs`. The convention
+      # lets the explicit UI lane select them without a declared manifest, and an
+      # empty selection is an intentional no-op rather than a failure.
+      UI_TEST_TARGETS := $(patsubst tests/%.rs,%,$(wildcard tests/compile_*.rs))
       NIXIE ?= nixie
+      # YAML, workflow and shell lint tools are provisioned by the shared
+      # install-yaml-lint action in CI and may come from any package manager
+      # locally. Each target names the missing tool and how to install it.
+      YAMLLINT ?= yamllint
+      ACTIONLINT ?= actionlint
+      SHELLCHECK ?= shellcheck
       TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.3
       TYPOS_CONFIG_BUILDER = uv tool run --from \
       \t"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
       \ttypos-config-builder
       WHITAKER ?= $(or $(shell command -v whitaker 2>/dev/null),$(wildcard $(USER_WHITAKER)),whitaker)
+      UV ?= uv
+      # The shared CV-005 checker is pinned by one revision, so a rule fix is a pin
+      # bump and the generated project never carries its own copy of the rules.
+      CV005_CONTRACTS_REF ?= 38905b4b2caec5b049438e6dc3f3f6b36c04d2df
+      CV005_CONTRACTS = $(UV) tool run --python 3.13 \
+      \t--from 'git+https://github.com/leynos/shared-actions@$(CV005_CONTRACTS_REF)\#subdirectory=packages/cv005-contracts' \
+      \tcv005-contracts
       
       build: target/debug/$(TARGET) ## Build debug binary
-      release: target/release/$(TARGET) ## Build release binary
+      release: target/release/$(TARGET) check-rust-toolchain ## Build release binary
       
-      all: check-fmt lint test ## Perform a comprehensive check of code
+      all: check-fmt lint test test-workflow-contracts ## Perform a comprehensive check of code
       \t+$(MAKE) spelling
+      
+      install-build-tools: ## Install the pinned Rust toolchain and mold linker
+      \tBUILD_TOOLS_PREFIX="$(BUILD_TOOLS_PREFIX)" scripts/install-build-tools.sh
+      
+      install-cranelift: ## Install the Cranelift backend for the pinned toolchain
+      \tscripts/install-build-tools.sh --cranelift-only
+      
+      check-build-tools: ## Check the pinned toolchain, clang and mold
+      \t@$(CHECK_BUILD_TOOLS)
+      
+      check-rust-toolchain: ## Check the pinned Rust toolchain and components
+      \t@$(CHECK_RUST_TOOLCHAIN)
+      
+      check-coverage-tools: ## Check the clang and lld linkers used for coverage
+      \t@$(CHECK_COVERAGE_TOOLS)
       
       clean: ## Remove build artefacts
       \t$(CARGO) clean
       \trm -f .typos-oxendict-base.json .typos-oxendict-base.toml
       
+      test: check-build-tools
       test: export RUSTFLAGS := $(DEV_RUST_FLAGS)
       test: ## Run tests with warnings treated as errors
-      \t$(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
-      \tRUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
+      \tPATH="$(BUILD_TOOLS_PATH)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
+      \tPATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
       
-      target/%/$(TARGET): ## Build binary in debug or release mode
-      \tRUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) build $(BUILD_JOBS) $(if $(findstring release,$(@)),--release) --bin $(TARGET)
+      # Compile-time contract tests build nested Cargo projects, so the lane runs
+      # them on their own instead of inside the instrumented coverage build. A
+      # project without `tests/compile_*.rs` reports an intentional no-op.
+      test-ui: check-build-tools ## Run compile-time contract tests
+      \t@set -euo pipefail; \
+      \tif [ -z "$(strip $(UI_TEST_TARGETS))" ]; then \
+      \t  echo "No compile-time UI test targets (tests/compile_*.rs); nothing to run."; \
+      \t  exit 0; \
+      \tfi; \
+      \tPATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) $(UI_TEST_CMD) $(addprefix --test ,$(UI_TEST_TARGETS))
       
-      coverage: ## Generate lcov coverage with lld for llvm-tools compatibility
+      target/debug/$(TARGET): check-build-tools
+      \tPATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) build $(BUILD_JOBS) --bin $(TARGET)
+      
+      target/release/$(TARGET):
+      \tPATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(RELEASE_RUST_FLAGS)" $(RELEASE_CARGO) build $(BUILD_JOBS) --release --bin $(TARGET)
+      
+      coverage: check-coverage-tools ## Generate lcov coverage with lld for llvm-tools compatibility
       \t@echo "coverage linker flags: $(COVERAGE_LINKER_FLAGS)"
       \tCARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang \
       \t\tRUSTFLAGS="$(COVERAGE_RUST_FLAGS)" \
@@ -453,21 +555,53 @@
       \t\tLDFLAGS="$(COVERAGE_LINKER_FLAGS)" \
       \t\t$(CARGO) llvm-cov --lcov --output-path lcov.info $(TEST_FLAGS)
       
-      lint: ## Run Clippy with warnings denied
+      # `git ls-files -z` enumerates the YAML this project owns. The patterns end in
+      # `.yml` or `.yaml`, so Copier/Jinja sources are never handed to yamllint as
+      # though they were YAML. `xargs -0 -r` preserves paths with spaces and runs
+      # nothing when no file matches.
+      lint-yaml: ## Lint every tracked YAML file strictly
+      \t@if ! command -v $(YAMLLINT) >/dev/null 2>&1; then \
+      \t  echo "yamllint is required to lint YAML; install it with: uv tool install yamllint" >&2; \
+      \t  exit 1; \
+      \tfi
+      \t@git ls-files -z '*.yml' '*.yaml' | xargs -0 -r $(YAMLLINT) --strict --
+      
+      # actionlint inspects the workflow files GitHub actually executes and runs
+      # ShellCheck over every `run:` script it finds.
+      lint-actions: ## Lint GitHub Actions workflows and their shell scripts
+      \t@if ! command -v $(ACTIONLINT) >/dev/null 2>&1; then \
+      \t  echo "actionlint is required to lint workflows; install it from https://github.com/rhysd/actionlint" >&2; \
+      \t  exit 1; \
+      \tfi
+      \t@if ! command -v $(SHELLCHECK) >/dev/null 2>&1; then \
+      \t  echo "shellcheck is required by actionlint; install it using your OS package manager" >&2; \
+      \t  exit 1; \
+      \tfi
+      \t@$(ACTIONLINT) -shellcheck=$(SHELLCHECK)
+      
+      lint-shell: ## Lint tracked shell scripts
+      \t@if ! command -v $(SHELLCHECK) >/dev/null 2>&1; then \
+      \t  echo "shellcheck is required to lint shell scripts; install it using your OS package manager" >&2; \
+      \t  exit 1; \
+      \tfi
+      \t@git ls-files -z '*.sh' | xargs -0 -r $(SHELLCHECK)
+      
+      lint: check-build-tools lint-yaml lint-actions lint-shell ## Run Clippy with warnings denied
       \tRUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) doc --no-deps
       \tRUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) clippy $(CLIPPY_FLAGS)
       \t@echo "Whitaker binary: $(WHITAKER)"
-      \tPATH="$(USER_BIN_PATH):$(PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(WHITAKER) --all -- $(CARGO_FLAGS)
+      \tPATH="$(USER_BIN_PATH):$(PATH)" RUSTFLAGS="$(WHITAKER_RUST_FLAGS)" $(WHITAKER) --all -- $(CARGO_FLAGS)
       
-      typecheck: ## Type-check without building
-      \tRUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) check $(CARGO_FLAGS)
+      typecheck: check-build-tools ## Type-check without building
+      \tPATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) check $(CARGO_FLAGS)
       
-      fmt: ## Format Rust and Markdown sources
-      \t$(CARGO) +nightly fmt --all
-      \tmdformat-all
+      fmt: check-rust-toolchain ## Format Rust and Markdown sources
+      \t$(CARGO) fmt --all
+      \t$(MDTABLEFIX) --in-place $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES)
       
-      check-fmt: ## Verify formatting
+      check-fmt: check-rust-toolchain ## Verify formatting
       \t$(CARGO) fmt --all -- --check
+      \t$(MDTABLEFIX) --check $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES)
       
       markdownlint: ## Lint Markdown files
       \t$(MDLINT) '**/*.md'
@@ -482,6 +616,9 @@
       \t\texit 1; \
       \tfi
       \t$(TYPOS_CONFIG_BUILDER) gate --repository .
+      
+      test-workflow-contracts: ## Check the shared CV-005 workflow contracts
+      \t$(CV005_CONTRACTS) check --repository .
       
       nixie: ## Validate Mermaid diagrams
       \t$(NIXIE) --no-sandbox
@@ -551,7 +688,10 @@
       }),
       'jobs': dict({
         'build': dict({
-          'runs-on': 'ubuntu-latest',
+          'permissions': dict({
+            'contents': 'read',
+          }),
+          'runs-on': '${{ matrix.runner }}',
           'steps': list([
             dict({
               'uses': 'actions/checkout@<sha>',
@@ -562,8 +702,9 @@
             dict({
               'uses': 'leynos/shared-actions/.github/actions/setup-rust@<sha>',
               'with': dict({
-                'rustflags': '-Zpolonius=next',
-                'toolchain': 'nightly-2025-06-10',
+                'expect-cache': 'any',
+                'toolchain': 'stable',
+                'use-sccache': 'false',
               }),
             }),
             dict({
@@ -575,6 +716,7 @@
             }),
             dict({
               'id': 'cache-cross',
+              'if': "matrix.builder == 'cross'",
               'name': 'Cache cross binary',
               'uses': 'actions/cache@<sha>',
               'with': dict({
@@ -586,6 +728,7 @@
               'env': dict({
                 'RUSTFLAGS': '',
               }),
+              'if': "matrix.builder == 'cross'",
               'name': 'Install cross',
               'run': '''
                 if [ -x "$HOME/.cargo/bin/cross" ]; then
@@ -612,8 +755,26 @@
               }),
             }),
             dict({
-              'name': 'Build release binary',
-              'run': 'cross +nightly-2025-06-10 build --release --target ${{ matrix.target }}',
+              'if': "matrix.builder == 'cargo'",
+              'name': 'Add native target',
+              'run': 'rustup target add "${{ matrix.target }}"',
+            }),
+            dict({
+              'env': dict({
+                'CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER': 'cc',
+                'RUSTFLAGS': '',
+              }),
+              'if': "matrix.builder == 'cross'",
+              'name': 'Build release binary (cross)',
+              'run': 'cross +stable build --release --target ${{ matrix.target }}',
+            }),
+            dict({
+              'env': dict({
+                'RUSTFLAGS': '',
+              }),
+              'if': "matrix.builder == 'cargo'",
+              'name': 'Build release binary (native)',
+              'run': 'cargo +stable build --release --target ${{ matrix.target }}',
             }),
             dict({
               'name': 'Prepare artifact',
@@ -622,7 +783,7 @@
                 cp target/${{ matrix.target }}/release/${{ env.BIN_NAME }}${{ matrix.ext }} \
                   artifacts/${{ matrix.os }}-${{ matrix.arch }}/${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }}
                 cd artifacts/${{ matrix.os }}-${{ matrix.arch }}
-                sha256sum ${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }} > \
+                shasum -a 256 ${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }} > \
                   ${{ env.BIN_NAME }}-${{ matrix.target }}${{ matrix.ext }}.sha256
   
               ''',
@@ -637,42 +798,55 @@
             }),
           ]),
           'strategy': dict({
+            'fail-fast': False,
             'matrix': dict({
               'include': list([
                 dict({
                   'arch': 'x86_64',
+                  'builder': 'cross',
                   'ext': '',
                   'os': 'linux',
+                  'runner': 'ubuntu-latest',
                   'target': 'x86_64-unknown-linux-gnu',
                 }),
                 dict({
                   'arch': 'aarch64',
+                  'builder': 'cross',
                   'ext': '',
                   'os': 'linux',
+                  'runner': 'ubuntu-latest',
                   'target': 'aarch64-unknown-linux-gnu',
                 }),
                 dict({
                   'arch': 'x86_64',
+                  'builder': 'cross',
                   'ext': '.exe',
                   'os': 'windows',
+                  'runner': 'ubuntu-latest',
                   'target': 'x86_64-pc-windows-gnu',
                 }),
                 dict({
                   'arch': 'x86_64',
+                  'builder': 'cargo',
                   'ext': '',
                   'os': 'macos',
+                  'runner': 'macos-15-intel',
                   'target': 'x86_64-apple-darwin',
                 }),
                 dict({
                   'arch': 'aarch64',
+                  'builder': 'cargo',
                   'ext': '',
                   'os': 'macos',
+                  'runner': 'macos-latest',
                   'target': 'aarch64-apple-darwin',
                 }),
                 dict({
                   'arch': 'x86_64',
+                  'builder': 'cross',
                   'ext': '',
                   'os': 'freebsd',
+                  'runner': 'ubuntu-latest',
                   'target': 'x86_64-unknown-freebsd',
                 }),
               ]),
@@ -681,6 +855,7 @@
           'timeout-minutes': 60,
         }),
         'release': dict({
+          'if': "github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs['dry-run'] == false && startsWith(github.ref, 'refs/tags/'))",
           'needs': 'build',
           'permissions': dict({
             'contents': 'write',
@@ -699,10 +874,7 @@
               }),
               'uses': 'softprops/action-gh-release@<sha>',
               'with': dict({
-                'files': '''
-                  artifacts/*/*
-  
-                ''',
+                'files': 'artifacts/*/*',
                 'generate_release_notes': True,
               }),
             }),
@@ -716,6 +888,15 @@
           'tags': list([
             'v*.*.*',
           ]),
+        }),
+        'workflow_dispatch': dict({
+          'inputs': dict({
+            'dry-run': dict({
+              'default': True,
+              'description': "Build every matrix leg and upload the artifacts, but create no release. Set to false on a tag ref to publish that tag's release.",
+              'type': 'boolean',
+            }),
+          }),
         }),
       }),
     }),

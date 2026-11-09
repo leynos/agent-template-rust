@@ -16,16 +16,15 @@ from tests.helpers.generated_files import (
     require_mapping,
     require_sequence,
 )
-from tests.helpers.tooling_contracts.codescene_publisher import (
-    assert_ci_workflow_reaches_no_codescene,
-    assert_codescene_publisher_contract,
-)
 
 _GENERATE_COVERAGE_USES_RE = re.compile(
     r"^leynos/shared-actions/\.github/actions/generate-coverage@[0-9a-f]{40}$"
 )
 _UPLOAD_CODESCENE_COVERAGE_USES_RE = re.compile(
     r"^leynos/shared-actions/\.github/actions/upload-codescene-coverage@[0-9a-f]{40}$"
+)
+_INSTALL_WHITAKER_USES_RE = re.compile(
+    r"^leynos/shared-actions/\.github/actions/install-whitaker@[0-9a-f]{40}$"
 )
 _SETUP_RUST_USES_RE = re.compile(
     r"leynos/shared-actions/\.github/actions/setup-rust@[0-9a-f]{40}"
@@ -118,6 +117,9 @@ def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
     )
     assert coverage_inputs.get("with-ratchet") == "true", (
         "expected CI coverage step to enable the coverage ratchet"
+    )
+    assert coverage_inputs.get("publish-artefact") == "false", (
+        "expected the pull-request lane to leave the report artefact to the publisher"
     )
 
 
@@ -223,8 +225,8 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
         Raised when the workflow does not trigger on push to main and
         ``workflow_dispatch``, omits the pinned shared coverage action, drops
         the ratchet baseline that pull-request runs compare against, or
-        breaks the CodeScene token, guard or queue shape held by
-        ``assert_codescene_publisher_contract``.
+        omits the ``codescene`` environment from the uploading job. The
+        shared CV-005 checker holds the token, guard and queue shape.
     pytest.fail.Exception
         Raised by YAML parsing helpers when the workflow cannot be parsed as
         the expected mapping structure.
@@ -269,7 +271,17 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
         "expected coverage-main.yml to use the shared upload action pinned "
         f"to a full 40-hex commit SHA, got {upload_uses!r}"
     )
-    assert_codescene_publisher_contract(parsed)
+    assert coverage_upload.get("environment") == "codescene", (
+        "expected the uploading job to declare the codescene environment; "
+        "CV-005 refuses the credential anywhere else"
+    )
+    upload_inputs = require_mapping(upload_steps[0], "with", "upload step")
+    assert upload_inputs.get("mode") == "upload", (
+        "expected the publisher to upload the measured report"
+    )
+    assert upload_inputs.get("access-token") == "${{ secrets.CS_ACCESS_TOKEN }}", (
+        "expected the upload to take the token as its access-token input"
+    )
 
 
 def assert_setup_rust_revision_consistency(
@@ -382,7 +394,6 @@ def _assert_ci_workflow_contracts(
     rust_tool_install_step_names = [
         "Install test runner",
         "Install cargo-audit",
-        "Install Whitaker",
     ]
     for step_name in rust_tool_install_step_names:
         matching_steps = [
@@ -398,8 +409,36 @@ def _assert_ci_workflow_contracts(
             f"expected generated CI {step_name} step to clear inherited RUSTFLAGS"
         )
 
-    assert "Cache Whitaker installation" in ci_workflow, (
-        "expected generated CI workflow to cache Whitaker installation"
+    whitaker_steps = [
+        step
+        for step in _step_mappings(steps)
+        if str(step.get("uses", "")).startswith(
+            "leynos/shared-actions/.github/actions/install-whitaker@"
+        )
+    ]
+    assert len(whitaker_steps) == 1, (
+        "expected generated CI to install Whitaker once through the shared action"
+    )
+    assert _INSTALL_WHITAKER_USES_RE.fullmatch(
+        str(whitaker_steps[0].get("uses", ""))
+    ), (
+        "expected generated CI to pin the shared install-whitaker action to a "
+        "full 40-hex commit SHA"
+    )
+    whitaker_inputs = whitaker_steps[0].get("with") or {}
+    assert whitaker_inputs.get("cranelift") == "true", (
+        "expected the shared Whitaker installer to provide Cranelift for "
+        "development builds"
+    )
+    whitaker_env = whitaker_steps[0].get("env") or {}
+    assert "RUSTFLAGS" not in whitaker_env, (
+        "expected the shared Whitaker action to own its build flags"
+    )
+    assert "Cache Whitaker installation" not in ci_workflow, (
+        "expected generated CI to leave the installer cache to the shared action"
+    )
+    assert "whitaker-installer" not in ci_workflow, (
+        "expected generated CI to leave installer selection to the shared action"
     )
     _assert_pinned_step_uses(
         steps, _SETUP_RUST_USES_RE, "generated CI shared setup-rust action"
@@ -427,7 +466,6 @@ def _assert_ci_workflow_contracts(
         "expected the generated pull-request CI job to omit the CodeScene "
         "upload step; coverage-main.yml is the only CodeScene caller"
     )
-    assert_ci_workflow_reaches_no_codescene(ci_workflow)
     assert "cargo-nextest" in ci_workflow, (
         "expected generated CI workflow to install cargo-nextest"
     )
@@ -462,15 +500,16 @@ def _assert_ci_workflow_contracts(
     assert "LDFLAGS: -fuse-ld=lld" in ci_workflow, (
         "expected generated CI workflow coverage to set LDFLAGS for lld"
     )
-    assert "Whitaker cache hit:" in ci_workflow, (
-        "expected generated CI workflow to log Whitaker cache status"
-    )
-    assert "Installing whitaker-installer" in ci_workflow, (
-        "expected generated CI workflow to log Whitaker installation"
-    )
-    assert "Whitaker binary:" in ci_workflow, (
-        "expected generated CI workflow to log Whitaker binary resolution"
-    )
+    assert any(
+        step.get("name") == "Install rust-analyzer"
+        and "rustup component add rust-analyzer" in str(step.get("run", ""))
+        for step in _step_mappings(steps)
+    ), "expected generated CI to install rust-analyzer beyond setup-rust"
+    assert any(
+        step.get("name") == "Check the CV-005 workflow contracts"
+        and step.get("run") == "make test-workflow-contracts"
+        for step in _step_mappings(steps)
+    ), "expected generated CI to run the shared workflow contract checker"
     assert "Log coverage linker configuration" in ci_workflow, (
         "expected generated CI workflow to log coverage linker configuration"
     )

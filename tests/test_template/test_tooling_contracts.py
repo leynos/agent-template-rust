@@ -106,31 +106,32 @@ def test_polonius_contract_rejects_incorrect_coverage_log() -> None:
         _assert_coverage_workflow(workflow, "build-test", enabled=True)
 
 
-def test_polonius_contract_rejects_release_rustflags_env_override() -> None:
-    """Reject a release build step that overrides setup-rust flags."""
+def test_polonius_contract_rejects_release_development_flags() -> None:
+    """Reject a release setup-rust that carries development flags."""
     workflow = """jobs:
   build:
     steps:
       - uses: leynos/shared-actions/.github/actions/setup-rust@b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea
         with:
-          toolchain: nightly-2025-06-10
+          toolchain: stable
           rustflags: -Zpolonius=next
       - name: Log Rust compiler configuration
         run: |
           rustc --version
           printf 'Base RUSTFLAGS: %s\\n' "$RUSTFLAGS"
-      - name: Build release binary
+      - name: Build release binary (cross)
         env:
-          RUSTFLAGS: -D warnings
-        run: cross +nightly-2025-06-10 build --release
+          RUSTFLAGS: ""
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: cc
+        run: cross +stable build --release
+      - name: Build release binary (native)
+        env:
+          RUSTFLAGS: ""
+        run: cargo +stable build --release
 """
 
-    with pytest.raises(AssertionError, match="release build env to be absent"):
-        _assert_release_workflow(
-            workflow,
-            '[toolchain]\nchannel = "nightly-2025-06-10"\n',
-            enabled=True,
-        )
+    with pytest.raises(AssertionError, match="not to receive development flags"):
+        _assert_release_workflow(workflow)
 
 
 @pytest.mark.parametrize(
@@ -167,6 +168,8 @@ def test_generated_tooling_contracts(
     cargo = parse_toml_file(project / "Cargo.toml")
     package = require_mapping(cargo, "package", "Cargo.toml")
     metadata = require_optional_mapping(package, "metadata", "Cargo.toml package")
+    profile = require_mapping(cargo, "profile", "Cargo.toml")
+    dev_profile = require_mapping(profile, "dev", "Cargo.toml profile")
     makefile = read_generated_text(project / "Makefile")
     cargo_config = read_generated_text(project / ".cargo/config.toml")
     ci_workflow = read_generated_text(project / ".github/workflows/ci.yml")
@@ -210,6 +213,7 @@ def test_generated_tooling_contracts(
     assert_generated_tooling_contracts(
         package=package,
         metadata=metadata,
+        dev_profile=dev_profile,
         flavour=flavour,
         makefile=makefile,
         cargo_config=cargo_config,

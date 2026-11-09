@@ -1,8 +1,8 @@
 """Build hermetic subprocess environments for generated-project commands.
 
-``generated_project_env`` copies the parent environment, removes Make and
-Whitaker control variables, and applies explicit overrides before passing the
-result to subprocess calls. For example::
+``generated_project_env`` copies the parent environment, removes Make,
+Whitaker and build-tool preflight control variables, and applies explicit
+overrides before passing the result to subprocess calls. For example::
 
     subprocess.run(["make", "lint"], env=generated_project_env({"PATH": path}))
 """
@@ -15,6 +15,9 @@ from collections.abc import Mapping
 MAKE_RESOLUTION_VARIABLES: frozenset[str] = frozenset(
     {
         "WHITAKER",
+        "CHECK_BUILD_TOOLS",
+        "CHECK_RUST_TOOLCHAIN",
+        "CHECK_COVERAGE_TOOLS",
         "GNUMAKEFLAGS",
         "MAKEFLAGS",
         "MFLAGS",

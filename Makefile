@@ -1,4 +1,4 @@
-.PHONY: help check-fmt fmt interrogate lint spelling typecheck test
+.PHONY: help check-fmt fmt interrogate lint lint-actions lint-yaml spelling typecheck test
 
 MAKEFLAGS += --no-print-directory
 
@@ -14,6 +14,13 @@ MYPY_DEPS = $(PYTEST_DEPS) --with types-PyYAML
 REQUIRE_UVX = @if [ -z "$(strip $(UV))" ]; then echo "uvx is required to run template tests. Install uv from https://docs.astral.sh/uv/getting-started/installation/" >&2; exit 1; fi
 
 MDLINT ?= $(shell command -v markdownlint-cli2 2>/dev/null || printf '%s' "$$HOME/.bun/bin/markdownlint-cli2")
+# The YAML and workflow lint tools are provisioned by the shared
+# install-yaml-lint action in CI. Locally they may come from any package
+# manager, so each target names the tool and fails with an actionable message
+# rather than a bare "command not found".
+YAMLLINT ?= yamllint
+ACTIONLINT ?= actionlint
+SHELLCHECK ?= shellcheck
 # `make fmt` and `make check-fmt` call mdtablefix directly. `--git` selects the
 # Markdown files Git tracks and `--include-untracked` adds the untracked files
 # Git does not ignore, so a new document is formatted before it is staged.
@@ -84,7 +91,32 @@ interrogate: ## Enforce complete Python docstring coverage
 	    exit 1; \
 	  fi
 
-lint: ## Lint parent Python tests
+# `git ls-files -z` enumerates the YAML this repository owns. The patterns
+# end in `.yml` or `.yaml`, so Copier sources such as `ci.yml.jinja` are never
+# handed to yamllint as though they were YAML. `xargs -0 -r` preserves paths
+# that contain spaces and runs nothing when the repository tracks no YAML.
+lint-yaml: ## Lint every tracked YAML file strictly
+	@if ! command -v $(YAMLLINT) >/dev/null 2>&1; then \
+	  echo "yamllint is required to lint YAML; install it with: uv tool install yamllint" >&2; \
+	  exit 1; \
+	fi
+	@git ls-files -z '*.yml' '*.yaml' | xargs -0 -r $(YAMLLINT) --strict --
+
+# actionlint inspects the workflow files GitHub actually executes and runs
+# ShellCheck over every `run:` script it finds. Both tools come from the shared
+# install-yaml-lint action in CI.
+lint-actions: ## Lint GitHub Actions workflows and their shell scripts
+	@if ! command -v $(ACTIONLINT) >/dev/null 2>&1; then \
+	  echo "actionlint is required to lint workflows; install it from https://github.com/rhysd/actionlint" >&2; \
+	  exit 1; \
+	fi
+	@if ! command -v $(SHELLCHECK) >/dev/null 2>&1; then \
+	  echo "shellcheck is required by actionlint; install it using your OS package manager" >&2; \
+	  exit 1; \
+	fi
+	@$(ACTIONLINT) -shellcheck=$(SHELLCHECK)
+
+lint: lint-yaml lint-actions ## Lint parent Python tests, YAML, and workflows
 	$(MAKE) interrogate
 	$(REQUIRE_UVX)
 	$(UV) --with ruff ruff check tests/

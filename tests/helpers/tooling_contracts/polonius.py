@@ -89,12 +89,25 @@ def _assert_cargo_config(cargo_config: str, *, enabled: bool, dev_target: str) -
     assert (POLONIUS_FLAG in rustdoc_flags) is enabled, (
         "expected build.rustdocflags Polonius state to match the Copier answer"
     )
+    assert "-Zcodegen-backend=cranelift" in build_flags, (
+        "expected development builds to select the Cranelift backend"
+    )
+    assert "-Zthreads=8" in build_flags, (
+        "expected development builds to run the rustc frontend on eight threads"
+    )
     if "linux" not in dev_target:
         return
-    target_flags = config["target"][dev_target]["rustflags"]
+    linux_table = config["target"].get('cfg(target_os = "linux")')
+    assert linux_table is not None, (
+        "expected the Linux cfg table that supplies the mold link flag"
+    )
+    target_flags = linux_table["rustflags"]
     assert (POLONIUS_FLAG in target_flags) is enabled, (
         "target rustflags override build.rustflags and must preserve the "
         "selected Polonius state"
+    )
+    assert "-Clink-arg=-fuse-ld=mold" in target_flags, (
+        "expected the Linux cfg table to select the mold linker"
     )
 
 
@@ -109,9 +122,11 @@ def _assert_makefile(makefile: str, *, enabled: bool, dev_target: str) -> None:
         "-C link-arg=$(COVERAGE_LINKER_FLAGS)"
     ) in makefile
     assert (
-        "DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_LINKER_FLAGS)"
-        in makefile
+        "DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_CODEGEN_FLAGS) "
+        "$(DEV_LINKER_FLAGS)" in makefile
     )
+    assert "WHITAKER_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS)" in makefile
+    assert "RELEASE_RUST_FLAGS ?= $(POLONIUS_FLAGS)" in makefile
     assert "RUSTDOC_FLAGS ?=" in makefile
     assert (
         "RUSTDOC_FLAGS := --cfg docsrs -D warnings $(POLONIUS_FLAGS) $(RUSTDOC_FLAGS)"
@@ -132,14 +147,41 @@ def _assert_makefile(makefile: str, *, enabled: bool, dev_target: str) -> None:
         if "RUSTFLAGS=" in line and ("$(CARGO)" in line or "$(WHITAKER)" in line)
     ]
     assert compile_lines, "expected generated compile recipes to set RUSTFLAGS"
+    composed_routes = (
+        "$(DEV_RUST_FLAGS)",
+        "$(COVERAGE_RUST_FLAGS)",
+        "$(WHITAKER_RUST_FLAGS)",
+        "$(RELEASE_RUST_FLAGS)",
+    )
     assert all(
-        "$(DEV_RUST_FLAGS)" in line or "$(COVERAGE_RUST_FLAGS)" in line
-        for line in compile_lines
+        any(route in line for route in composed_routes) for line in compile_lines
     ), f"compile recipes must use composed Rust flags: {compile_lines!r}"
     coverage_recipe = makefile.partition("coverage:")[2].partition("\n\n")[0]
     assert 'RUSTFLAGS="$(COVERAGE_RUST_FLAGS)"' in coverage_recipe, (
         "coverage recipe must use composed coverage Rust flags"
     )
+    whitaker_recipe = next(
+        line
+        for line in makefile.splitlines()
+        if "$(WHITAKER)" in line and "RUSTFLAGS=" in line
+    )
+    assert 'RUSTFLAGS="$(WHITAKER_RUST_FLAGS)"' in whitaker_recipe, (
+        "Whitaker must use its own flag route"
+    )
+    release_recipe = next(
+        line for line in makefile.splitlines() if "$(RELEASE_CARGO)" in line
+    )
+    assert 'RUSTFLAGS="$(RELEASE_RUST_FLAGS)"' in release_recipe, (
+        "release must use its own flag route"
+    )
+    for route_name, recipe in (
+        ("Whitaker", whitaker_recipe),
+        ("coverage", coverage_recipe),
+        ("release", release_recipe),
+    ):
+        assert "codegen" not in recipe, (
+            f"{route_name} must stay free of the development codegen backend"
+        )
     rustdoc_lines = [
         line
         for line in makefile.splitlines()
@@ -194,37 +236,47 @@ def _assert_shared_action_passthrough_revision(
     )
 
 
-def _assert_release_workflow(
-    release_workflow: str, rust_toolchain: str, *, enabled: bool
-) -> None:
-    """Assert release artefacts use a compiler compatible with the source."""
-    toolchain_config = tomllib.loads(rust_toolchain)
-    configured_toolchain = str(toolchain_config["toolchain"]["channel"])
+def _assert_release_workflow(release_workflow: str) -> None:
+    """Assert release builds use stable Cargo without development flags."""
     setup = _setup_rust_step(release_workflow, "build")
     setup_inputs = require_mapping(setup, "with", "release setup-rust step")
-    actual_toolchain = str(setup_inputs.get("toolchain", ""))
-    actual_rustflags = setup_inputs.get("rustflags")
-    build = _named_step(release_workflow, "build", "Build release binary")
-    actual_command = str(build.get("run", ""))
-    actual_env = build.get("env")
-    expected_toolchain = configured_toolchain if enabled else "stable"
-    expected_rustflags = POLONIUS_FLAG if enabled else "-D warnings"
-    expected_command = f"cross +{expected_toolchain} build"
-    assert actual_toolchain == expected_toolchain, (
-        f"expected release build toolchain to be {expected_toolchain!r}, "
-        f"got {actual_toolchain!r}"
+    actual_toolchain = setup_inputs.get("toolchain")
+    assert actual_toolchain == "stable", (
+        f"expected release build toolchain to be 'stable', got {actual_toolchain!r}"
     )
-    assert actual_rustflags == expected_rustflags, (
-        f"expected release setup-rust rustflags to be {expected_rustflags!r}, "
-        f"got {actual_rustflags!r}"
+    assert "rustflags" not in setup_inputs, (
+        "expected release setup-rust not to receive development flags, got "
+        f"{setup_inputs.get('rustflags')!r}"
     )
-    assert expected_command in actual_command, (
-        f"expected release build command to contain {expected_command!r}, "
-        f"got {actual_command!r}"
+    expected_commands = {
+        "Build release binary (cross)": "cross +stable build",
+        "Build release binary (native)": "cargo +stable build",
+    }
+    for step_name, expected_command in expected_commands.items():
+        build = _named_step(release_workflow, "build", step_name)
+        actual_command = str(build.get("run", ""))
+        assert expected_command in actual_command, (
+            f"expected {step_name} command to contain {expected_command!r}, "
+            f"got {actual_command!r}"
+        )
+        build_env = require_mapping(build, "env", f"{step_name} step")
+        assert build_env.get("RUSTFLAGS") == "", (
+            f"expected {step_name} to clear inherited RUSTFLAGS, "
+            f"got {build_env.get('RUSTFLAGS')!r}"
+        )
+    cross = _named_step(release_workflow, "build", "Build release binary (cross)")
+    cross_env = require_mapping(cross, "env", "cross release step")
+    assert cross_env.get("CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER") == "cc", (
+        "expected the cross image to link with gcc rather than the clang config"
     )
-    assert "env" not in build, (
-        f"expected release build env to be absent, got {actual_env!r}"
-    )
+    for development_flag in (
+        POLONIUS_FLAG,
+        "-Zthreads=8",
+        "-Zcodegen-backend=cranelift",
+    ):
+        assert development_flag not in release_workflow, (
+            f"expected the release workflow to omit {development_flag!r}"
+        )
     _assert_rust_setup_log(release_workflow, "build")
 
 
@@ -314,7 +366,7 @@ def assert_polonius_toolchain_contracts(
     )
     if release_workflow is not None:
         _assert_shared_action_passthrough_revision(release_workflow, "release workflow")
-        _assert_release_workflow(release_workflow, rust_toolchain, enabled=enabled)
+        _assert_release_workflow(release_workflow)
 
     if enabled:
         assert "Polonius alpha" in rust_toolchain

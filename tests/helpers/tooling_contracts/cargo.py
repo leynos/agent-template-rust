@@ -52,12 +52,31 @@ def _assert_cargo_package_contracts(
         )
 
 
+def _assert_dev_profile_contracts(dev_profile: dict[str, Any]) -> None:
+    """Assert generated development builds keep a small footprint."""
+    assert dev_profile.get("incremental") is False, (
+        "expected generated development builds to disable incremental state"
+    )
+    assert dev_profile.get("debug") == 0, (
+        "expected generated development builds to omit debug information"
+    )
+
+
 def _assert_cargo_config_contracts(
     cargo_config: str, dev_target: str, rust_toolchain: str
 ) -> None:
     """Assert generated Cargo config and toolchain contracts."""
-    assert 'codegen-backend = "cranelift"' in cargo_config, (
-        "expected generated cargo config to enable Cranelift"
+    # The Cranelift backend reaches rustc through rustflags, never through the
+    # unstable Cargo `codegen-backend` profile key that stable Cargo rejects.
+    assert "-Zcodegen-backend=cranelift" in cargo_config, (
+        "expected generated cargo config to enable Cranelift through rustflags"
+    )
+    assert "codegen-backend =" not in cargo_config, (
+        "expected generated cargo config to avoid the unstable Cargo "
+        "codegen-backend key"
+    )
+    assert "-Zthreads=8" in cargo_config, (
+        "expected generated cargo config to run the rustc frontend on eight threads"
     )
     if "linux" in dev_target:
         assert f"[target.{dev_target}]" in cargo_config, (
@@ -65,6 +84,16 @@ def _assert_cargo_config_contracts(
         )
         assert "link-arg=-fuse-ld=mold" in cargo_config, (
             "expected generated cargo config to use mold linker for Linux"
+        )
+        linux_table = cargo_config.partition("""[target.'cfg(target_os = "linux")']""")[
+            2
+        ]
+        linux_flags = linux_table.partition("rustflags = [")[2].partition("]")[0]
+        assert "-Zthreads=8" in linux_flags, (
+            "expected the Linux target rustflags to repeat the threads flag"
+        )
+        assert "-Zcodegen-backend=cranelift" in linux_flags, (
+            "expected the Linux target rustflags to repeat the Cranelift flag"
         )
     else:
         assert f"[target.{dev_target}]" not in cargo_config, (

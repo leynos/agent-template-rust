@@ -26,6 +26,19 @@ jobs:
           install-clang-lld: 'true'
       - name: Setup uv
         uses: astral-sh/setup-uv@5e83ccf689000bf635d77af2cdbad36ca1397375
+      - name: Install the generated-project toolchain
+        # The template tests run generated `make` targets whose capability
+        # preflight never installs anything. Render the template's own default
+        # project and let rustup install the toolchain and components its
+        # rust-toolchain.toml pins, so the pin has one source.
+        run: |
+          set -euo pipefail
+          project="${RUNNER_TEMP}/template-toolchain"
+          rm -rf "${project}"
+          uvx --with copier copier copy --defaults --trust . "${project}"
+          (cd "${project}" && cargo --version)
+      - name: Install the YAML lint tools
+        uses: leynos/shared-actions/.github/actions/install-yaml-lint@26c918632c5413039a84358fafe012a4399a9ec7
       - name: Check spelling
         run: make spelling
       - name: Check docstring coverage
@@ -58,5 +71,10 @@ jobs:
         uses: leynos/shared-actions/.github/actions/install-whitaker@0eabb6bc07148981de5da395e30cd78d83f5c7c2
         with:
           cranelift: true
+      - name: Lint YAML and workflows
+        run: |
+          set -euo pipefail
+          make lint-yaml
+          make lint-actions
       - name: Test
         run: make test

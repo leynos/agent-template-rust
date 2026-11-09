@@ -32,6 +32,10 @@ concurrency:
 jobs:
   coverage-upload:
     runs-on: ubuntu-latest
+    # CV-005 permits the CodeScene credential in this one job only. The
+    # environment also refuses a branch workflow_dispatch of the publisher
+    # for the whole job rather than skipping its upload.
+    environment: codescene
     permissions:
       contents: read
     env:
@@ -55,6 +59,10 @@ jobs:
         env:
           RUSTFLAGS: ""
         run: cargo binstall --no-confirm --locked cargo-nextest
+      # Compile-time contract tests run before coverage so their nested Cargo
+      # invocations are not instrumented and do not compete for the cache.
+      - name: Run compile-time UI tests
+        run: make test-ui
       - name: Log coverage linker configuration
         run: |
           echo "Coverage linker: clang"
@@ -93,4 +101,4 @@ jobs:
           format: lcov
           mode: upload
           access-token: ${{ secrets.CS_ACCESS_TOKEN }}
-{% endraw %}
+{%- endraw %}
