@@ -9,8 +9,16 @@ lifetimes (NLL) reject, allowing internal APIs to model borrowing directly.
 
 `.cargo/config.toml` enables Polonius for normal Cargo commands and
 rust-analyzer. An inherited `RUSTFLAGS` value overrides that configuration, so
-the Makefile and GitHub Actions workflows re-state `-Zpolonius=next` whenever
-they set `RUSTFLAGS`. Release builds use the same pinned nightly and flag.
+the Makefile and CI workflows re-state `-Zpolonius=next` whenever they set
+`RUSTFLAGS`.
+
+Release builds are the deliberate exception. The application release workflow
+uses stable Cargo and clears `RUSTFLAGS`, so a released artefact carries
+neither Polonius nor the other nightly development flags. Source that compiles
+only under Polonius therefore cannot be released by this workflow: keep such
+an API available in an NLL-compatible form, or change the release path
+deliberately. Verify every borrow-sensitive change under the supported nightly
+configuration before tagging.
 
 Source builds performed outside this repository, including registry installs,
 do not inherit its toolchain or Cargo configuration. If this crate later ships

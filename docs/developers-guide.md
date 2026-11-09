@@ -23,13 +23,16 @@ The tests render both library and application projects with Polonius enabled
 and disabled, run generated public gates such as `make all`, validate generated
 Makefiles with `mbake`, and parse generated Cargo and workflow configuration.
 The Polonius contract checks every `RUSTFLAGS` override, including Linux mold
-linking, LLVM coverage, and cross-platform application releases.
+linking and LLVM coverage, and proves that the application release workflow
+omits Polonius, Cranelift, and thread flags.
 
-Generated CI and coverage workflows, plus the application-only release
-workflow, pass their base compiler flags through the shared `setup-rust`
-action's `rustflags` input. Coverage repeats that base when its explicit
-`RUSTFLAGS` adds the `lld` linker flag because an environment override replaces
-the value supplied during setup. The `rustflags` capability first appears in
+Generated CI and coverage workflows pass their base compiler flags through the
+shared `setup-rust` action's `rustflags` input. Coverage repeats that base when
+its explicit `RUSTFLAGS` adds the `lld` linker flag because an environment
+override replaces the value supplied during setup. The application release
+workflow is the deliberate exception: it pins `toolchain: stable`, passes no
+`rustflags`, and clears `RUSTFLAGS` on each build step, so released artefacts
+carry no nightly development flags. The `rustflags` capability first appears in
 `leynos/shared-actions` revision `47b337e4f230b591891656534d4ffad868131740`;
 using an older revision silently drops the input, so the Polonius contract
 verifies that the changed action references use one capability-bearing
@@ -92,12 +95,15 @@ The parent gates run Ruff and mypy over the `tests/` tree; install `uv` so
 
 - `make check-fmt` verifies formatting with `ruff format --check`.
 - `make fmt` rewrites formatting with `ruff format`.
-- `make lint` runs the `interrogate` docstring gate, then `ruff check`.
-  `interrogate` holds `INTERROGATE_TARGETS` (`tests`) to 100 per cent with no
-  `--ignore-*` flags. `INTERROGATE_EXCLUDES` keeps Cargo target directories
-  (`target/`, any nested `*/target/`, and `CARGO_TARGET_DIR` or
-  `CARGO_BUILD_TARGET_DIR` when set) out of the measurement, because they hold
-  build output the repository does not own. Interrogate 1.7.0 matches an
+- `make lint` runs `lint-yaml`, `lint-actions`, the `interrogate` docstring
+  gate, then `ruff check`. `lint-yaml` runs strict yamllint over every tracked
+  `.yml` and `.yaml` file, so Copier `.jinja` sources are never parsed as YAML;
+  `lint-actions` runs actionlint with shellcheck over the workflows GitHub
+  actually executes. `interrogate` holds `INTERROGATE_TARGETS` (`tests`) to 100
+  per cent with no `--ignore-*` flags. `INTERROGATE_EXCLUDES` keeps Cargo
+  target directories (`target/`, any nested `*/target/`, and `CARGO_TARGET_DIR`
+  or `CARGO_BUILD_TARGET_DIR` when set) out of the measurement, because they
+  hold build output the repository does not own. Interrogate 1.7.0 matches an
   exclusion as an fnmatch prefix of the absolute path, so each pattern ends in
   `/*` to avoid hiding `target_utils.py`, and the Makefile escapes the
   metacharacters in the environment values so that they match literally. A
@@ -202,6 +208,10 @@ projects:
 - `cargo-audit` for generated dependency vulnerability checks.
 - `Whitaker` for generated lint gates.
 - `clang`, `lld`, and `mold` for generated linker and coverage behaviour.
+- `yamllint`, `actionlint`, and `shellcheck` for the parent YAML and workflow
+  gates. CI installs all three through the shared `install-yaml-lint` action.
+- `mdtablefix` and `markdownlint-cli2` for parent and generated Markdown
+  formatting.
 - `act` plus Docker or Podman for opt-in local GitHub Actions validation.
 
 The generated project itself uses Cranelift for debug code generation, Linux
@@ -239,12 +249,16 @@ the token passed only as the action's `access-token` input, no
 `coverage-main-${{ github.ref }}` with `cancel-in-progress: false`. Both lanes
 call `generate-coverage` at one revision, so the pull-request ratchet reads the
 baseline the publisher writes.
-`tests/helpers/tooling_contracts/codescene_publisher.py` holds that shape, and
-`tests/test_template/test_codescene_publisher.py` applies it to lib and app
-renders, with and without Polonius, without building them, so a template change
-that breaks it fails in seconds. `setup-rust` stays on the rustflags
-passthrough revision that the Polonius contract pins exactly, the narrow
-exception described above.
+
+The shared CV-005 checker now proves that shape rather than a bespoke Python
+copy. `tests/test_template/test_workflow_contracts.py` renders lib and app
+projects, with and without Polonius, and runs the checker pinned in the
+generated Makefile over each render; a negative test mutates the upload job's
+`environment` and requires a non-zero result. The configuration comes from
+`.github/cv005.toml`, which Copier renders from the repository answer, so keep
+the selection and output policy in the template and the rules in the shared
+package. `setup-rust` stays on the rustflags passthrough revision that the
+Polonius contract pins exactly, the narrow exception described above.
 
 ## Test Helper Layout
 
@@ -258,8 +272,11 @@ Reusable test support lives under `tests/helpers/`:
 - `tests/helpers/generated_files.py` centralizes generated text, TOML, and YAML
   parsing with pytest failure messages.
 - `tests/helpers/tooling_contracts/` contains generated Makefile, Cargo,
-  documentation, CI, release, coverage-action, CodeScene publisher, and
-  mutation-testing contract assertions.
+  documentation, CI, release, coverage-action, delivery, and mutation-testing
+  contract assertions. Workflow-level CV-005 checks live in
+  `tests/test_template/test_workflow_contracts.py`, and dependency-policy,
+  pull-request automation, and release-matrix checks live in
+  `tests/test_template/test_delivery_tooling.py`.
 - `assert_setup_rust_revision_consistency` in
   `tests/helpers/tooling_contracts/workflows.py` accepts a workflow-name to
   text-or-`None` mapping. `None` skips workflows unavailable for that project

@@ -84,8 +84,12 @@ flowchart LR
     All --> CheckFmt[check-fmt]
     All --> Lint[lint]
     All --> Test[test]
+    All --> WorkflowContracts[test-workflow-contracts]
 
     CheckFmt --> CargoFmt[cargo fmt --check]
+    Lint --> YamlLint[lint-yaml]
+    Lint --> ActionLint[lint-actions]
+    Lint --> ShellLint[lint-shell]
     Lint --> RustDoc[cargo doc --no-deps]
     Lint --> Clippy[cargo clippy]
     Lint --> Whitaker[whitaker --all]
