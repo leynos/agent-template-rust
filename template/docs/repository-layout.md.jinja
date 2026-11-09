@@ -68,9 +68,14 @@ compact and omits build output such as `target/`.
 
 ## Path responsibilities
 
+{% if enable_polonius -%}
 - `.cargo/config.toml`: Configures Cargo defaults for local development,
-  including the Polonius flag when enabled, the Linux linker, and the Cranelift
-  and thread development flags.
+  including the Polonius flag, the Linux linker, and the Cranelift and thread
+  development flags.
+{% else -%}
+- `.cargo/config.toml`: Configures Cargo defaults for local development,
+  including the Linux linker and the Cranelift and thread development flags.
+{% endif -%}
 - `.config/nextest.toml`: Bounds test runs with per-test and whole-run timeouts
   and serializes compiler-spawning tests in a `nested-cargo` group.
 - `.github/cv005.toml`: Selects the workflows and output policy for the shared

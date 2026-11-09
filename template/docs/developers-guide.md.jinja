@@ -16,17 +16,19 @@ timeout and serializes compiler-spawning tests in a `nested-cargo` group.
 `make test-ui` runs compile-time contract targets named `tests/compile_*.rs`
 and reports an intentional no-op when the project has none. `make check-fmt`
 verifies Rust formatting with `cargo fmt --all -- --check` and Markdown
-formatting with `mdtablefix --check --git --include-untracked --wrap --renumber
---breaks --ellipsis --fences`; `make fmt` applies the same selection in place
-and formats Rust sources with nightly `rustfmt`. The Markdown selection is
-Git-aware, so ignored files stay untouched and untracked non-ignored files are
-formatted. `make typecheck` type-checks without building via `cargo check`.
-`make audit` derives the Rust workspace root with `cargo metadata`, logs
-workspace member manifests, and runs `cargo audit` once from the workspace
-root. PR CI skips `make audit` and the audit-only setup when `github.actor` is
-`dependabot[bot]`; that keeps whole-lockfile advisories from blocking unrelated
-Dependabot PRs while human PRs retain the audit gate. The compensating control
-is `.github/workflows/audit.yml`, which runs weekly and can also be triggered
+formatting with
+`mdtablefix --check --git --include-untracked --wrap --renumber
+--breaks --ellipsis --fences`;
+`make fmt` applies the same selection in place and formats Rust sources with
+nightly `rustfmt`. The Markdown selection is Git-aware, so ignored files stay
+untouched and untracked non-ignored files are formatted. `make typecheck`
+type-checks without building via `cargo check`. `make audit` derives the Rust
+workspace root with `cargo metadata`, logs workspace member manifests, and runs
+`cargo audit` once from the workspace root. PR CI skips `make audit` and the
+audit-only setup when `github.actor` is `dependabot[bot]`; that keeps
+whole-lockfile advisories from blocking unrelated Dependabot PRs while human
+PRs retain the audit gate. The compensating control is
+`.github/workflows/audit.yml`, which runs weekly and can also be triggered
 manually. `make coverage` uses `cargo llvm-cov` with `lld`.
 
 GitHub Actions Act validation lives in `.github/workflows/act-validation.yml`.
@@ -78,13 +80,13 @@ target requires `curl` and a matching `sha256sum` or `shasum`.
 
 The development flags live in two places. `.cargo/config.toml` supplies
 `-Zcodegen-backend=cranelift` and `-Zthreads=8` to bare Cargo commands, and the
-Makefile composes the same values into `DEV_RUST_FLAGS` for its recipes.
-Cargo selects one `rustflags` source rather than merging them, so the Linux
-`cfg` table repeats every flag as well as the `mold` link argument, and an
-assigned `RUSTFLAGS` environment variable replaces all of them. Coverage,
-Whitaker, and release therefore use their own composed routes and omit both
-development flags; the release recipe also clears `RUSTFLAGS` so stable Cargo
-does not parse nightly-only flags.
+Makefile composes the same values into `DEV_RUST_FLAGS` for its recipes. Cargo
+selects one `rustflags` source rather than merging them, so the Linux `cfg`
+table repeats every flag as well as the `mold` link argument, and an assigned
+`RUSTFLAGS` environment variable replaces all of them. Coverage, Whitaker, and
+release therefore use their own composed routes and omit both development
+flags; the release recipe also clears `RUSTFLAGS` so stable Cargo does not
+parse nightly-only flags.
 
 Rendered CI installs `rust-analyzer` with `rustup component add rust-analyzer`
 after the toolchain is available, so editors and agents use the same pinned
@@ -95,8 +97,8 @@ compiler as the build.
 `make test-workflow-contracts` runs the pinned shared CV-005 checker over the
 repository. The selection and output policy live in `.github/cv005.toml`, which
 Copier renders from the repository answer. The checker runs through
-`uv tool run` from the shared-actions revision pinned in the Makefile, so do not
-copy the rules into this repository. `make all` includes the target; run it
+`uv tool run` from the shared-actions revision pinned in the Makefile, so do
+not copy the rules into this repository. `make all` includes the target; run it
 directly after changing a workflow.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
@@ -104,9 +106,9 @@ full generated workflow locally on Linux.
 
 ## Release workflow
 
-Application projects render `.github/workflows/release.yml`. A tag push
-matching `v*.*.*` publishes that tag. A manual dispatch builds every matrix leg
-and uploads its artefacts but creates no release by default: set the boolean
+Application projects render `.github/workflows/release.yml`. A tag push matching
+`v*.*.*` publishes that tag. A manual dispatch builds every matrix leg and
+uploads its artefacts but creates no release by default: set the boolean
 `dry-run` input to `false` on a tag ref to publish, so a branch dispatch can
 never publish even when it asks to. The release job carries that guard
 explicitly rather than relying on the trigger alone.
@@ -114,9 +116,9 @@ explicitly rather than relying on the trigger alone.
 The matrix keeps `fail-fast` disabled so one broken leg does not hide whether
 the others build. Linux, Windows, and FreeBSD targets build inside `cross`;
 both macOS targets build natively with `cargo` on `macos-15-intel` and
-`macos-latest`, because `cross` has no Apple image. Every leg uses stable Cargo,
-clears `RUSTFLAGS`, and links the Linux GNU target with `cc` rather than the
-development `clang` configuration. Each artefact gets a `shasum -a 256`
+`macos-latest`, because `cross` has no Apple image. Every leg uses stable
+Cargo, clears `RUSTFLAGS`, and links the Linux GNU target with `cc` rather than
+the development `clang` configuration. Each artefact gets a `shasum -a 256`
 checksum file beside the binary.
 
 ## Spelling policy
@@ -145,10 +147,10 @@ runtime path.
 Dependabot owns the upgrade of GitHub Actions and reusable workflows, including
 calls into `leynos/shared-actions`. The generated policy groups shared-action
 callers into one pull request and routine GitHub Action minor and patch updates
-into another; Cargo minor and patch updates share a pull request, and the
-pinned `rust-toolchain` file is tracked as its own ecosystem. Fresh releases
-cool down for seven days, and Cargo major updates for fourteen, so a withdrawn
-or broken release is not adopted immediately.
+into another; Cargo minor and patch updates share a pull request, and the pinned
+`rust-toolchain` file is tracked as its own ecosystem. Fresh releases cool
+down for seven days, and Cargo major updates for fourteen, so a withdrawn or
+broken release is not adopted immediately.
 
 Generated projects also render two pull-request automation callers.
 `.github/workflows/dependabot-automerge.yml` delegates to the shared
@@ -159,11 +161,10 @@ inputs in the shell before arithmetic or `sleep` sees them and passes the
 comment body to the action as an input rather than interpolating it into a
 command. Both call pinned full commit SHAs.
 
-Contract tests that assert a caller's exact
-commit SHA create a lockstep dependency: every time Dependabot opens a bump PR,
-the test fails until a human edits the pinned constant to match. That defeats
-the purpose of automated dependency updates and turns a routine bump into a
-manual chore.
+Contract tests that assert a caller's exact commit SHA create a lockstep
+dependency: every time Dependabot opens a bump PR, the test fails until a human
+edits the pinned constant to match. That defeats the purpose of automated
+dependency updates and turns a routine bump into a manual chore.
 
 Generated projects keep their `setup-rust` pins in CI, coverage-main, audit,
 and act-validation together at one shared full commit SHA. Application projects
