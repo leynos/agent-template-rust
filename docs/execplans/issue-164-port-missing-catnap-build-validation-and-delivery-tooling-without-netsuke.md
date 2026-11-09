@@ -279,7 +279,20 @@ run; recorded skips and platform limits.
   contract suites pass (`16`, `1`, and `11` tests respectively); the cheap
   Polonius contract tests pass (`10`). The generated-project and property cases
   are executed in the final full-gate run recorded below.
-- [ ] M6 documentation, snapshots, and executed validation.
+- [x] 2026-11-09: M6 documentation. Parent and generated guides now describe the
+  YAML, Actions, and shell gates, the build-tool installers and read-only
+  checkers, nextest bounds, the explicit UI lane, CV-005 workflow contracts,
+  the release dry-run and native macOS matrix, and the grouped Dependabot
+  policy. The Polonius flag-flow figure and ADR-004 were corrected so the
+  application release workflow is the documented stable-Cargo exception.
+  `make check-fmt`, `make lint`, `make typecheck`, and `make spelling` pass.
+- [x] 2026-11-09: M6 spelling and newline corrections. The shared gate enforces
+  Oxford `-ize` forms and `artefact` in prose; the release template had lost
+  its final newline during the port, which strict yamllint rejects. Both are
+  fixed, upstream `artifact` tokens stay covered by narrow local patterns, and
+  the snapshot is refreshed.
+- [ ] M6 executed validation: parent `make test`, rendered public gates, and
+  shared workflow contracts.
 
 ## Surprises & discoveries
 
@@ -333,7 +346,17 @@ run; recorded skips and platform limits.
   test that reads workflow triggers must fall back from `"on"` to `True`.
 - Catnap's release workflow names its upload directory `artifacts`; the existing
   template used the same spelling, so the port keeps it and the tests name the
-  step `Prepare artifact`.
+  step `Prepare artifact`. The shared spelling gate treats those as upstream
+  tokens through narrow `typos.local.toml` patterns, while release-workflow
+  prose uses the Oxford `artefact` spelling.
+- The shared spelling gate enforces Oxford `-ize` forms (`serialized`,
+  `initialized`, `normalized`) rather than British `-ise`, and rejects
+  `artifact` in prose. New documentation and comments must use the Oxford
+  forms; only upstream action and feature names stay exempt.
+- The release workflow template lost its final newline when the M5 draft was
+  written. Copier preserved the missing newline, so only the rendered-project
+  `make lint-yaml` case exposed it. Always check the rendered text, not only
+  the template source, for the strict yamllint end-of-file rule.
 - Catnap's `binary(compile_*)` nextest overrides cannot be copied literally.
   nextest validates every `binary(...)` filter against the binaries it finds,
   in every profile, before running anything; a generated project with no
