@@ -1,4 +1,4 @@
-# Bounded, serialised test execution for generated projects.
+# Bounded, serialized test execution for generated projects.
 #
 # Every run is bounded twice. `slow-timeout` terminates one test that stops
 # making progress (nextest resets the period whenever the test produces

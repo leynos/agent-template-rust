@@ -56,7 +56,7 @@ CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
 TEST_FLAGS ?= $(CARGO_FLAGS)
 TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
 # `cargo test` has no profiles. Under nextest, the `ui` profile carries the
-# serialised `nested-cargo` group and the longer compile-test timeout.
+# serialized `nested-cargo` group and the longer compile-test timeout.
 UI_TEST_CMD := $(if $(filter nextest run,$(TEST_CMD)),$(TEST_CMD) --profile ui,$(TEST_CMD))
 COVERAGE_LINKER_FLAGS ?= -fuse-ld=lld
 COVERAGE_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) -C link-arg=$(COVERAGE_LINKER_FLAGS)

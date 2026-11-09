@@ -94,7 +94,7 @@ def test_rendered_check_fmt_reformats_git_visible_markdown(
     for path in (tracked, untracked):
         text = path.read_text(encoding="utf-8")
         assert "| alpha | 1     |" in text, (
-            f"expected fmt to normalise the table in {path.name}: {text!r}"
+            f"expected fmt to normalize the table in {path.name}: {text!r}"
         )
         assert "|--|--|" not in text, (
             f"expected fmt to rewrite the malformed separator in {path.name}"

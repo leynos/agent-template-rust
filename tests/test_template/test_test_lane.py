@@ -94,7 +94,7 @@ def test_rendered_nextest_configuration_bounds_test_execution(
     )
     assert any(
         override.get("test-group") == "nested-cargo" for override in ui_overrides
-    ), "expected compile-time tests to share the serialised nested-Cargo group"
+    ), "expected compile-time tests to share the serialized nested-Cargo group"
     compile_timeouts = [
         override["slow-timeout"]
         for override in ui_overrides
@@ -150,7 +150,7 @@ def test_rendered_test_ui_lane_selects_compile_targets(
     )
     makefile = read_generated_text(project / "Makefile")
     assert "--profile ui" in makefile, (
-        "expected the UI lane to run nextest with the serialised profile"
+        "expected the UI lane to run nextest with the serialized profile"
     )
 
     fallback = _run_make(project.path, "test-ui", "TEST_CMD=test")

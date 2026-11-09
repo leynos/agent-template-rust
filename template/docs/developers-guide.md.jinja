@@ -12,7 +12,7 @@ strict yamllint, `make lint-actions` lints rendered GitHub Actions workflows,
 and `make lint-shell` checks the scripts under `scripts/`. `make test` prefers
 `cargo nextest run` and falls back to `cargo test` when cargo-nextest is not
 available. `.config/nextest.toml` bounds every run with a slow-test and global
-timeout and serialises compiler-spawning tests in a `nested-cargo` group.
+timeout and serializes compiler-spawning tests in a `nested-cargo` group.
 `make test-ui` runs compile-time contract targets named `tests/compile_*.rs`
 and reports an intentional no-op when the project has none. `make check-fmt`
 verifies Rust formatting with `cargo fmt --all -- --check` and Markdown
