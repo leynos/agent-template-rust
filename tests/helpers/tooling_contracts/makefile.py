@@ -249,7 +249,10 @@ def _assert_makefile_contracts(makefile: str) -> None:
     assert "mdformat-all" not in makefile, (
         "expected generated Makefile to drop the undeclared formatter wrapper"
     )
-    assert "UI_TEST_TARGETS :=" in makefile and "tests/compile_*.rs" in makefile, (
+    assert "UI_TEST_TARGETS :=" in makefile, (
+        "expected generated Makefile to define the UI test target list"
+    )
+    assert "tests/compile_*.rs" in makefile, (
         "expected generated Makefile to discover compile-time UI test targets"
     )
     assert (

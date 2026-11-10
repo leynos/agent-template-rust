@@ -349,6 +349,22 @@ run; recorded skips and platform limits.
   snapshot is unchanged because the default URL derives the same
   `example/<package_name>` value. `make check-fmt`, `make lint`,
   `make typecheck`, and `make spelling` pass.
+- [x] 2026-11-10: Resolved the sixth CodeRabbit review. The nextest comment now
+  states that `terminate-after` bounds a test by period multiplied by the count
+  whatever output it produces; the parent developer guide names the five real
+  delivery test modules; the Makefile contracts assert the UI target list and
+  the `tests/compile_*.rs` discovery separately; the mdtablefix pins are
+  matched by a full-SHA regex instead of a literal digest; the mold installer
+  and checker tests skip on a non-Linux host; the release workflow assertions
+  are extracted into three helpers; and the publication guard evaluator uses a
+  dispatch table with a dedicated `ast.Expression` handler instead of a
+  nine-return `match`. Focused tests pass, and `make check-fmt`, `make lint`,
+  `make typecheck`, and `make spelling` pass before the full suite. One full
+  suite run then reported 206 passed, 1 failed, and 2 expected `act` skips: the
+  `unsafe-code` lint-rejection case saw `make lint` fail without emitting the
+  named diagnostic while the host's compile queue was saturated. The same case
+  passed in isolation and on the next full run, which reported 207 passed and 2
+  expected `act` skips with no failures.
 
 ## Surprises & discoveries
 
@@ -423,6 +439,13 @@ run; recorded skips and platform limits.
   selects that profile through `UI_TEST_CMD`, and it only invokes the runner
   when the target list is non-empty. `cargo test` has no profiles, so the lane
   falls back to the plain runner for that path.
+- A generated-project lint-rejection test can fail for the wrong reason when the
+  host's compile queue is saturated. `make lint` still exits non-zero, but the
+  failure is a compile-admission or cache fault rather than the injected lint,
+  so the expected diagnostic never appears. The case passed in isolation and on
+  the next full run; the test's first assertion (non-zero exit) cannot
+  distinguish the two causes. Treat a lone failure of this shape under heavy
+  contention as environmental, and re-run before changing the template.
 
 ## Decision log
 
@@ -533,6 +556,13 @@ run; recorded skips and platform limits.
   supported for the Rust toolchain ecosystem. The generated guide keeps its
   seven-day cooldown sentence, and the reviewer's finding was not actioned
   because current vendor documentation contradicts it.
+- The publication guard evaluator dispatches on the exact node type and gives
+  `ast.Expression` its own handler that recurses into `node.body`. Mapping that
+  node to `_evaluate_expression` itself would re-dispatch the same node
+  forever; the first attempt did exactly that and the focused test caught the
+  recursion. `ast.UnaryOp` accepts only `ast.Not` and raises `TypeError` for
+  any other operator, which satisfies Ruff's TRY004 rule for an invalid node
+  type.
 
 ## Outcomes & retrospective
 

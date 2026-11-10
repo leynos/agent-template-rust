@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -193,8 +194,9 @@ def test_rendered_workflows_provision_the_formatter_and_run_the_ui_lane(
             "Test and Measure Coverage"
         ), f"expected {workflow_name} to run the UI lane before coverage"
 
-    assert "install-mdtablefix@38905b4b2caec5b049438e6dc3f3f6b36c04d2df" in ci, (
-        "expected CI to install the pinned Markdown formatter at a full commit SHA"
+    assert re.search(r"install-mdtablefix@[0-9a-f]{40}\b", ci), (
+        "expected CI to install the Markdown formatter pinned to a full 40-hex "
+        "commit SHA"
     )
     assert ci.index("install-mdtablefix") < ci.index("name: Format"), (
         "expected CI to provision the formatter before the formatting gate"

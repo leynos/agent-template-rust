@@ -10,8 +10,10 @@ scripts depend on.
 from __future__ import annotations
 
 import os
+import platform
 from pathlib import Path
 
+import pytest
 import tomllib
 from pytest_copier.plugin import CopierFixture
 
@@ -32,6 +34,14 @@ from tests.helpers.build_tool_sandbox import (
 )
 from tests.helpers.rendering import render_project
 from tests.helpers.subprocess_env import generated_project_env
+
+# The scripts gate mold installation and checking on Linux, so a non-Linux host
+# never reaches the checksum, install, or version-report paths these tests
+# exercise.
+requires_linux = pytest.mark.skipif(
+    platform.system() != "Linux",
+    reason="the pinned mold installer and checker only act on Linux",
+)
 
 
 def test_checker_reports_a_missing_toolchain_without_installing(
@@ -140,6 +150,7 @@ def test_toolchain_only_check_skips_linkers(tmp_path: Path) -> None:
     assert "mold" not in result.stderr, result.stderr
 
 
+@requires_linux
 def test_installer_refuses_a_corrupted_mold_archive(tmp_path: Path) -> None:
     """A checksum mismatch fails before extraction or toolchain installation."""
     sandbox = make_sandbox(tmp_path)
@@ -162,6 +173,7 @@ def test_installer_refuses_a_corrupted_mold_archive(tmp_path: Path) -> None:
     )
 
 
+@requires_linux
 def test_installer_verifies_a_matching_archive_before_installing(
     tmp_path: Path,
 ) -> None:
@@ -215,6 +227,7 @@ def test_installer_can_add_only_the_cranelift_component(tmp_path: Path) -> None:
     ], rustup_calls(sandbox)
 
 
+@requires_linux
 def test_rendered_checker_resolves_its_own_pins(
     tmp_path: Path, copier: CopierFixture
 ) -> None:
