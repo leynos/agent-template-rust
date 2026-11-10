@@ -32,9 +32,11 @@ concurrency:
 jobs:
   coverage-upload:
     runs-on: ubuntu-latest
-    # CV-005 permits the CodeScene credential in this one job only. The
-    # environment also refuses a branch workflow_dispatch of the publisher
-    # for the whole job rather than skipping its upload.
+    # CV-005 permits the CodeScene credential in this one job only. Restrict
+    # this environment to the `main` branch in repository settings: GitHub
+    # then refuses a branch dispatch of the workflow before the job runs,
+    # rather than relying on the upload step's own ref guard. The template
+    # cannot configure that protection rule for the generated repository.
     environment: codescene
     permissions:
       contents: read

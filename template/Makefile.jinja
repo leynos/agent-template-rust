@@ -94,7 +94,7 @@ CV005_CONTRACTS = $(UV) tool run --python 3.13 \
 	cv005-contracts
 
 build: target/debug/$(TARGET) ## Build debug binary
-release: target/release/$(TARGET){% if enable_polonius %} check-rust-toolchain{% endif %} ## Build release binary
+release: {% if enable_polonius %}check-rust-toolchain {% endif %}target/release/$(TARGET) ## Build release binary
 
 all: check-fmt lint test test-workflow-contracts ## Perform a comprehensive check of code
 	+$(MAKE) spelling
@@ -181,8 +181,8 @@ lint-shell: ## Lint tracked shell scripts
 	@git ls-files -z '*.sh' | xargs -0 -r $(SHELLCHECK)
 
 lint: check-build-tools lint-yaml lint-actions lint-shell ## Run Clippy with warnings denied
-	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) doc --no-deps
-	RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) clippy $(CLIPPY_FLAGS)
+	PATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) doc --no-deps
+	PATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) clippy $(CLIPPY_FLAGS)
 	@echo "Whitaker binary: $(WHITAKER)"
 	PATH="$(USER_BIN_PATH):$(PATH)" RUSTFLAGS="$(WHITAKER_RUST_FLAGS)" $(WHITAKER) --all -- $(CARGO_FLAGS)
 

@@ -243,8 +243,8 @@ cloned only on insertion, and error context is built lazily. See
 
     ```makefile
     lint: check-build-tools lint-yaml lint-actions lint-shell
-    RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
+    PATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps
+    PATH="$(BUILD_TOOLS_PATH)" cargo clippy --workspace --all-targets --all-features -- -D warnings
     RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- --all-targets --all-features
     ```
 

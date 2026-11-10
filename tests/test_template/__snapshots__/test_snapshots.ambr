@@ -189,6 +189,9 @@
             dict({
               'name': 'Install mdtablefix',
               'uses': 'leynos/shared-actions/.github/actions/install-mdtablefix@<sha>',
+              'with': dict({
+                'version': '0.6.1',
+              }),
             }),
             dict({
               'name': 'Format',
@@ -500,7 +503,7 @@
       \tcv005-contracts
       
       build: target/debug/$(TARGET) ## Build debug binary
-      release: target/release/$(TARGET) check-rust-toolchain ## Build release binary
+      release: check-rust-toolchain target/release/$(TARGET) ## Build release binary
       
       all: check-fmt lint test test-workflow-contracts ## Perform a comprehensive check of code
       \t+$(MAKE) spelling
@@ -587,8 +590,8 @@
       \t@git ls-files -z '*.sh' | xargs -0 -r $(SHELLCHECK)
       
       lint: check-build-tools lint-yaml lint-actions lint-shell ## Run Clippy with warnings denied
-      \tRUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) doc --no-deps
-      \tRUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) clippy $(CLIPPY_FLAGS)
+      \tPATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) doc --no-deps
+      \tPATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) clippy $(CLIPPY_FLAGS)
       \t@echo "Whitaker binary: $(WHITAKER)"
       \tPATH="$(USER_BIN_PATH):$(PATH)" RUSTFLAGS="$(WHITAKER_RUST_FLAGS)" $(WHITAKER) --all -- $(CARGO_FLAGS)
       

@@ -67,9 +67,19 @@ def _assert_makefile_contracts(makefile: str) -> None:
         "expected generated Makefile test target to run doctests with Rustdoc flags"
     )
     assert (
-        'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" '
-        "$(CARGO) doc --no-deps"
-    ) in makefile, "expected generated Makefile lint target to deny Rustdoc warnings"
+        'PATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
+        'RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) doc --no-deps'
+    ) in makefile, (
+        "expected generated Makefile lint target to deny Rustdoc warnings with "
+        "the pinned build tools on PATH"
+    )
+    assert (
+        'PATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" '
+        "$(CARGO) clippy $(CLIPPY_FLAGS)"
+    ) in makefile, (
+        "expected generated Makefile lint target to run Clippy with the "
+        "development flags and the pinned build tools on PATH"
+    )
     assert (
         "coverage: check-coverage-tools ## Generate lcov coverage with lld" in makefile
     ), "expected generated Makefile to include an lld-backed coverage target"
@@ -178,12 +188,27 @@ def _assert_makefile_contracts(makefile: str) -> None:
         "target/debug/$(TARGET)": "check-build-tools",
     }
     for target, prerequisite in preflights.items():
-        assert f"{target}: {prerequisite}" in makefile or (
-            f"{target}:" in makefile
-            and prerequisite in makefile.partition(f"{target}:")[2].partition("\n")[0]
-        ), (
+        rules = re.findall(
+            rf"^{re.escape(target)}:([^\n]*)", makefile, flags=re.MULTILINE
+        )
+        assert any(prerequisite in rule.split() for rule in rules), (
             f"expected generated {target} target to preflight {prerequisite} "
             "before compiling"
+        )
+    release_rules = re.findall(r"^release:([^\n]*)", makefile, flags=re.MULTILINE)
+    assert len(release_rules) == 1, (
+        "expected generated Makefile to define one release rule"
+    )
+    release_prerequisites = release_rules[0].split()
+    assert "target/release/$(TARGET)" in release_prerequisites, (
+        "expected generated release target to build the release binary"
+    )
+    if "check-rust-toolchain" in release_prerequisites:
+        assert release_prerequisites.index(
+            "check-rust-toolchain"
+        ) < release_prerequisites.index("target/release/$(TARGET)"), (
+            "expected generated release target to preflight the toolchain before "
+            "compiling"
         )
     assert (
         "CV005_CONTRACTS_REF ?= 38905b4b2caec5b049438e6dc3f3f6b36c04d2df"

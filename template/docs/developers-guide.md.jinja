@@ -75,8 +75,10 @@ components without installing anything. `make install-build-tools` installs the
 pinned `mold` release, verified against `tools/mold/SHA256SUMS`, and the
 Cranelift component for the pinned nightly; `make install-cranelift` installs
 only that component. `make check-build-tools` and `make check-coverage-tools`
-are read-only: they report missing tools and never install. Every install
-target requires `curl` and a matching `sha256sum` or `shasum`.
+are read-only: they report missing tools and never install. Both install
+targets require `rustup`; `make install-build-tools` also needs `curl`, `tar`,
+and `sha256sum` on Linux, where it downloads and verifies the pinned `mold`
+archive.
 
 The development flags live in two places. `.cargo/config.toml` supplies
 `-Zcodegen-backend=cranelift` and `-Zthreads=8` to bare Cargo commands, and the

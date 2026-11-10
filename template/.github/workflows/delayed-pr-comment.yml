@@ -40,7 +40,7 @@ jobs:
               exit 1
             fi
           done
-          printf 'delay-seconds=%s\n' "$((DELAY_MINUTES * 60))" >> "$GITHUB_OUTPUT"
+          printf 'delay-seconds=%s\n' "$((10#$DELAY_MINUTES * 60))" >> "$GITHUB_OUTPUT"
       - name: Wait requested time
         run: sleep "${{ steps.validate.outputs.delay-seconds }}"
       - name: Comment on pull request
