@@ -760,7 +760,7 @@
             dict({
               'if': "matrix.builder == 'cargo'",
               'name': 'Add native target',
-              'run': 'rustup target add "${{ matrix.target }}"',
+              'run': 'rustup target add --toolchain stable "${{ matrix.target }}"',
             }),
             dict({
               'env': dict({
