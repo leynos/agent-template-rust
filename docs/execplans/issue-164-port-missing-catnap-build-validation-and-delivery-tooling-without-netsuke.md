@@ -336,6 +336,19 @@ run; recorded skips and platform limits.
   modules, so every module is now under the repository's 400-line limit. Ruff,
   mypy, `interrogate`, `make check-fmt`, `make lint`, `make typecheck`, and
   `make spelling` pass on the split modules, and the 13 build-tool tests pass.
+- [x] 2026-11-10: Resolved the fifth CodeRabbit review. `github_repository` now
+  defaults to the `owner/name` part of `repository_url` when that answer is a
+  `github.com` URL, so an adopter who changes only the repository URL still
+  renders a real repository into `.github/cv005.toml`; other URLs keep the
+  `example/<package_name>` placeholder. Three parametrized cases prove the
+  derivation, the `.git` suffix handling, and the fallback. The review's second
+  finding claimed Dependabot cannot apply a cooldown to `rust-toolchain`; the
+  GitHub options reference marks both cooldown columns as supported for that
+  ecosystem, so the guide is accurate and required no change. The full parent
+  suite reports 207 passed and 2 expected `act` skips with no failures, and the
+  snapshot is unchanged because the default URL derives the same
+  `example/<package_name>` value. `make check-fmt`, `make lint`,
+  `make typecheck`, and `make spelling` pass.
 
 ## Surprises & discoveries
 
@@ -508,6 +521,18 @@ run; recorded skips and platform limits.
   limit by moving reusable sandbox and workflow parsing into `tests/helpers/`.
   Helpers take public names; test modules keep only their scenario-specific
   stubs and assertions.
+- The `github_repository` answer derives `owner/name` from a `github.com`
+  `repository_url` and falls back to `example/<package_name>` otherwise. The
+  existing default `repository_url` already yields the placeholder value, so
+  default renders and their snapshots do not move, while an adopter who changes
+  only the URL gets a real repository in the contract configuration. Trailing
+  slashes and a `.git` suffix are stripped from the derived name.
+- The claim that Dependabot cannot cool down `rust-toolchain` updates was
+  checked against GitHub's Dependabot options reference, whose compatibility
+  table marks both the default-days and SemVer-bump cooldown columns as
+  supported for the Rust toolchain ecosystem. The generated guide keeps its
+  seven-day cooldown sentence, and the reviewer's finding was not actioned
+  because current vendor documentation contradicts it.
 
 ## Outcomes & retrospective
 
