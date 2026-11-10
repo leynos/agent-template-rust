@@ -238,7 +238,9 @@ cloned only on insertion, and error context is built lazily. See
 
     validating Rust and Markdown formatting across the workspace without
     modifying files. The Markdown selection is Git-aware, so ignored files stay
-    untouched and untracked non-ignored files are checked.
+    untouched and untracked non-ignored files are checked. Use `make fmt`
+    (`cargo fmt --workspace` plus in-place mdtablefix) to apply formatting
+    fixes reported by the check.
   - `make lint` executes:
 
     ```makefile
@@ -271,8 +273,6 @@ cloned only on insertion, and error context is built lazily. See
     `tests/compile_*.rs` when a project adds them.
   - `make test-workflow-contracts` runs the pinned shared CV-005 checker over
     the repository using the selection in `.github/cv005.toml`.
-    Use `make fmt` (`cargo fmt --workspace` plus in-place mdtablefix) to apply
-    formatting fixes reported by the formatter check.
 - Clippy warnings MUST be disallowed.
 - Fix any warnings emitted during tests in the code itself rather than
   silencing them.
