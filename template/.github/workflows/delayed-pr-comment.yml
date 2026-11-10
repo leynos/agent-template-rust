@@ -25,6 +25,9 @@ on:
 jobs:
   delay-and-comment:
     runs-on: ubuntu-latest
+    # The wait below is capped at 300 minutes; this bounds everything else in
+    # the job so a dispatch cannot occupy a runner indefinitely.
+    timeout-minutes: 330
     permissions:
       pull-requests: write
     steps:
@@ -40,6 +43,10 @@ jobs:
               exit 1
             fi
           done
+          if (( ${#DELAY_MINUTES} > 4 || 10#$DELAY_MINUTES > 300 )); then
+            echo "delay_minutes must not exceed 300" >&2
+            exit 1
+          fi
           printf 'delay-seconds=%s\n' "$((10#$DELAY_MINUTES * 60))" >> "$GITHUB_OUTPUT"
       - name: Wait requested time
         env:

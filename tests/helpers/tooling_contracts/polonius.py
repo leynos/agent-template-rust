@@ -120,13 +120,17 @@ def _assert_makefile(makefile: str, *, enabled: bool, dev_target: str) -> None:
     assert (
         "COVERAGE_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) "
         "-C link-arg=$(COVERAGE_LINKER_FLAGS)"
-    ) in makefile
+    ) in makefile, "expected coverage to compose its own Polonius flag route"
     assert (
         "DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_CODEGEN_FLAGS) "
         "$(DEV_LINKER_FLAGS)" in makefile
+    ), "expected development builds to compose Polonius, codegen, and linker flags"
+    assert "WHITAKER_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS)" in makefile, (
+        "expected Whitaker to compose its own Polonius flag route"
     )
-    assert "WHITAKER_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS)" in makefile
-    assert "RELEASE_RUST_FLAGS ?= $(POLONIUS_FLAGS)" in makefile
+    assert "RELEASE_RUST_FLAGS ?= $(POLONIUS_FLAGS)" in makefile, (
+        "expected release to compose its own Polonius flag route"
+    )
     assert "RUSTDOC_FLAGS ?=" in makefile
     assert (
         "RUSTDOC_FLAGS := --cfg docsrs -D warnings $(POLONIUS_FLAGS) $(RUSTDOC_FLAGS)"

@@ -117,7 +117,7 @@ jobs:
             ${{ runner.os }}-cargo-${{ matrix.target }}-
       - name: Add native target
         if: matrix.builder == 'cargo'
-        run: rustup target add "${{ matrix.target }}"
+        run: rustup target add --toolchain stable "${{ matrix.target }}"
       # cross has no Docker image for Apple targets and falls back to the host
       # toolchain, which lacks the target on a Linux runner. The macOS legs
       # therefore build natively on macOS runners.
