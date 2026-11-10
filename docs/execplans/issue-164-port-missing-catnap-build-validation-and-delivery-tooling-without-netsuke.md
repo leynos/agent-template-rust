@@ -365,6 +365,12 @@ run; recorded skips and platform limits.
   named diagnostic while the host's compile queue was saturated. The same case
   passed in isolation and on the next full run, which reported 207 passed and 2
   expected `act` skips with no failures.
+- [x] 2026-11-10: Rebased onto `origin/main` at `f9f8862` (the shared-actions
+  group bump, #167). The replay of all 14 branch commits was conflict-free; the
+  only range change is the parent CI install-whitaker pin, which now carries
+  main's bumped SHA. The template callers and the parent Act mdtablefix step
+  were updated to the same SHA, the decision was recorded below, and the parent
+  gates plus the full suite were re-run against the rebased head.
 
 ## Surprises & discoveries
 
@@ -563,6 +569,14 @@ run; recorded skips and platform limits.
   recursion. `ast.UnaryOp` accepts only `ast.Not` and raises `TypeError` for
   any other operator, which satisfies Ruff's TRY004 rule for an invalid node
   type.
+- The branch was rebased onto `origin/main` at `f9f8862`, which had bumped the
+  shared-actions action and reusable-workflow pins from `38905b4` to `0eabb6b`
+  in the parent workflows. The template's new mdtablefix, Whitaker and
+  dependabot-automerge callers, and the parent Act mdtablefix step, adopt the
+  bumped revision so both trees name one verified shared-actions commit. The
+  CV005 package pin (`CV005_CONTRACTS_REF`) stays at `38905b4`: the Dependabot
+  bump covers only action references, and the package pin is a separately
+  exercised dependency whose compatibility the contract tests verify.
 
 ## Outcomes & retrospective
 

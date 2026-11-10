@@ -47,7 +47,7 @@ jobs:
       - name: Install mdtablefix
         # `make test` renders projects whose `make all` runs `make check-fmt`,
         # and that gate calls `mdtablefix --check --git`.
-        uses: leynos/shared-actions/.github/actions/install-mdtablefix@38905b4b2caec5b049438e6dc3f3f6b36c04d2df
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@0eabb6bc07148981de5da395e30cd78d83f5c7c2
         with:
           version: "0.6.1"
       - name: Install template test tools
