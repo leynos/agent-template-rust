@@ -319,6 +319,23 @@ run; recorded skips and platform limits.
   `lint-actions`, `lint-shell`, `test-workflow-contracts`, `spelling`, and
   `make test`; a rendered lib project passes `check-fmt` and the workflow
   contracts. The CodeRabbit re-review is the remaining step.
+- [x] 2026-11-10: Resolved the second and third CodeRabbit reviews at commits
+  `69975fc` and `fc454eb`. The generated AGENTS.md `make fmt` guidance now sits
+  with the `make check-fmt` description; the delayed-comment wait reads its
+  delay from step output through `env` rather than interpolating it into
+  `run:`; and the generated user guide again lists `make markdownlint`.
+- [x] 2026-11-10: Resolved the fourth CodeRabbit review. The delayed-comment
+  job caps accepted delays at 300 minutes and sets `timeout-minutes: 330`; the
+  release workflow adds native targets with
+  `rustup target add --toolchain stable`; the Polonius contract assertions all
+  carry failure messages; and the 682-line build-tool test module was split.
+  Sandbox fixtures moved to `tests/helpers/build_tool_sandbox.py`, the
+  flag-route and rendered-asset tests to
+  `tests/test_template/test_build_tool_flags.py`, and the delivery tests were
+  split into `tests/helpers/delivery_workflows.py` plus five focused test
+  modules, so every module is now under the repository's 400-line limit. Ruff,
+  mypy, `interrogate`, `make check-fmt`, `make lint`, `make typecheck`, and
+  `make spelling` pass on the split modules, and the 13 build-tool tests pass.
 
 ## Surprises & discoveries
 
@@ -477,6 +494,20 @@ run; recorded skips and platform limits.
 - The parent README keeps only a signpost to the generated quality-gate flow.
   The gate-level Mermaid figure lives in `docs/testing.md`, so the README stays
   at the template's core functionality rather than reproducing target internals.
+- The delayed-comment dispatch bounds `delay_minutes` at 300 and gives the job
+  a 330-minute timeout. A GitHub job may run for at most six hours, so an
+  unbounded delay input could occupy a runner indefinitely; bounding the input
+  keeps the accepted worst case inside the job limit and gives the extra 30
+  minutes to validation and the comment step.
+- The release workflow adds native targets with
+  `rustup target add --toolchain stable`, because setup-rust selects stable
+  while `rustup` may already have another default toolchain. Naming the
+  toolchain keeps the added target and the subsequent `cargo +stable build` in
+  agreement.
+- Build-tool and delivery test modules stay under the repository's 400-line
+  limit by moving reusable sandbox and workflow parsing into `tests/helpers/`.
+  Helpers take public names; test modules keep only their scenario-specific
+  stubs and assertions.
 
 ## Outcomes & retrospective
 
