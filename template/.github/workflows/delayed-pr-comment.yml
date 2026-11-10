@@ -42,7 +42,9 @@ jobs:
           done
           printf 'delay-seconds=%s\n' "$((10#$DELAY_MINUTES * 60))" >> "$GITHUB_OUTPUT"
       - name: Wait requested time
-        run: sleep "${{ steps.validate.outputs.delay-seconds }}"
+        env:
+          DELAY_SECONDS: ${{ steps.validate.outputs.delay-seconds }}
+        run: sleep "$DELAY_SECONDS"
       - name: Comment on pull request
         uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b
         with:
