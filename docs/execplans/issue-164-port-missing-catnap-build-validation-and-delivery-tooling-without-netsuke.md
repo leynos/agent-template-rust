@@ -291,8 +291,15 @@ run; recorded skips and platform limits.
   its final newline during the port, which strict yamllint rejects. Both are
   fixed, upstream `artifact` tokens stay covered by narrow local patterns, and
   the snapshot is refreshed.
-- [ ] M6 executed validation: parent `make test`, rendered public gates, and
-  shared workflow contracts.
+- [x] 2026-11-09/10: M6 executed validation. The full parent suite collected 201
+  tests and finished with 199 passed, 2 expected `act` skips, and 0 failures.
+  The suite includes the generated `make all` runs in four renders, the shared
+  CV-005 workflow-contract checks, the cheap and expensive Polonius flag
+  invariants, and the delivery tooling contracts. The canonical single-process
+  run exceeded the monitoring limits under heavy host contention, so the suite
+  completed across bounded file-scoped runs against the same clean HEAD; every
+  test is accounted for and no failure was masked. `make check-fmt`,
+  `make lint`, `make typecheck`, and `make spelling` also pass on that HEAD.
 
 ## Surprises & discoveries
 
@@ -442,4 +449,51 @@ run; recorded skips and platform limits.
 
 ## Outcomes & retrospective
 
-Pending.
+Every Catnap capability named in the issue is now available through the
+existing Makefile, Copier template, pytest-copier tests, and GitHub Actions; no
+Netsuke, Netsukefile, or Ninja dependency was introduced.
+
+Delivered behaviour:
+
+- The parent and generated projects run strict yamllint over every tracked YAML
+  file (template `.jinja` sources excluded), actionlint with shellcheck over
+  the workflows GitHub actually executes, and shellcheck over tracked scripts.
+  The estate yamllint base is copied unchanged and the local overlay adds
+  ignores only.
+- The template ships read-only tool checkers and an explicit installer for the
+  pinned `mold` release (checksum-verified against `tools/mold/SHA256SUMS`) and
+  the Cranelift component. Development builds route Cranelift, `-Zthreads=8`,
+  and Linux `mold` linking through Cargo rustflags and a composed Make
+  `DEV_RUST_FLAGS`, so stable Cargo can still parse the configuration and
+  release builds stay free of nightly development flags.
+- Markdown formatting is ported from Catnap's mdtablefix selection, and
+  `.config/nextest.toml` bounds tests with per-test and whole-run timeouts and
+  a serialized compiler-spawning group. `make test-ui` provides an explicit
+  compile-time contract lane with an intentional no-op.
+- Generated workflows are checked by the shared CV-005 package, pinned from the
+  Makefile and configured by `.github/cv005.toml`. Whitaker runs through the
+  shared action and the rendered CI installs `rust-analyzer`.
+- Dependabot groups shared actions, routine GitHub Actions, and Cargo
+  minor/patch updates, cools fresh releases, and tracks `rust-toolchain`.
+  Generated callers delegate to the shared automerge workflow and a validated
+  delayed-comment workflow.
+- The application release workflow uses native macOS runners, `cross` for
+  Linux/Windows/FreeBSD, a non-fail-fast matrix, stable Cargo with cleared
+  `RUSTFLAGS`, checksum files beside each artefact, and a dry-run dispatch that
+  can never publish from a branch. Both Polonius modes remain supported and the
+  release exception is documented in the guides and ADR-004.
+
+Retrospective lessons:
+
+- Verify the rendered output, not only the template source. A missing final
+  newline and mdtablefix paragraph wrapping both passed the parent source gates
+  and only failed in rendered-project `make all`.
+- Strict spelling uses Oxford `-ize` forms and British `artefact` in prose;
+  upstream action and feature tokens need narrow local patterns, not broad word
+  allowances.
+- Assert contract invariants and shapes, not literal action SHAs or exact exit
+  codes, so Dependabot bumps and `make`'s recipe-status wrapping do not create
+  false failures.
+- Keep expensive validation honest about its limits: the full suite passed in
+  bounded runs while the single process exceeded the harness cap under host
+  contention, and that evidence gap is recorded rather than hidden.
