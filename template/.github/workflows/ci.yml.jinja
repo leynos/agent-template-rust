@@ -35,7 +35,7 @@ jobs:
         run: rustup component add rust-analyzer
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`.
-        uses: leynos/shared-actions/.github/actions/install-mdtablefix@38905b4b2caec5b049438e6dc3f3f6b36c04d2df
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@0eabb6bc07148981de5da395e30cd78d83f5c7c2
         with:
           version: "0.6.1"
       - name: Format
@@ -80,7 +80,7 @@ jobs:
       # the bootstrap cache and the no-source-fallback policy. Cranelift is
       # installed because development builds select that codegen backend.
       - name: Install Whitaker
-        uses: leynos/shared-actions/.github/actions/install-whitaker@38905b4b2caec5b049438e6dc3f3f6b36c04d2df
+        uses: leynos/shared-actions/.github/actions/install-whitaker@0eabb6bc07148981de5da395e30cd78d83f5c7c2
         with:
           cranelift: 'true'
       - name: Audit dependencies
