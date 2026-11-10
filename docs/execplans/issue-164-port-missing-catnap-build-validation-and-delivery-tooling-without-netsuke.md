@@ -309,7 +309,16 @@ run; recorded skips and platform limits.
   installer prerequisites; the generated user guide documents restricting the
   `codescene` environment to `main`; and the gate-level Mermaid figure moved
   from the parent README to `docs/testing.md`, where the README links to it.
-  Re-running the gates and CodeRabbit is in progress.
+- [x] 2026-11-10: Post-review gate evidence at commit `a4dea59`. The parent
+  `make check-fmt`, `make lint`, `make typecheck`, and `make spelling` pass.
+  The full suite collects 202 tests; the canonical run was stopped at the
+  2-hour harness limit after 132 tests with no failures, and bounded
+  file-scoped runs completed the remainder against the same HEAD. Every file is
+  accounted for: 200 passed and 2 expected `act` skips, with no failures or
+  errors. A rendered app project passes `check-fmt`, `lint-yaml`,
+  `lint-actions`, `lint-shell`, `test-workflow-contracts`, `spelling`, and
+  `make test`; a rendered lib project passes `check-fmt` and the workflow
+  contracts. The CodeRabbit re-review is the remaining step.
 
 ## Surprises & discoveries
 
