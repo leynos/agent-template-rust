@@ -36,6 +36,8 @@ jobs:
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`.
         uses: leynos/shared-actions/.github/actions/install-mdtablefix@38905b4b2caec5b049438e6dc3f3f6b36c04d2df
+        with:
+          version: "0.6.1"
       - name: Format
         run: make check-fmt
       - name: Markdown lint

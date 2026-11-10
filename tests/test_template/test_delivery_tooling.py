@@ -271,6 +271,7 @@ def _run_validation_step(
         ("12", "5", "300"),
         ("0", "0", "0"),
         ("123456", "90", "5400"),
+        ("12", "010", "600"),
     ],
 )
 def test_delayed_pr_comment_accepts_whole_numbers(

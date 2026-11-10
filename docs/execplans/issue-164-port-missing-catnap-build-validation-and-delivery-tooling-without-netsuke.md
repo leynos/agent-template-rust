@@ -300,6 +300,16 @@ run; recorded skips and platform limits.
   completed across bounded file-scoped runs against the same clean HEAD; every
   test is accounted for and no failure was masked. `make check-fmt`,
   `make lint`, `make typecheck`, and `make spelling` also pass on that HEAD.
+- [x] 2026-11-10: Resolved the first CodeRabbit review's findings. Both
+  mdtablefix callers pin `version: "0.6.1"`; the delayed-comment delay is
+  parsed in base ten and covers a leading-zero case; the release rule's
+  prerequisites and the preflight assertions use whole-line parsing; the
+  generated lint recipe puts the installed build tools on `PATH` for
+  `cargo doc` and `cargo clippy`; the generated developer guide states the real
+  installer prerequisites; the generated user guide documents restricting the
+  `codescene` environment to `main`; and the gate-level Mermaid figure moved
+  from the parent README to `docs/testing.md`, where the README links to it.
+  Re-running the gates and CodeRabbit is in progress.
 
 ## Surprises & discoveries
 
@@ -446,6 +456,18 @@ run; recorded skips and platform limits.
   actions and routine GitHub Action updates, groups Cargo minor and patch
   updates, and tracks `rust-toolchain`, without porting Catnap's product crate
   group.
+- The generated lint recipe prefixes `cargo doc` and `cargo clippy` with
+  `PATH="$(BUILD_TOOLS_PATH)"`, because both receive `DEV_RUST_FLAGS`, whose
+  Linux `-fuse-ld=mold` argument needs the installed linker on `PATH` just as
+  the test and build recipes do. AGENTS.md's excerpt, the snapshot, and the
+  Makefile contracts assert the prefixed forms.
+- The CodeScene environment comment no longer claims GitHub refuses a branch
+  dispatch on its own. The template cannot create environment protection rules,
+  so the generated user guide tells the adopter to restrict `codescene` to
+  `main`; the workflow's upload guard remains a second, in-workflow layer.
+- The parent README keeps only a signpost to the generated quality-gate flow.
+  The gate-level Mermaid figure lives in `docs/testing.md`, so the README stays
+  at the template's core functionality rather than reproducing target internals.
 
 ## Outcomes & retrospective
 

@@ -133,6 +133,17 @@ The generated `Makefile` exposes these public targets:
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
 full generated workflow locally on Linux.
 
+### CodeScene coverage
+
+`.github/workflows/coverage-main.yml` is the project's only CodeScene caller.
+Its upload job runs in the `codescene` environment, and the upload step is
+guarded on `main` so a branch dispatch skips it. After rendering, restrict the
+`codescene` environment to the `main` branch under **Settings → Environments**.
+GitHub then refuses a dispatch of this workflow from any other branch before
+the job starts, which keeps the environment and its stored token out of reach
+of a modified branch workflow. The template cannot create that protection rule,
+so the repository setting is part of onboarding to CodeScene.
+
 {% if flavour == 'app' -%}
 ## Releasing
 

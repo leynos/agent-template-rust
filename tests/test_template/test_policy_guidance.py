@@ -45,10 +45,13 @@ def test_rendered_agents_requires_injected_environment_and_diagnostics(
             "shared `Mutex`, `OnceLock`, or `serial_test` attribute",
             "Clippy warnings MUST be disallowed",
             (
-                'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
+                'PATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
                 'RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps'
             ),
-            "cargo clippy --all-targets --all-features -- -D warnings",
+            (
+                'PATH="$(BUILD_TOOLS_PATH)" cargo clippy '
+                "--all-targets --all-features -- -D warnings"
+            ),
             (
                 'RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- '
                 "--all-targets --all-features"
@@ -174,3 +177,4 @@ def test_policy_documentation_covers_validation_and_migration(
             "`assert_cmd`",
         ),
     )
+# weave: run 'weave explain tests/test_template/test_policy_guidance.py' for per-hunk detail, 'weave check' to verify your resolution
