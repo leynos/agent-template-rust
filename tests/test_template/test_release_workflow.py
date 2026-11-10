@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from pytest_copier.plugin import CopierFixture
 
@@ -24,26 +25,8 @@ from tests.helpers.generated_files import (
 from tests.helpers.rendering import APP, LIB
 
 
-def test_application_release_matrix_uses_native_macos_and_cross_builders(
-    tmp_path: Path, copier: CopierFixture
-) -> None:
-    """Each matrix leg's runner agrees with its builder and target."""
-    project = render_delivery_project(
-        tmp_path,
-        copier,
-        flavour=APP,
-        project_name="ReleaseMatrix",
-        package_name="release_matrix",
-    )
-    workflow = parse_yaml_mapping(
-        read_generated_text(project / ".github/workflows/release.yml"),
-        "release workflow",
-    )
-    build = require_mapping(
-        require_mapping(workflow, "jobs", "release workflow"),
-        "build",
-        "release workflow jobs",
-    )
+def _assert_matrix_legs(build: dict[str, Any]) -> None:
+    """Assert each matrix leg's runner agrees with its builder and target."""
     strategy = require_mapping(build, "strategy", "release build job")
     assert strategy.get("fail-fast") is False, (
         "expected one failing leg not to cancel the others"
@@ -74,6 +57,9 @@ def test_application_release_matrix_uses_native_macos_and_cross_builders(
         "expected the Apple Silicon target to use the arm64 runner"
     )
 
+
+def _assert_build_steps(build: dict[str, Any]) -> None:
+    """Assert the build job uses stable Cargo and uploads checksummed artefacts."""
     build_steps = steps(build, "release build job")
     setup = next(
         step
@@ -128,11 +114,10 @@ def test_application_release_matrix_uses_native_macos_and_cross_builders(
         for step in build_steps
     ), "expected release artefacts to be uploaded by a pinned action"
 
-    release = require_mapping(
-        require_mapping(workflow, "jobs", "release workflow"),
-        "release",
-        "release workflow jobs",
-    )
+
+def _assert_release_job(jobs: dict[str, Any]) -> None:
+    """Assert the release job waits for every leg and publishes safely."""
+    release = require_mapping(jobs, "release", "release workflow jobs")
     assert release.get("needs") == "build", (
         "expected the release job to wait for every build leg"
     )
@@ -148,6 +133,29 @@ def test_application_release_matrix_uses_native_macos_and_cross_builders(
         SOFT_PROPS_RELEASE_USES_RE.fullmatch(str(step.get("uses", "")))
         for step in release_steps
     ), "expected the release job to publish through the pinned release action"
+
+
+def test_application_release_matrix_uses_native_macos_and_cross_builders(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """Each matrix leg's runner agrees with its builder and target."""
+    project = render_delivery_project(
+        tmp_path,
+        copier,
+        flavour=APP,
+        project_name="ReleaseMatrix",
+        package_name="release_matrix",
+    )
+    workflow = parse_yaml_mapping(
+        read_generated_text(project / ".github/workflows/release.yml"),
+        "release workflow",
+    )
+    jobs = require_mapping(workflow, "jobs", "release workflow")
+    build = require_mapping(jobs, "build", "release workflow jobs")
+
+    _assert_matrix_legs(build)
+    _assert_build_steps(build)
+    _assert_release_job(jobs)
 
 
 def test_library_render_has_no_release_workflow(

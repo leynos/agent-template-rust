@@ -1,8 +1,9 @@
 # Bounded, serialized test execution for generated projects.
 #
-# Every run is bounded twice. `slow-timeout` terminates one test that stops
-# making progress (nextest resets the period whenever the test produces
-# output), and `global-timeout` bounds the whole run.
+# Every run is bounded twice. `slow-timeout` terminates one test that runs
+# longer than `period` multiplied by `terminate-after`, whatever output it
+# produces, and `global-timeout` bounds the whole run. Add a per-test override
+# for a legitimately long test.
 #
 # A compile-time contract test spawns nested Cargo builds. `make test-ui` runs
 # its `tests/compile_*.rs` targets with the `ui` profile, which puts every

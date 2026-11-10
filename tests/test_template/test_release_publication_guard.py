@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -61,31 +62,59 @@ def _evaluate_call(node: ast.Call, context: dict[str, Any]) -> Any:
     raise ValueError(f"unsupported call: {node.func!r}")
 
 
+def _evaluate_expression_node(node: ast.Expression, context: dict[str, Any]) -> Any:
+    """Evaluate the body of a parsed guard expression."""
+    return _evaluate_expression(node.body, context)
+
+
+def _evaluate_unary_op(node: ast.UnaryOp, context: dict[str, Any]) -> Any:
+    """Evaluate a translated negation, rejecting other unary operators."""
+    if not isinstance(node.op, ast.Not):  # pragma: no cover - guard subset
+        raise TypeError(f"unsupported unary operator: {node.op!r}")
+    return not _evaluate_expression(node.operand, context)
+
+
+def _evaluate_constant(node: ast.Constant, _context: dict[str, Any]) -> Any:
+    """Evaluate a translated literal."""
+    return node.value
+
+
+def _evaluate_name(node: ast.Name, context: dict[str, Any]) -> Any:
+    """Evaluate a translated context lookup."""
+    return context[node.id]
+
+
+def _evaluate_attribute(node: ast.Attribute, context: dict[str, Any]) -> Any:
+    """Evaluate a translated attribute access."""
+    return _evaluate_expression(node.value, context)[node.attr]
+
+
+def _evaluate_subscript(node: ast.Subscript, context: dict[str, Any]) -> Any:
+    """Evaluate a translated subscript access."""
+    return _evaluate_expression(node.value, context)[
+        _evaluate_expression(node.slice, context)
+    ]
+
+
 def _evaluate_expression(node: ast.AST, context: dict[str, Any]) -> Any:
     """Evaluate the whitelisted nodes of a translated guard expression."""
-    match node:
-        case ast.Expression():
-            return _evaluate_expression(node.body, context)
-        case ast.BoolOp():
-            return _evaluate_bool_op(node, context)
-        case ast.Compare():
-            return _evaluate_compare(node, context)
-        case ast.UnaryOp() if isinstance(node.op, ast.Not):
-            return not _evaluate_expression(node.operand, context)
-        case ast.Constant():
-            return node.value
-        case ast.Name():
-            return context[node.id]
-        case ast.Attribute():
-            return _evaluate_expression(node.value, context)[node.attr]
-        case ast.Subscript():
-            return _evaluate_expression(node.value, context)[
-                _evaluate_expression(node.slice, context)
-            ]
-        case ast.Call():
-            return _evaluate_call(node, context)
-        case _:  # pragma: no cover - guards use a small expression subset
-            raise ValueError(f"unsupported expression node: {node!r}")
+    handler = _HANDLERS.get(type(node))
+    if handler is None:  # pragma: no cover - guards use a small expression subset
+        raise ValueError(f"unsupported expression node: {node!r}")
+    return handler(node, context)
+
+
+_HANDLERS: dict[type[ast.AST], Callable[[Any, dict[str, Any]], Any]] = {
+    ast.Expression: _evaluate_expression_node,
+    ast.BoolOp: _evaluate_bool_op,
+    ast.Compare: _evaluate_compare,
+    ast.UnaryOp: _evaluate_unary_op,
+    ast.Constant: _evaluate_constant,
+    ast.Name: _evaluate_name,
+    ast.Attribute: _evaluate_attribute,
+    ast.Subscript: _evaluate_subscript,
+    ast.Call: _evaluate_call,
+}
 
 
 def _evaluate_publication_guard(guard: str, **event: Any) -> bool:
