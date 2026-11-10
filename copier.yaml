@@ -48,10 +48,15 @@ repository_url:
 
 github_repository:
   type: str
-  default: 'example/{{ package_name }}'
+  default: >-
+    {% if 'github.com/' in repository_url -%}
+    {{ repository_url.split('github.com/', 1)[1].rstrip('/').removesuffix('.git') }}
+    {%- else -%}
+    example/{{ package_name }}
+    {%- endif -%}
   help: >-
     GitHub repository as owner/name, used by the workflow contract checks and
-    Dependabot automation
+    Dependabot automation. Defaults to the owner and name in repository_url.
   placeholder: 'e.g. example/my_awesome_tool'
   validator: >-
     {% if not (github_repository | regex_search('^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?/[A-Za-z0-9._-]+\\Z')) %}

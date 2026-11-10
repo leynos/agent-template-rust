@@ -107,6 +107,36 @@ def test_rendered_contract_configuration_defaults_to_the_example_repository(
     )
 
 
+@pytest.mark.parametrize(
+    ("repository_url", "expected"),
+    [
+        ("https://github.com/acme/widget", "acme/widget"),
+        ("https://github.com/acme/widget.git", "acme/widget"),
+        ("https://gitlab.com/acme/widget", "example/derived_contract"),
+    ],
+)
+def test_repository_answer_defaults_to_the_repository_url(
+    tmp_path: Path,
+    copier: CopierFixture,
+    repository_url: str,
+    expected: str,
+) -> None:
+    """The default answer follows a GitHub URL and otherwise keeps the example."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="DerivedContract",
+        package_name="derived_contract",
+        repository_url=repository_url,
+    )
+
+    config = parse_toml_file(project / ".github/cv005.toml")
+
+    assert config.get("repository") == expected, (
+        "expected the default repository answer to follow repository_url"
+    )
+
+
 def test_checker_rejects_a_publisher_without_the_codescene_environment(
     tmp_path: Path, copier: CopierFixture
 ) -> None:
