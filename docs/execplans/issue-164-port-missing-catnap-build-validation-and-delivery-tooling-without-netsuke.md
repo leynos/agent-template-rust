@@ -371,6 +371,13 @@ run; recorded skips and platform limits.
   main's bumped SHA. The template callers and the parent Act mdtablefix step
   were updated to the same SHA, the decision was recorded below, and the parent
   gates plus the full suite were re-run against the rebased head.
+- [x] 2026-11-10: Post-rebase validation and publication. On the rebased head
+  `fc15131`, `make check-fmt`, `make lint`, `make typecheck`, and
+  `make spelling` pass, and the full parent suite reports 207 passed, 2 expected
+  `act` skips, and 0 failures in 583.10s. The branch was force-pushed with a
+  lease bound to the previously recorded remote head `c8fd955`, the tracking
+  ref was refreshed, and the remote head now equals `fc15131`. On that head the
+  pull request's `build-test` (4m36s) and `act-validation` (6m48s) checks pass.
 
 ## Surprises & discoveries
 
