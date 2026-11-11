@@ -108,6 +108,21 @@ Development builds use Cranelift for debug code generation. On Linux targets,
 link quickly. Coverage generation uses `lld` instead because LLVM coverage
 tools expect LLVM-compatible linker behaviour.
 
+## Generated Contributor Guidance
+
+Generated projects include `AGENTS.md`. It asks contributors to plan
+non-trivial work around explicit behavioural contracts and milestone acceptance
+criteria, to keep approval and stopping gates, and to preserve decision
+history. It also states expectations for architecture and operational
+boundaries, proportionate verification, behavioural testing, observability, and
+documentation accuracy.
+
+The template no longer renders a host-specific tool inventory into `AGENTS.md`.
+Tool availability belongs to the execution environment rather than the
+generated project, so document the tools a workflow depends on beside that
+workflow. Existing projects should follow the
+[0.4.0 migration guide](migrations/0.4.0.md) when adopting this guidance.
+
 ## Validation and Environment Policy
 
 Generated manifests deny `unknown_lints`, `renamed_and_removed_lints`,
