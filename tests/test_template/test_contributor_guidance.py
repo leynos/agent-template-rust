@@ -38,6 +38,15 @@ PLANNING_AND_BOUNDARY_GUIDANCE = (
         "components until the preceding evidence justifies them."
     ),
     (
+        "Where formal verification is selected, first sketch the independent "
+        "model, premises, invariants, representation relationships, and principal "
+        "proof obligations. Treat proposed lemmas as provisional. Defer detailed "
+        "proof engineering until implementation exposes the verification "
+        "conditions; do not add assumptions, admissions, or trusted proof bodies "
+        "merely to make incomplete proofs pass. Unproved statements may remain in "
+        "the plan until that milestone."
+    ),
+    (
         "Give each major milestone explicit acceptance commands, including "
         "applicable proof checks and the formatting, linting, and test gates. "
         "Keep commits coherent and useful as rollback points."
@@ -79,6 +88,19 @@ PLANNING_AND_BOUNDARY_GUIDANCE = (
         "expose the defect."
     ),
     (
+        "Exercise the boundary that owns the promise: public API, executable, or "
+        "protocol adapter. Private-helper tests complement this coverage. Fakes "
+        "must support relevant failures and verify their propagation through "
+        "orchestration. Test local integration contracts rather than third-party "
+        "tools themselves."
+    ),
+    (
+        "Test relevant partial failures, cancellation, shutdown, and cleanup with "
+        "deterministic coordination where practical. Avoid relying solely on sleeps "
+        "or exact deltas from shared global counters. Restore fixture resources even "
+        "when assertions fail, and account for host capabilities and privileges."
+    ),
+    (
         "Select verification proportionately: named examples or `rstest` tables for "
         "finite contracts, `proptest` for broad input spaces or operation "
         "sequences, and `kani` for exhaustive exploration within explicit bounds. "
@@ -93,6 +115,12 @@ PLANNING_AND_BOUNDARY_GUIDANCE = (
         "Keep secrets, credentials, raw payloads, and sensitive paths out of logs, "
         "errors, traces, and snapshots. Prefer stable error categories and bounded "
         "contextual fields over arbitrary error text."
+    ),
+    (
+        "For new operational telemetry, document and exercise the application's "
+        "collection path. Verify a relevant event produces a non-zero signal "
+        "through that path; helper-only assertions or comparisons of zero counters "
+        "do not establish useful instrumentation."
     ),
 )
 
@@ -135,13 +163,38 @@ AMENDMENT_PROCESS_GUIDANCE = (
     ),
 )
 
+REMOVED_HOST_TOOL_NAMES = (
+    "mbake",
+    "strace",
+    "gdb",
+    "ripgrep",
+    "ltrace",
+    "valgrind",
+    "bpftrace",
+    "lsof",
+    "htop",
+    "iotop",
+    "ncdu",
+    "tree",
+    "bat",
+    "delta",
+    "tcpdump",
+    "nmap",
+    "lldb",
+    "eza",
+    "fzf",
+    "hyperfine",
+    "shellcheck",
+    "fd",
+    "checkmake",
+    "srgn",
+    "difft",
+)
+
 REMOVED_HOST_TOOL_INVENTORY = (
     "## Additional tooling",
     "The following tooling is available in this environment",
-    "`mbake` — A Makefile validator",
-    "`bpftrace`",
-    "`ncdu`",
-    "`difft` **(Difftastic)**",
+    *(f"- `{name}`" for name in REMOVED_HOST_TOOL_NAMES),
 )
 
 
