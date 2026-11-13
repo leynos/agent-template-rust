@@ -80,26 +80,29 @@ def _assert_build_steps(
         "expected a release build to tolerate an empty or populated cache"
     )
     assert setup_inputs.get("toolchain") == toolchain, (
-        f"expected the release build to use {toolchain}"
+        "expected the release build to name the toolchain its mode selects; an "
+        "empty input leaves rust-toolchain.toml authoritative"
     )
     assert setup_inputs.get("rustflags") == rustflags, (
         "expected the release toolchain to keep only the flags its mode needs"
     )
 
+    cargo_toolchain = "" if toolchain == "" else f"+{toolchain} "
+    rustup_toolchain = "" if toolchain == "" else f"--toolchain {toolchain} "
     native = named_step(build, "Build release binary (native)", "release build job")
     native_command = str(native.get("run", ""))
-    assert native_command.startswith(f"cargo +{toolchain} build --release --target "), (
-        f"expected the native leg to build with {toolchain}"
-    )
+    assert native_command.startswith(
+        f"cargo {cargo_toolchain}build --release --target "
+    ), f"expected the native leg to build with {toolchain or 'the pinned file'}"
     native_env = require_mapping(native, "env", "native release step")
     assert native_env.get("RUSTFLAGS") == rustflags, (
         "expected the native release build to carry only its mode's flags"
     )
     cross = named_step(build, "Build release binary (cross)", "release build job")
     cross_command = str(cross.get("run", ""))
-    assert cross_command.startswith(f"cross +{toolchain} build --release --target "), (
-        f"expected the cross leg to build with {toolchain}"
-    )
+    assert cross_command.startswith(
+        f"cross {cargo_toolchain}build --release --target "
+    ), f"expected the cross leg to build with {toolchain or 'the pinned file'}"
     cross_env = require_mapping(cross, "env", "cross release step")
     assert cross_env.get("RUSTFLAGS") == rustflags, (
         "expected the cross release build to carry only its mode's flags"
@@ -108,10 +111,20 @@ def _assert_build_steps(
         "expected the cross image to use gcc rather than the clang config"
     )
     add_target = named_step(build, "Add native target", "release build job")
-    assert (
-        f'rustup target add --toolchain {toolchain} "${{{{ matrix.target }}}}"'
-        in str(add_target.get("run"))
-    ), f"expected the native target to be added to {toolchain}"
+    assert f'rustup target add {rustup_toolchain}"${{{{ matrix.target }}}}"' in str(
+        add_target.get("run")
+    ), f"expected the native target to be added to {toolchain or 'the pinned file'}"
+    linker = named_step(build, "Select the cross linker", "release build job")
+    assert linker.get("if") == (
+        "matrix.builder == 'cross' && contains(matrix.target, 'linux')"
+    ), "expected the linker override to apply to cross-built Linux legs only"
+    linker_run = str(linker.get("run"))
+    assert "CARGO_TARGET_%s_LINKER=cc" in linker_run, (
+        "expected the cross image to select gcc for the matrix target"
+    )
+    assert "$GITHUB_ENV" in linker_run, (
+        "expected the linker override to reach the following build step"
+    )
     prepare = named_step(build, "Prepare artifact", "release build job")
     assert "shasum -a 256" in str(prepare.get("run")), (
         "expected a checksum beside every release artefact"
@@ -172,12 +185,15 @@ def test_application_release_matrix_uses_native_macos_and_cross_builders(
 
     if enable_polonius:
         # A Polonius release must use the same dated nightly as development:
-        # the source does not compile without `-Zpolonius=next`.
-        toolchain = _rendered_channel(project.path)
-        rustflags = POLONIUS_FLAG
-        assert "nightly-" in toolchain, (
-            "expected a Polonius project to release on its dated nightly"
+        # the source does not compile without `-Zpolonius=next`. The caller
+        # leaves the toolchain input empty so the pinned file, which the rest of
+        # the build already reads, is the only place the date appears.
+        pinned = _rendered_channel(project.path)
+        assert "nightly-" in pinned, (
+            "expected a Polonius project to pin its dated nightly"
         )
+        toolchain = ""
+        rustflags = POLONIUS_FLAG
     else:
         toolchain = "stable"
         rustflags = ""

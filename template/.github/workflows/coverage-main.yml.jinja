@@ -73,16 +73,13 @@ jobs:
       - name: Run compile-time UI tests
         run: make test-ui
       # As in ci.yml: the UI lane already ran the compile-time targets, and the
-      # shared coverage action always runs workspace nextest. Moving them out
-      # of the crate keeps their nested Cargo builds out of the instrumented
-      # run, where they would repeat work without the serialized group.
+      # shared coverage action always runs workspace nextest. Deselecting them
+      # in the project's nextest profile keeps their nested Cargo builds out of
+      # the instrumented run, where they would repeat work without the
+      # serialized group. They stay in the crate, so an explicit `[[test]]`
+      # declaration keeps pointing at an existing file.
       - name: Exclude compile-time targets from the coverage build
-        run: |
-          set -euo pipefail
-          if ls tests/compile_*.rs >/dev/null 2>&1; then
-            mkdir -p "$RUNNER_TEMP/ui-targets"
-            mv tests/compile_*.rs "$RUNNER_TEMP/ui-targets/"
-          fi
+        run: scripts/exclude-ui-targets.sh
       - name: Log coverage linker configuration
         run: |
           echo "Coverage linker: clang"

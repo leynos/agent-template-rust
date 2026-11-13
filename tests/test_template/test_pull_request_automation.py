@@ -58,10 +58,21 @@ def test_pull_request_automation_callers_are_pinned_and_scoped(
     )
     condition = str(automerge_job.get("if", ""))
     assert "github.event_name == 'workflow_dispatch'" in condition, (
-        "expected the automerge caller to accept only a manual dispatch"
+        "expected the automerge caller to accept a manual dispatch"
     )
     assert "github.actor == 'dependabot[bot]'" in condition, (
-        "expected the automerge caller to act only for Dependabot"
+        "expected the automerge caller to act for a Dependabot push"
+    )
+    # GitHub only cancels a superseded run for a pusher without write access, so
+    # selecting on the pushing actor alone would leave a maintainer's push to a
+    # Dependabot pull request unaudited. Selecting on the pull request's author
+    # reaches the reusable workflow's commit audit on every such push.
+    assert (
+        "(github.event_name == 'pull_request_target' && "
+        "github.event.pull_request.user.login == 'dependabot[bot]')" in condition
+    ), (
+        "expected the automerge caller to run for any push to a "
+        f"Dependabot-authored pull request, got {condition!r}"
     )
     inputs = require_mapping(automerge_job, "with", "automerge job")
     assert inputs.get("pull-request-number") == (
@@ -85,10 +96,17 @@ def test_pull_request_automation_callers_are_pinned_and_scoped(
         "Dispatch coverage for the merged trunk commit",
         "dispatch job",
     )
-    assert require_mapping(dispatch_step, "env", "dispatch step").get(
-        "PULL_REQUEST_NUMBER"
-    ) == ("${{ inputs.pull-request-number || github.event.pull_request.number }}"), (
-        "expected the dispatch step to resolve the same pull request"
+    dispatch_env = require_mapping(dispatch_step, "env", "dispatch step")
+    assert dispatch_env.get("PULL_REQUEST_NUMBER") == (
+        "${{ inputs.pull-request-number || github.event.pull_request.number }}"
+    ), "expected the dispatch step to resolve the same pull request"
+    # The job has no checkout, so `gh` cannot infer the repository from a local
+    # Git directory, and the numeric pull-request argument does not select one.
+    assert dispatch_env.get("GH_REPO") == "${{ github.repository }}", (
+        "expected the checkout-free dispatch to name the repository for gh"
+    )
+    assert dispatch_env.get("GH_TOKEN") == "${{ secrets.GITHUB_TOKEN }}", (
+        "expected the dispatch to authenticate with the workflow token"
     )
     dispatch_run = str(dispatch_step.get("run", ""))
     assert "gh pr view" in dispatch_run and "mergedAt" in dispatch_run, (

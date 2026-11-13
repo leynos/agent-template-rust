@@ -62,6 +62,15 @@ def _assert_dev_profile_contracts(dev_profile: dict[str, Any]) -> None:
     )
 
 
+def _target_tables(cargo_config: str) -> set[str]:
+    """Return the target tables a rendered Cargo configuration declares."""
+    return {
+        line.strip()
+        for line in cargo_config.splitlines()
+        if line.startswith("[target.")
+    }
+
+
 def _assert_cargo_config_contracts(
     cargo_config: str, dev_target: str, rust_toolchain: str
 ) -> None:
@@ -79,8 +88,8 @@ def _assert_cargo_config_contracts(
         "expected generated cargo config to run the rustc frontend on eight threads"
     )
     if "linux" in dev_target:
-        assert f"[target.{dev_target}]" in cargo_config, (
-            "expected generated cargo config to include Linux target settings"
+        assert """[target.'cfg(target_os = "linux")']""" in cargo_config, (
+            "expected generated cargo config to select the Linux linker by cfg"
         )
         assert "link-arg=-fuse-ld=mold" in cargo_config, (
             "expected generated cargo config to use mold linker for Linux"
@@ -89,14 +98,24 @@ def _assert_cargo_config_contracts(
             2
         ]
         linux_flags = linux_table.partition("rustflags = [")[2].partition("]")[0]
+        assert 'linker = "clang"' in linux_table.partition("rustflags = [")[0], (
+            "expected the Linux cfg table to select the clang driver so the "
+            "mold flag is accepted on every Linux target"
+        )
         assert "-Zthreads=8" in linux_flags, (
             "expected the Linux target rustflags to repeat the threads flag"
         )
         assert "-Zcodegen-backend=cranelift" in linux_flags, (
             "expected the Linux target rustflags to repeat the Cranelift flag"
         )
+        assert not _target_tables(cargo_config) - {
+            """[target.'cfg(target_os = "linux")']"""
+        }, (
+            "expected the Linux cfg table to be the only target override, so a "
+            "cross build keeps its platform linker"
+        )
     else:
-        assert f"[target.{dev_target}]" not in cargo_config, (
+        assert not _target_tables(cargo_config), (
             "expected generated cargo config to avoid mold target blocks "
             "for non-Linux targets"
         )

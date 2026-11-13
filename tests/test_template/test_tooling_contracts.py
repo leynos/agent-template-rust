@@ -107,14 +107,22 @@ def test_polonius_contract_rejects_incorrect_coverage_log() -> None:
         _assert_coverage_workflow(workflow, "build-test", enabled=True)
 
 
-def test_polonius_contract_rejects_a_stable_release_for_polonius_source() -> None:
-    """Reject a Polonius release that builds on stable Cargo."""
-    workflow = """jobs:
+@pytest.mark.parametrize("toolchain", ["stable", "nightly-2026-01-01"])
+def test_polonius_contract_rejects_a_pinned_release_toolchain(
+    toolchain: str,
+) -> None:
+    """Reject a Polonius release that selects a toolchain of its own.
+
+    ``rust-toolchain.toml`` is the single source of truth for the dated
+    nightly, so a release that names a channel or another date can drift from
+    the compiler development uses.
+    """
+    workflow = f"""jobs:
   build:
     steps:
       - uses: leynos/shared-actions/.github/actions/setup-rust@b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea
         with:
-          toolchain: stable
+          toolchain: {toolchain}
           rustflags: -Zpolonius=next
       - name: Log Rust compiler configuration
         run: |
@@ -124,14 +132,14 @@ def test_polonius_contract_rejects_a_stable_release_for_polonius_source() -> Non
         env:
           RUSTFLAGS: -Zpolonius=next
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: cc
-        run: cross +stable build --release
+        run: cross build --release
       - name: Build release binary (native)
         env:
           RUSTFLAGS: -Zpolonius=next
-        run: cargo +stable build --release
+        run: cargo build --release
 """
 
-    with pytest.raises(AssertionError, match="dated nightly"):
+    with pytest.raises(AssertionError, match="release setup-rust toolchain input"):
         _assert_release_workflow(workflow, enabled=True)
 
 

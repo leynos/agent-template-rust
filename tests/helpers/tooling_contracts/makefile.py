@@ -228,8 +228,9 @@ def _assert_makefile_contracts(makefile: str) -> None:
     assert "test-workflow-contracts: ## Check the shared CV-005 workflow contracts" in (
         makefile
     ), "expected generated Makefile to expose the workflow contract target"
-    assert "all: check-fmt lint test test-workflow-contracts" in makefile, (
-        "expected the comprehensive gate to run the workflow contract checker"
+    assert "all: check-fmt lint test test-ui test-workflow-contracts" in makefile, (
+        "expected the comprehensive gate to run the UI lane and the workflow "
+        "contract checker"
     )
     assert "MDTABLEFIX ?= mdtablefix" in makefile, (
         "expected generated Makefile to name the Markdown formatter as an "
@@ -260,9 +261,13 @@ def _assert_makefile_contracts(makefile: str) -> None:
         "UI_TEST_CMD := $(if $(filter nextest run,$(TEST_CMD)),"
         "$(TEST_CMD) --profile ui,$(TEST_CMD))" in makefile
     ), "expected generated test-ui target to select the serialized nextest profile"
+    assert "UI_TEST_FLAGS ?= --all-features" in makefile, (
+        "expected the UI lane to keep the same feature selection as `make test`"
+    )
     assert (
         'PATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) '
-        "$(UI_TEST_CMD) $(addprefix --test ,$(UI_TEST_TARGETS))" in makefile
+        "$(UI_TEST_CMD) $(UI_TEST_FLAGS) $(addprefix --test ,$(UI_TEST_TARGETS))"
+        in makefile
     ), "expected generated test-ui target to run the discovered targets"
     assert (
         'CHECK_BUILD_TOOLS ?= PATH="$(BUILD_TOOLS_PATH)" scripts/check-build-tools.sh'

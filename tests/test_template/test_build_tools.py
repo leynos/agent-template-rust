@@ -95,6 +95,7 @@ def test_checker_reports_a_missing_component(tmp_path: Path) -> None:
     ), "expected the check to report the gap rather than install the component"
 
 
+@requires_linux
 def test_coverage_check_ignores_cranelift_but_requires_lld(tmp_path: Path) -> None:
     """Coverage preflight skips Cranelift and still requires the lld linker."""
     sandbox = make_sandbox(tmp_path)

@@ -261,13 +261,16 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
         "expected coverage-main.yml to advance the ratchet baseline"
     )
     publish_baseline = str(coverage_inputs.get("publish-baseline", ""))
-    assert "refs/heads/main" in publish_baseline, (
-        "expected the baseline publication to be conditioned on the measured "
-        "ref being main, so a branch dispatch cannot advance it"
+    # The whole expression is asserted rather than its parts: "refs/heads/main"
+    # also appears in a negated condition, and "always" also appears in the
+    # fallback a non-main ref receives.
+    expected_publish_baseline = (
+        "${{ github.ref == 'refs/heads/main' && 'always' || 'auto' }}"
     )
-    assert "always" in publish_baseline, (
-        "expected a main run to publish the baseline even when the trigger was "
-        "a dispatch rather than a push"
+    assert publish_baseline == expected_publish_baseline, (
+        "expected a run measured on main to publish the baseline, including a "
+        "dispatch, and any other ref to leave it untouched, got "
+        f"{publish_baseline!r}"
     )
     upload_steps = [
         step
@@ -339,13 +342,20 @@ def assert_coverage_backstop_workflow_contract(backstop_workflow: str) -> None:
         "gh workflow run needs"
     )
     steps = require_sequence(dispatch, "steps", "coverage-backstop job")
-    assert any(
-        isinstance(step, dict)
-        and step.get("run") == "gh workflow run coverage-main.yml --ref main"
-        for step in steps
-    ), (
+    dispatch_steps = [
+        step
+        for step in _step_mappings(steps)
+        if step.get("run") == "gh workflow run coverage-main.yml --ref main"
+    ]
+    assert dispatch_steps, (
         "expected coverage-backstop.yml to dispatch coverage-main.yml on main, "
         "because a GITHUB_TOKEN merge fires no push-event workflow"
+    )
+    dispatch_env = require_mapping(dispatch_steps[0], "env", "backstop dispatch step")
+    # This job has no checkout, and `gh workflow run` needs a repository:
+    # without a local Git directory it fails before dispatching.
+    assert dispatch_env.get("GH_REPO") == "${{ github.repository }}", (
+        "expected the checkout-free dispatch to name the repository for gh"
     )
 
 

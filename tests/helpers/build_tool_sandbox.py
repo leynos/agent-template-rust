@@ -58,7 +58,20 @@ class Sandbox:
 
 
 def write_executable(path: Path, body: str) -> Path:
-    """Write *body* to *path*, make it executable, and return the path."""
+    """Write ``body`` to ``path``, make it executable, and return the path.
+
+    Parameters
+    ----------
+    path : Path
+        Destination file. Missing parent directories are created.
+    body : str
+        Script text, normally starting with a shebang line.
+
+    Returns
+    -------
+    Path
+        The executable file that was written.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(body, encoding="utf-8")
     path.chmod(0o755)
@@ -93,7 +106,26 @@ def write_workspace_pins(
     sums: str | None = None,
     components: tuple[str, ...] = ("rustfmt", "clippy", CRANELIFT),
 ) -> None:
-    """Write the pin files the scripts read when no override is set."""
+    """Write the pin files the scripts read when no override is set.
+
+    Parameters
+    ----------
+    sandbox : Sandbox
+        Sandbox whose workspace receives ``tools/mold/VERSION``,
+        ``tools/mold/SHA256SUMS`` and the pinned toolchain file.
+    version : str
+        mold version recorded in the pins.
+    sums : str | None
+        Pre-formatted ``SHA256SUMS`` text, or ``None`` to record a placeholder
+        digest for this version's Linux archive.
+    components : tuple[str, ...]
+        Components listed in the rendered ``rust-toolchain.toml``.
+
+    Returns
+    -------
+    None
+        The pin files are written in place.
+    """
     tools = sandbox.workspace / "tools" / "mold"
     tools.mkdir(parents=True)
     (tools / "VERSION").write_text(f"{version}\n", encoding="utf-8")
@@ -155,7 +187,22 @@ def installed_component_lines(components: tuple[str, ...]) -> str:
 def script_env(
     sandbox: Sandbox, overrides: dict[str, str] | None = None
 ) -> dict[str, str]:
-    """Return a PATH-limited environment for a build-tool script."""
+    """Return a PATH-limited environment for a build-tool script.
+
+    Parameters
+    ----------
+    sandbox : Sandbox
+        Sandbox whose ``bin`` and ``core`` directories form ``PATH`` and whose
+        pin files the scripts read.
+    overrides : dict[str, str] | None
+        Variables merged over the defaults, or ``None`` to keep only them.
+
+    Returns
+    -------
+    dict[str, str]
+        Environment for the script, with the parent's make and build-tool
+        controls stripped so an ambient value cannot change the result.
+    """
     env = generated_project_env(
         {
             "PATH": f"{sandbox.bin}:{sandbox.core}",
@@ -202,7 +249,19 @@ def run_script(
 
 
 def rustup_calls(sandbox: Sandbox) -> list[tuple[str, str]]:
-    """Return the recorded rustup calls as (auto-install, arguments) pairs."""
+    """Return the recorded rustup calls as (auto-install, arguments) pairs.
+
+    Parameters
+    ----------
+    sandbox : Sandbox
+        Sandbox whose ``rustup.log`` records one call per line.
+
+    Returns
+    -------
+    list[tuple[str, str]]
+        One ``(auto-install, arguments)`` pair per recorded call, in call
+        order. An absent log yields an empty list.
+    """
     log = sandbox.base / "rustup.log"
     if not log.exists():
         return []

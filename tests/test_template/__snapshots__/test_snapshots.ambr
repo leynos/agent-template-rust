@@ -129,16 +129,18 @@
       rustflags = ["-Zpolonius=next", "-Zthreads=8", "-Zcodegen-backend=cranelift"]
       rustdocflags = ["-Zpolonius=next"]
       
-      # `mold` ships for Linux only. The linker selection lives on the requested
-      # development triple; the linker flag lives in the `cfg` table below so every
-      # Linux target receives it. Other targets, macOS and Windows included, keep
+      # `mold` ships for Linux only, and the `cfg` table matches every Linux target
+      # rather than the requested development triple alone. The linker selection and
+      # the mold flag therefore live together: a target that receives the flag also
+      # selects the driver that accepts it. GCC before 12.1 rejects `-fuse-ld=mold`,
+      # so leaving the platform driver in place would fail a bare `cargo build` on a
+      # native AArch64 Linux host. Other targets, macOS and Windows included, keep
       # their platform linker.
-      [target.x86_64-unknown-linux-gnu]
-      linker = "clang"
-      
+      #
       # The `cfg` table replaces `[build] rustflags` whenever it matches, so it must
       # repeat every development flag as well as the linker selection.
       [target.'cfg(target_os = "linux")']
+      linker = "clang"
       rustflags = ["-Zpolonius=next", "-Zthreads=8", "-Zcodegen-backend=cranelift", "-Clink-arg=-fuse-ld=mold"]
       
       # Cargo coordinates metadata output itself on dated nightlies from 2026-07-31.
@@ -270,14 +272,7 @@
             }),
             dict({
               'name': 'Exclude compile-time targets from the coverage build',
-              'run': '''
-                set -euo pipefail
-                if ls tests/compile_*.rs >/dev/null 2>&1; then
-                  mkdir -p "$RUNNER_TEMP/ui-targets"
-                  mv tests/compile_*.rs "$RUNNER_TEMP/ui-targets/"
-                fi
-  
-              ''',
+              'run': 'scripts/exclude-ui-targets.sh',
             }),
             dict({
               'name': 'Log coverage linker configuration',
@@ -372,14 +367,7 @@
             }),
             dict({
               'name': 'Exclude compile-time targets from the coverage build',
-              'run': '''
-                set -euo pipefail
-                if ls tests/compile_*.rs >/dev/null 2>&1; then
-                  mkdir -p "$RUNNER_TEMP/ui-targets"
-                  mv tests/compile_*.rs "$RUNNER_TEMP/ui-targets/"
-                fi
-  
-              ''',
+              'run': 'scripts/exclude-ui-targets.sh',
             }),
             dict({
               'name': 'Log coverage linker configuration',
@@ -486,10 +474,17 @@
       CARGO_FLAGS ?= --all-targets --all-features
       CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
       TEST_FLAGS ?= $(CARGO_FLAGS)
-      TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
+      # Selecting the runner must not provision anything: rustup installs a missing
+      # pinned toolchain on demand, so the probe disables that, exactly as the
+      # read-only capability checks do. Only the explicit installer targets install.
+      TEST_CMD := $(if $(shell RUSTUP_AUTO_INSTALL=0 $(CARGO) nextest --version 2>/dev/null),nextest run,test)
       # `cargo test` has no profiles. Under nextest, the `ui` profile carries the
       # serialized `nested-cargo` group and the longer compile-test timeout.
       UI_TEST_CMD := $(if $(filter nextest run,$(TEST_CMD)),$(TEST_CMD) --profile ui,$(TEST_CMD))
+      # The UI lane selects its targets by name, so `--all-targets` would reintroduce
+      # the ordinary tests it is separated from. It still needs the same feature
+      # selection as `make test`: a contract fixture may use a non-default feature.
+      UI_TEST_FLAGS ?= --all-features
       COVERAGE_LINKER_FLAGS ?= -fuse-ld=lld
       COVERAGE_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) -C link-arg=$(COVERAGE_LINKER_FLAGS)
       MDLINT ?= markdownlint-cli2
@@ -513,7 +508,8 @@
       TEST_UI_EXCLUDE := $(if $(filter nextest run,$(TEST_CMD)),$(if $(strip $(UI_TEST_TARGETS)),-E 'not binary(compile_*)'))
       # Coverage makes the same split through the same filter. The shared CI
       # coverage action exposes no test filter and always runs workspace nextest, so
-      # its caller removes the compile-time targets from the checkout instead.
+      # its caller deselects the targets in the project's nextest profile with
+      # `scripts/exclude-ui-targets.sh`; the targets stay in the crate.
       COVERAGE_NEXTEST := $(if $(filter nextest run,$(TEST_CMD)),nextest)
       NIXIE ?= nixie
       # YAML, workflow and shell lint tools are provisioned by the shared
@@ -538,7 +534,7 @@
       build: target/debug/$(TARGET) ## Build debug binary
       release: check-rust-toolchain target/release/$(TARGET) ## Build release binary
       
-      all: check-fmt lint test test-workflow-contracts ## Perform a comprehensive check of code
+      all: check-fmt lint test test-ui test-workflow-contracts ## Perform a comprehensive check of code
       \t+$(MAKE) spelling
       
       install-build-tools: ## Install the pinned Rust toolchain and mold linker
@@ -567,15 +563,17 @@
       \tPATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
       
       # Compile-time contract tests build nested Cargo projects, so the lane runs
-      # them on their own instead of inside the instrumented coverage build. A
-      # project without `tests/compile_*.rs` reports an intentional no-op.
+      # them on their own instead of inside the instrumented coverage build. It is
+      # part of `all` for exactly that reason: excluding the targets from `test`
+      # would otherwise drop them from the comprehensive local gate. A project
+      # without `tests/compile_*.rs` reports an intentional no-op.
       test-ui: check-build-tools ## Run compile-time contract tests
       \t@set -euo pipefail; \
       \tif [ -z "$(strip $(UI_TEST_TARGETS))" ]; then \
       \t  echo "No compile-time UI test targets (tests/compile_*.rs); nothing to run."; \
       \t  exit 0; \
       \tfi; \
-      \tPATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) $(UI_TEST_CMD) $(addprefix --test ,$(UI_TEST_TARGETS))
+      \tPATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) $(UI_TEST_CMD) $(UI_TEST_FLAGS) $(addprefix --test ,$(UI_TEST_TARGETS))
       
       target/debug/$(TARGET): check-build-tools
       \tPATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) build $(BUILD_JOBS) --bin $(TARGET)
@@ -594,13 +592,15 @@
       # `git ls-files -z` enumerates the YAML this project owns. The patterns end in
       # `.yml` or `.yaml`, so Copier/Jinja sources are never handed to yamllint as
       # though they were YAML. `xargs -0 -r` preserves paths with spaces and runs
-      # nothing when no file matches.
+      # nothing when no file matches. `pipefail` keeps a failed enumeration from
+      # reading as a clean run: without it the pipeline returns xargs's status and the
+      # target reports success having linted nothing.
       lint-yaml: ## Lint every tracked YAML file strictly
       \t@if ! command -v $(YAMLLINT) >/dev/null 2>&1; then \
       \t  echo "yamllint is required to lint YAML; install it with: uv tool install yamllint" >&2; \
       \t  exit 1; \
       \tfi
-      \t@git ls-files -z '*.yml' '*.yaml' | xargs -0 -r $(YAMLLINT) --strict --
+      \t@set -o pipefail; git ls-files -z '*.yml' '*.yaml' | xargs -0 -r $(YAMLLINT) --strict --
       
       # actionlint inspects the workflow files GitHub actually executes and runs
       # ShellCheck over every `run:` script it finds.
@@ -620,7 +620,7 @@
       \t  echo "shellcheck is required to lint shell scripts; install it using your OS package manager" >&2; \
       \t  exit 1; \
       \tfi
-      \t@git ls-files -z '*.sh' | xargs -0 -r $(SHELLCHECK)
+      \t@set -o pipefail; git ls-files -z '*.sh' | xargs -0 -r $(SHELLCHECK)
       
       lint: check-build-tools lint-yaml lint-actions lint-shell ## Run Clippy with warnings denied
       \tPATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) doc --no-deps
@@ -740,7 +740,7 @@
               'with': dict({
                 'expect-cache': 'any',
                 'rustflags': '-Zpolonius=next',
-                'toolchain': 'nightly-2026-11-06',
+                'toolchain': '',
                 'use-sccache': 'false',
               }),
             }),
@@ -792,9 +792,19 @@
               }),
             }),
             dict({
+              'if': "matrix.builder == 'cross' && contains(matrix.target, 'linux')",
+              'name': 'Select the cross linker',
+              'run': '''
+                set -euo pipefail
+                target_key=$(printf '%s' "${{ matrix.target }}" | tr 'a-z-' 'A-Z_')
+                printf 'CARGO_TARGET_%s_LINKER=cc\n' "$target_key" >> "$GITHUB_ENV"
+  
+              ''',
+            }),
+            dict({
               'if': "matrix.builder == 'cargo'",
               'name': 'Add native target',
-              'run': 'rustup target add --toolchain nightly-2026-11-06 "${{ matrix.target }}"',
+              'run': 'rustup target add "${{ matrix.target }}"',
             }),
             dict({
               'env': dict({
@@ -803,7 +813,7 @@
               }),
               'if': "matrix.builder == 'cross'",
               'name': 'Build release binary (cross)',
-              'run': 'cross +nightly-2026-11-06 build --release --target ${{ matrix.target }}',
+              'run': 'cross build --release --target ${{ matrix.target }}',
             }),
             dict({
               'env': dict({
@@ -811,7 +821,7 @@
               }),
               'if': "matrix.builder == 'cargo'",
               'name': 'Build release binary (native)',
-              'run': 'cargo +nightly-2026-11-06 build --release --target ${{ matrix.target }}',
+              'run': 'cargo build --release --target ${{ matrix.target }}',
             }),
             dict({
               'name': 'Prepare artifact',

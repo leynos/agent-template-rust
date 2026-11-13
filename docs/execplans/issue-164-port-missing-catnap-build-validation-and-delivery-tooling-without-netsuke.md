@@ -459,6 +459,33 @@ run; recorded skips and platform limits.
   attempt, confirms `mergedAt` and the `main` base with `gh pr view`, and only
   then runs `gh workflow run coverage-main.yml --ref main`; the daily
   `coverage-backstop.yml` covers a merge that produces no push event.
+- [x] 2026-11-13: Ninth review round. The four findings were checked against
+  the current tree before any edit. Polonius in application releases, the
+  post-automerge coverage dispatch, and the CV-005 shape-only assertion were
+  already satisfied at `56c3fd2`; the coverage gap for nested-Cargo targets was
+  real. `template/scripts/exclude-ui-targets.sh` now adds the profile-level
+  exclusion for the hosted coverage action, `make all` includes `test-ui`, and
+  `UI_TEST_FLAGS` gives the lane the same feature selection as `make test`.
+  `tests/test_template/test_test_lane.py` proves the script against a real
+  `trybuild` fixture: the default run skips `accepts_the_supported_shape`, the
+  `ui` profile lists it, a second run is a no-op, and a handwritten
+  `default-filter` is reported rather than overwritten. Snapshots were
+  regenerated (`1 snapshot updated`) so the captured workflows and Makefile
+  match the new script call and aggregate.
+- [x] 2026-11-13: Gate run on the ninth-round head. The suite runs as three
+  ordered file-scoped passes because one process exceeds the harness limit: the
+  root modules with `test_audit_targets` through `test_compilation` give 123
+  passed and the 2 expected `act` skips, `test_contributor_guidance` through
+  `test_test_lane` give 64 passed, and `test_tooling_contracts` plus
+  `test_workflow_contracts` give 31 passed. `make check-fmt`, `make typecheck`,
+  `make lint`, and `make spelling` all exit 0. Two failures were found and
+  fixed during the run: the rendered `docs/developers-guide.md` was not an
+  mdtablefix fixed point after the release paragraph rewrite, and
+  `generated_project_env` leaked the harness's `BASH_ENV` into every generated
+  recipe. Three test modules also asserted the pre-change Makefile and release
+  excerpts (`cargo clippy --workspace ...`, `TEST_CMD` without
+  `RUSTUP_AUTO_INSTALL=0`, `+nightly-<date>` commands, and the fallback
+  `[target.<triple>]` table) and were updated to the contracts now rendered.
 
 ## Surprises & discoveries
 
@@ -554,6 +581,43 @@ run; recorded skips and platform limits.
   `test_basic_rendering` cases failed as soon as the two lines met. The
   rendered documentation is a gate input, not only output, so
   `template/AGENTS.md.jinja` must stay an mdtablefix fixed point.
+- nextest 0.9.133 resolves `default-filter` per profile but validates every
+  profile's filterset at configuration load, so a `default-filter` naming a
+  binary that does not exist aborts the run before any test starts with
+  `error: operator didn't match any binary names` (exit 96). The exclusion
+  therefore has to be conditional on a discovered target, exactly like the CLI
+  `-E` argument. An explicit `-E` on the command line and a profile's own
+  `default-filter` both take precedence over a `[profile.default]` value, which
+  is why the local recipe's `-E` and the hosted action share one behaviour.
+- `profile.ui` needs its own `default-filter = "all()"`. Without it the `ui`
+  profile inherits the default exclusion that `exclude-ui-targets.sh` writes,
+  and the hosted ordering (UI lane first, then the script) would still be
+  correct only because the script runs afterwards; a later `make test-ui` in
+  the same checkout would find its targets deselected. Stating `all()` makes
+  the UI lane independent of execution order.
+- A `GITHUB_TOKEN`-authenticated merge produces no `push` event, so no
+  push-triggered coverage workflow starts by itself. The automerge caller
+  therefore dispatches `coverage-main.yml` explicitly after confirming the
+  merge landed, and the daily `coverage-backstop.yml` covers a missed dispatch.
+- `cross` derives the container toolchain from the host `rustc` sysroot, so a
+  `rust-toolchain.toml` directory override reaches the cross build without
+  naming the date on the `cross` command line. Passing an empty `toolchain`
+  input to `setup-rust` keeps that file authoritative and removes the second
+  place a nightly date could drift.
+- A harness that exports `BASH_ENV` breaks every generated-project recipe that
+  runs under a stubbed `PATH`. A non-interactive Bash sources that file before
+  the recipe, the file's own commands are missing from the stub directory, and
+  `make` attributes the resulting status 127 to whichever target was running —
+  here `lint-yaml`, which names no shell script of its own.
+  `generated_project_env` now strips `BASH_ENV` and `ENV` alongside the make
+  and Whitaker controls so a test asserts the template rather than the harness
+  environment.
+- The rendered developer guide is a gate input, like the rendered `AGENTS.md`
+  earlier: rewriting the release and coverage paragraphs left
+  `docs/developers-guide.md` two lines away from an mdtablefix fixed point, and
+  only the rendered-project `make check-fmt` inside `test_tooling_contracts`
+  could see it. Any prose edit in `template/docs/*.md.jinja` needs a render plus
+  `mdtablefix --check` before the suite is rerun.
 
 ## Decision log
 
@@ -602,9 +666,12 @@ run; recorded skips and platform limits.
 - M3 runs the UI lane before coverage in both generated CI workflows, so
   compile-time contract tests are not instrumented and do not compete with the
   coverage build for the Cargo cache.
-- `test-ui` stays out of the `all` aggregate. The lane is invoked explicitly by
-  the CI and coverage workflows before coverage, which keeps ad hoc local
-  `make all` inexpensive while still gating the generated project.
+- Superseded: the first M3 draft kept `test-ui` out of the `all` aggregate and
+  relied on the CI and coverage workflows to invoke it. That left `test-ui`
+  ungated in the public local entrypoint, and a nested-Cargo fixture could fail
+  without failing `make all`. `all` now lists `test-ui` alongside `test`, and
+  because the lane reports an intentional no-op when a project has no
+  `tests/compile_*.rs`, the cost stays zero for projects that do not use it.
 - The mdtablefix CI action is pinned at the same full SHA in the parent Act
   workflow and both generated project workflows, matching the estate's full-SHA
   pin policy.
@@ -659,11 +726,18 @@ run; recorded skips and platform limits.
   unbounded delay input could occupy a runner indefinitely; bounding the input
   keeps the accepted worst case inside the job limit and gives the extra 30
   minutes to validation and the comment step.
-- The release workflow adds native targets with an explicit
-  `rustup target add --toolchain <release toolchain>`, because `rustup` may
-  already have another default toolchain. Naming the selected toolchain keeps
-  the added target, the setup-rust `toolchain` input, and the subsequent
-  `cargo +<toolchain> build` in agreement in both borrow-checker modes.
+- The release workflow passes an empty `toolchain` input to `setup-rust` for a
+  Polonius application and leaves `rust-toolchain.toml` as the single source of
+  truth. An empty input makes the shared action skip `rustup default` and fall
+  back to `rustup show active-toolchain || rustup toolchain install`, so the
+  dated nightly the file pins is exactly the toolchain that builds and the one
+  Dependabot updates. Naming the date a second time in the caller would let the
+  two drift: an NLL render still states `stable` because it has no
+  `rust-toolchain.toml` nightly to inherit. For the same reason the native leg
+  runs `rustup target add` without `--toolchain`, and `cross` derives its
+  container toolchain from the host sysroot, so `cross build` under the file
+  override is equivalent to `cross +nightly-<date> build` without repeating the
+  date.
 - Build-tool and delivery test modules stay under the repository's 400-line
   limit by moving reusable sandbox and workflow parsing into `tests/helpers/`.
   Helpers take public names; test modules keep only their scenario-specific
@@ -703,6 +777,36 @@ run; recorded skips and platform limits.
   The rendered `AGENTS.md` reflow belongs in the template rather than in the
   rendered test fixtures: the failing gate is the rendered project's
   `check-fmt`, so any rendered project, not only the test copy, would fail it.
+- The hosted coverage run deselects compile-time targets by writing
+  `default-filter = "not binary(compile_*)"` into `[profile.default]` through
+  `scripts/exclude-ui-targets.sh`, rather than deleting or moving the target
+  files out of the checkout. The shared coverage action exposes no test filter
+  and always runs workspace `cargo llvm-cov nextest`, so the project's own
+  profile is the only lever its caller controls. Keeping the files in place
+  matters because a project that declares an explicit
+  `[[test]] path = "tests/compile_accept.rs"` would otherwise render a manifest
+  pointing at a missing file. The script is a no-op when no target matches,
+  because nextest validates a `binary(...)` filter in every profile and rejects
+  one that names nothing; it refuses to overwrite a filter it did not write, so
+  a project that has changed `default-filter` by hand sees a failure instead of
+  a silent rewrite.
+- Coverage exclusion is exercised through the module's own `default-filter`
+  rather than `cargo llvm-cov` flags so that the local `make coverage` route
+  and the hosted action select the same targets. The local recipe still passes
+  `-E 'not binary(compile_*)'` when nextest is available, because a CLI filter
+  takes precedence over the profile default and the two cannot disagree about
+  which targets run.
+- `make test` under nextest passes the same `-E 'not binary(compile_*)'`
+  selection, and `TEST_UI_EXCLUDE` is empty when nextest is absent or no
+  compile target was discovered. `cargo test` has no filter expression, so the
+  fallback runner still executes compile targets as ordinary tests; that is
+  recorded as a known limitation rather than emulated with file moves.
+- The CV-005 caller pin is asserted by shape only. The parent's
+  `test_workflow_contracts.py` matches `^CV005_CONTRACTS_REF \?= [0-9a-f]{40}$`
+  and then runs `make test-workflow-contracts`, so a checker-pin bump does not
+  fail a contract test while the checker itself still has to accept the
+  rendered repository. An exact SHA assertion there would be the lockstep
+  dependency #160 removed.
 
 ## Outcomes & retrospective
 

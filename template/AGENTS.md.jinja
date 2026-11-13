@@ -246,31 +246,43 @@ cloned only on insertion, and error context is built lazily. See
     ```makefile
     lint: check-build-tools lint-yaml lint-actions lint-shell
     PATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps
-    PATH="$(BUILD_TOOLS_PATH)" cargo clippy --workspace --all-targets --all-features -- -D warnings
-    RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- --all-targets --all-features
+    PATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo clippy $(CLIPPY_FLAGS)
+    PATH="$(USER_BIN_PATH):$(PATH)" RUSTFLAGS="$(WHITAKER_RUST_FLAGS)" whitaker --all -- $(CARGO_FLAGS)
     ```
 
     running strict yamllint over tracked YAML, actionlint with shellcheck over
     rendered workflows, shellcheck over tracked scripts, then building
-    documentation before linting every target with all features enabled.
-    Documentation warnings, Clippy warnings, and Whitaker findings fail the
-    command. `check-build-tools` is read-only; it never installs a tool.
+    documentation before linting every target with all features enabled. The
+    YAML and shell targets fail when `git ls-files` cannot enumerate the
+    checkout, rather than reporting success having linted nothing. Documentation
+    warnings, Clippy warnings, and Whitaker findings fail the command. Clippy
+    gets the development flag route and Whitaker its own, which omits the
+    development codegen backend. `check-build-tools` is read-only; it never
+    installs a tool.
   - `make test` executes:
 
     ```makefile
-    TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
+    TEST_CMD := $(if $(shell RUSTUP_AUTO_INSTALL=0 $(CARGO) nextest --version 2>/dev/null),nextest run,test)
     test: check-build-tools
     test: export RUSTFLAGS := $(DEV_RUST_FLAGS)
-    $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
+    $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(TEST_UI_EXCLUDE) $(BUILD_JOBS)
     RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
     ```
 
     running the full test suite with `cargo-nextest` when available and
-    falling back to `cargo test`, with Rust warnings denied. `.config/nextest.toml`
-    bounds each test and the whole run and serializes compiler-spawning tests.
-    It then runs all-feature workspace doctests separately with Rustdoc
-    warnings denied. `make test-ui` runs compile-time contract targets named
-    `tests/compile_*.rs` when a project adds them.
+    falling back to `cargo test`, with Rust warnings denied. The probe that
+    selects the runner disables rustup's automatic installation, so selecting a
+    runner never provisions a toolchain. `.config/nextest.toml` bounds each test
+    and the whole run and serializes compiler-spawning tests. It then runs
+    all-feature workspace doctests separately with Rustdoc warnings denied.
+    `make test-ui` runs compile-time contract targets named
+    `tests/compile_*.rs` when a project adds them, with
+    `UI_TEST_FLAGS ?= --all-features`; `make test` excludes those targets and
+    `make all` runs the lane. The hosted coverage job runs the lane and then
+    `scripts/exclude-ui-targets.sh`, which adds the same filter as
+    `default-filter` to `[profile.default]`; the shared coverage action takes no
+    filter argument, and the targets stay in the crate so an explicit
+    `[[test]]` declaration keeps its file.
   - `make test-workflow-contracts` runs the pinned shared CV-005 checker over
     the repository using the selection in `.github/cv005.toml`.
 - Clippy warnings MUST be disallowed.

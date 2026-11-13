@@ -14,16 +14,19 @@ and `make lint-shell` checks the scripts under `scripts/`. `make test` prefers
 available. `.config/nextest.toml` bounds every run with a slow-test and global
 timeout and serializes compiler-spawning tests in a `nested-cargo` group.
 `make test-ui` runs compile-time contract targets named `tests/compile_*.rs`
-and reports an intentional no-op when the project has none. The default run
-excludes those targets when they exist, because each one builds a nested Cargo
-project that only the UI lane should run; nextest rejects a filter that names
-no binary, so the exclusion is added only when a target is discovered.
-`make coverage` passes the same filter to `cargo llvm-cov nextest`. The shared
-CI coverage action accepts no test filter, so its caller runs the UI lane first
-and then moves `tests/compile_*.rs` out of the checkout before the instrumented
-run; those nested Cargo builds contribute no coverage and would bypass the
-serialized group. `make check-fmt` verifies Rust formatting with
-`cargo fmt --all -- --check` and Markdown formatting with
+and reports an intentional no-op when the project has none; `make all` includes
+the lane. The default run excludes those targets when they exist, because each
+one builds a nested Cargo project that only the UI lane should run; nextest
+rejects a filter that names no binary, so the exclusion is added only when a
+target is discovered. `make coverage` passes the same filter to
+`cargo llvm-cov nextest`. The shared CI coverage action accepts no test filter,
+so its caller runs the UI lane first and then has
+`scripts/exclude-ui-targets.sh` add the same filter to the project's nextest
+profile before the instrumented run; those nested Cargo builds contribute no
+coverage and would bypass the serialized group. The targets stay in the crate,
+so an explicit `[[test]]` declaration keeps pointing at an existing file.
+`make check-fmt` verifies Rust formatting with `cargo fmt --all -- --check` and
+Markdown formatting with
 `mdtablefix --check --git --include-untracked --wrap --renumber
 --breaks --ellipsis --fences`;
 `make fmt` applies the same selection in place and formats Rust sources with
@@ -130,12 +133,14 @@ The matrix keeps `fail-fast` disabled so one broken leg does not hide whether
 the others build. Linux, Windows, and FreeBSD targets build inside `cross`;
 both macOS targets build natively with `cargo` on `macos-15-intel` and
 `macos-latest`, because `cross` has no Apple image. Every leg clears the
-nightly development flags and links the Linux GNU target with `cc` rather than
-the development `clang` configuration. The toolchain follows the project's
-borrow-checker mode: a project that enables the analysis releases on its dated
-nightly with `RUSTFLAGS=-Zpolonius=next`, while every other project releases on
-stable with an empty `RUSTFLAGS`. Each artefact gets a `shasum -a 256` checksum
-file beside the binary.
+nightly development flags, and every cross-built Linux leg links with `cc`
+rather than the development `clang` configuration: the container has gcc and no
+clang, and the override is written per matrix target because its variable name
+carries the target. The toolchain follows the project's borrow-checker mode: a
+project that enables the analysis releases on the dated nightly that
+`rust-toolchain.toml` pins, with `RUSTFLAGS=-Zpolonius=next`, while every other
+project releases on stable with an empty `RUSTFLAGS`. Each artefact gets a
+`shasum -a 256` checksum file beside the binary.
 
 ## Spelling policy
 

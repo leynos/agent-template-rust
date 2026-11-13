@@ -101,6 +101,13 @@ def _assert_cargo_config(cargo_config: str, *, enabled: bool, dev_target: str) -
     assert linux_table is not None, (
         "expected the Linux cfg table that supplies the mold link flag"
     )
+    # The linker and the flag that needs it live in one table: a target that
+    # receives `-fuse-ld=mold` must also receive the driver that accepts it,
+    # and the `cfg` table matches every Linux target rather than the requested
+    # development triple alone.
+    assert linux_table.get("linker") == "clang", (
+        "expected the Linux cfg table to select the clang driver for mold"
+    )
     target_flags = linux_table["rustflags"]
     assert (POLONIUS_FLAG in target_flags) is enabled, (
         "target rustflags override build.rustflags and must preserve the "
@@ -108,6 +115,15 @@ def _assert_cargo_config(cargo_config: str, *, enabled: bool, dev_target: str) -
     )
     assert "-Clink-arg=-fuse-ld=mold" in target_flags, (
         "expected the Linux cfg table to select the mold linker"
+    )
+    for repeated_flag in ("-Zthreads=8", "-Zcodegen-backend=cranelift"):
+        assert repeated_flag in target_flags, (
+            f"expected the Linux cfg table to repeat {repeated_flag!r}, because "
+            "a matching target table replaces build.rustflags"
+        )
+    assert set(config["target"]) == {'cfg(target_os = "linux")'}, (
+        "expected the Linux cfg table to be the only target override, so every "
+        "other target keeps its platform linker"
     )
 
 
@@ -246,25 +262,26 @@ def _assert_release_workflow(release_workflow: str, *, enabled: bool) -> None:
     setup_inputs = require_mapping(setup, "with", "release setup-rust step")
     actual_toolchain = str(setup_inputs.get("toolchain", ""))
     expected_flags = POLONIUS_FLAG if enabled else ""
-    if enabled:
-        # A Polonius release must use the same dated nightly as development:
-        # the source does not compile without the analysis.
-        assert actual_toolchain.startswith("nightly-"), (
-            "expected a Polonius release to build on its dated nightly, got "
-            f"{actual_toolchain!r}"
-        )
-    else:
-        assert actual_toolchain == "stable", (
-            "expected a release without Polonius to build on stable Cargo, got "
-            f"{actual_toolchain!r}"
-        )
+    # A Polonius release must use the same dated nightly as development,
+    # because the source does not compile without the analysis.
+    # `rust-toolchain.toml` is that toolchain's single source of truth, so the
+    # input is empty and setup-rust installs whatever the file pins. A release
+    # without Polonius overrides the file with stable, whose Cargo must parse
+    # the generated configuration.
+    expected_toolchain = "" if enabled else "stable"
+    assert actual_toolchain == expected_toolchain, (
+        "expected the release setup-rust toolchain input to be "
+        f"{expected_toolchain!r}, got {actual_toolchain!r}"
+    )
     assert setup_inputs.get("rustflags") == expected_flags, (
         "expected the release setup-rust input to carry only the flags its "
         f"borrow-checker mode needs, got {setup_inputs.get('rustflags')!r}"
     )
+    cargo_toolchain = "" if enabled else "+stable "
+    rustup_toolchain = "" if enabled else "--toolchain stable "
     expected_commands = {
-        "Build release binary (cross)": f"cross +{actual_toolchain} build",
-        "Build release binary (native)": f"cargo +{actual_toolchain} build",
+        "Build release binary (cross)": f"cross {cargo_toolchain}build --release",
+        "Build release binary (native)": f"cargo {cargo_toolchain}build --release",
     }
     for step_name, expected_command in expected_commands.items():
         build = _named_step(release_workflow, "build", step_name)
@@ -278,10 +295,35 @@ def _assert_release_workflow(release_workflow: str, *, enabled: bool) -> None:
             f"expected {step_name} to carry only its mode's flags, "
             f"got {build_env.get('RUSTFLAGS')!r}"
         )
+    native_target = _named_step(release_workflow, "build", "Add native target")
+    expected_rustup = f'rustup target add {rustup_toolchain}"${{{{ matrix.target }}}}"'
+    assert expected_rustup in str(native_target.get("run", "")), (
+        "expected the native leg to add its target to the release toolchain, "
+        f"got {native_target.get('run')!r}"
+    )
     cross = _named_step(release_workflow, "build", "Build release binary (cross)")
     cross_env = require_mapping(cross, "env", "cross release step")
     assert cross_env.get("CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER") == "cc", (
-        "expected the cross image to link with gcc rather than the clang config"
+        "expected the cross image's host triple to link with gcc, because the "
+        "container has no clang"
+    )
+    # The generated Cargo configuration selects clang for every Linux target,
+    # and the cross image has gcc only. The override is written per matrix
+    # target because its variable name carries the target, and it is limited to
+    # Linux legs so the Windows and FreeBSD legs keep their default linker.
+    linker_step = _named_step(release_workflow, "build", "Select the cross linker")
+    assert linker_step.get("if") == (
+        "matrix.builder == 'cross' && contains(matrix.target, 'linux')"
+    ), (
+        "expected the cross linker override to be limited to cross-built Linux "
+        f"targets, got {linker_step.get('if')!r}"
+    )
+    linker_run = str(linker_step.get("run", ""))
+    assert "CARGO_TARGET_%s_LINKER=cc" in linker_run, (
+        "expected the cross linker step to override the matrix target's linker"
+    )
+    assert "$GITHUB_ENV" in linker_run, (
+        "expected the cross linker override to reach later steps"
     )
     for development_flag in ("-Zthreads=8", "-Zcodegen-backend=cranelift"):
         assert development_flag not in release_workflow, (
