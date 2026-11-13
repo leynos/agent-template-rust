@@ -416,6 +416,28 @@ run; recorded skips and platform limits.
   ecosystem configures `labels`, and the configuration header records the
   reason. The snapshot is unaffected because it covers workflows and the
   Makefile, not `dependabot.yml`.
+- [x] 2026-11-13: Rebased onto `origin/main` at `b312a83`. Main had advanced
+  through `9fc0070`, `af40897`, and `b312a83`, which bump the shared-action
+  pins and add the contributor-guidance tests. Every branch commit replayed
+  cleanly except the two `setup-uv` pins in `.github/workflows/ci.yml` and
+  `.github/workflows/act-validation.yml`; each resolution keeps main's
+  `5e83ccf` SHA while retaining this branch's generated-toolchain and YAML-lint
+  steps. The rebased head exposed one integration defect: main's rendered
+  `AGENTS.md` prose is wrapped at about 76 columns, and this branch's rendered
+  `check-fmt` now runs mdtablefix, so three `test_basic_rendering` cases failed
+  inside `make all`. Porting mdtablefix's own reflow into
+  `template/AGENTS.md.jinja` fixed it in `8a2443b` without touching any Jinja
+  structure or conditional section.
+- [x] 2026-11-13: Parent commit gates on the rebased head `8a2443b`.
+  `make check-fmt`, `make typecheck`, `make lint`, and `make spelling` all exit
+  0. The 218 collected tests again run as ordered file-scoped passes over that
+  one tree: the root files plus `test_audit_targets` through `test_compilation`
+  give 112 passed and the 2 expected `act` skips in 40:49,
+  `test_contributor_guidance` through `test_test_lane` give 63 passed in
+  1:00:41, and `test_tooling_contracts`, `test_workflow_contracts`, and
+  `test_yaml_lint_gates` give 41 passed in 25:16. Together the runs cover every
+  collected test with no failure. The earlier pre-rebase passes are retained as
+  evidence for `d768830` only.
 
 ## Surprises & discoveries
 
@@ -504,6 +526,13 @@ run; recorded skips and platform limits.
   `publisher.triggers: trigger 'schedule' is not permitted`, even though the
   workflow is otherwise valid. Backstops for a publisher must dispatch it from
   a separate workflow rather than extend its trigger list.
+- Main's rendered `AGENTS.md` prose was wrapped at about 76 columns, which is
+  stable for `cargo fmt` but not for mdtablefix. The parent's own rendered
+  `check-fmt` in main runs only `cargo fmt`, so main's CI never saw the
+  difference; this branch's rendered `check-fmt` also runs mdtablefix, and three
+  `test_basic_rendering` cases failed as soon as the two lines met. The
+  rendered documentation is a gate input, not only output, so
+  `template/AGENTS.md.jinja` must stay an mdtablefix fixed point.
 
 ## Decision log
 
@@ -645,6 +674,14 @@ run; recorded skips and platform limits.
   CV005 package pin (`CV005_CONTRACTS_REF`) stays at `38905b4`: the Dependabot
   bump covers only action references, and the package pin is a separately
   exercised dependency whose compatibility the contract tests verify.
+- The second rebase target is `b312a83`, which carries main's later
+  shared-action bumps and the contributor-guidance tests. Only the two
+  `setup-uv` pins conflicted, and each resolution takes main's `5e83ccf` SHA
+  because the branch changed nothing about how uv is installed; the surrounding
+  generated-toolchain and YAML-lint steps are this branch's own work and stay.
+  The rendered `AGENTS.md` reflow belongs in the template rather than in the
+  rendered test fixtures: the failing gate is the rendered project's
+  `check-fmt`, so any rendered project, not only the test copy, would fail it.
 
 ## Outcomes & retrospective
 
