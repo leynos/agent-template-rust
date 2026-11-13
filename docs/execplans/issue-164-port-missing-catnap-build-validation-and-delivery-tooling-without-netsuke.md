@@ -438,6 +438,27 @@ run; recorded skips and platform limits.
   `test_yaml_lint_gates` give 41 passed in 25:16. Together the runs cover every
   collected test with no failure. The earlier pre-rebase passes are retained as
   evidence for `d768830` only.
+- [x] 2026-11-13: Mode-aware release verification with a Polonius-dependent
+  fixture. `get_default` from the NLL problem-case corpus, a `HashMap` accessor
+  that borrows the entry and inserts a default in the other match arm, is
+  rejected by stable NLL and accepted by Polonius. Rendered as the whole
+  `src/main.rs` of two scratch application projects, it builds the native Linux
+  release leg the way the rendered workflow does: the Polonius render with
+  `cargo +nightly-2026-11-06 build --release` and `RUSTFLAGS=-Zpolonius=next`
+  finishes clean (49s), and the NLL render with `cargo +stable build --release`
+  and an empty `RUSTFLAGS` fails with E0499. The fixture is therefore
+  non-vacuous, and the release flags are what decide whether a Polonius
+  project's source can be released. The cross, macOS, and Windows legs need
+  hosted runners and remain verified only by the rendered matrix definition and
+  the workflow contract tests.
+- [x] 2026-11-13: Publication and dispatch guards re-confirmed on this head. The
+  release guard table accepts a tag push and a non-dry-run tag dispatch and
+  rejects both a dry-run tag dispatch and a branch dispatch with
+  `dry-run: false`, with a weakened-guard mutation proving the table is not
+  vacuous. The automerge caller's `dispatch-coverage` job needs the merge
+  attempt, confirms `mergedAt` and the `main` base with `gh pr view`, and only
+  then runs `gh workflow run coverage-main.yml --ref main`; the daily
+  `coverage-backstop.yml` covers a merge that produces no push event.
 
 ## Surprises & discoveries
 
