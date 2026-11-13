@@ -486,6 +486,24 @@ run; recorded skips and platform limits.
   excerpts (`cargo clippy --workspace ...`, `TEST_CMD` without
   `RUSTUP_AUTO_INSTALL=0`, `+nightly-<date>` commands, and the fallback
   `[target.<triple>]` table) and were updated to the contracts now rendered.
+- [x] 2026-11-13: Independent re-run of the requested release verification on
+  `def4c31`, from fresh Copier renders in `/tmp/release-dryrun` rather than the
+  parent test fixtures. A `get_default` `HashMap` fixture was appended to
+  `src/lib.rs` of both the Polonius and stable application renders. The
+  Polonius render built `--release` for `x86_64-unknown-linux-gnu` with
+  `RUSTFLAGS=-Zpolonius=next` in 30s; the same source failed with E0499 once
+  Polonius was disabled with `-Zpolonius=off`, which is the non-vacuous NLL
+  control, and the stable render fails E0499 on the same source on stable while
+  its unmodified source builds clean. The rendered release guard was evaluated
+  for six events in both modes: a branch dispatch with `dry-run: false` skips
+  the `release` job, as do dry-run dispatches, while a tag push and a
+  non-dry-run tag dispatch run it. `act` lists `build` and `release` for the
+  rendered workflow but cannot execute it here because no container runtime is
+  running, so the guard result comes from evaluating the rendered expression
+  and from the tag-only `push` trigger. The automerge caller's
+  `dispatch-coverage` job was re-read in the render: it needs the merge
+  attempt, checks `mergedAt` and the `main` base, and dispatches
+  `coverage-main.yml --ref main` with `GH_REPO` and `GH_TOKEN` set.
 
 ## Surprises & discoveries
 
@@ -618,6 +636,12 @@ run; recorded skips and platform limits.
   only the rendered-project `make check-fmt` inside `test_tooling_contracts`
   could see it. Any prose edit in `template/docs/*.md.jinja` needs a render plus
   `mdtablefix --check` before the suite is rerun.
+- The pinned nightly accepts the Polonius fixture even when no `-Zpolonius`
+  flag is passed, because Polonius Alpha is that compiler's default borrow
+  checker. A control build must therefore disable it with `-Zpolonius=off`
+  rather than merely omit the flag; the release recipe still states
+  `-Zpolonius=next` so the mode is named rather than inherited from a nightly
+  default that could change.
 
 ## Decision log
 
