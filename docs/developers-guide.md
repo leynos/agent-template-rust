@@ -68,7 +68,7 @@ Tests supply `mockable::MockEnv`. In-process mutation and shared locking are
 not fallbacks. Only `assert_cmd` child-process configuration may set or clear
 an environment because it cannot mutate the harness process. The rationale and
 consequences are recorded in
-[ADR-005](adr-005-injected-environment-boundary.md).
+[ADR-005](adrs/adr-0005-injected-environment-boundary.md).
 
 Parent tests prove the contract at three levels:
 
@@ -139,8 +139,8 @@ The gate enumerates its inputs with `git ls-files`, so a rendered project must
 be a Git repository with its files staged before any spelling gate can check
 anything. The generated `make spelling` rule fails with that instruction when
 the project is not yet initialized or staged.
-[ADR-006](adr-006-shared-typos-config-builder-gate.md) records this decision
-and supersedes [ADR-003](adr-003-shared-oxford-spelling-base.md).
+[ADR-006](adrs/adr-0006-shared-typos-config-builder-gate.md) records this
+decision and supersedes [ADR-003](adrs/adr-0003-shared-oxford-spelling-base.md).
 
 Generated audit coverage is tested without network access by replacing Cargo
 with a fake executable. The regression verifies that `make rust-audit` derives

@@ -3,11 +3,11 @@
 - Status: Accepted
 - Date: 2026-09-17
 - Deciders: Agent template maintainers
-- Supersedes: [ADR-003](adr-003-shared-oxford-spelling-base.md)
+- Supersedes: [ADR-003](adr-0003-shared-oxford-spelling-base.md)
 
 ## Context
 
-[ADR-003](adr-003-shared-oxford-spelling-base.md) decided the spelling policy:
+[ADR-003](adr-0003-shared-oxford-spelling-base.md) decided the spelling policy:
 a curated estate-wide en-GB-oxendict base merged with a narrow repository
 overlay. That policy is unchanged. Its mechanism has not survived.
 
