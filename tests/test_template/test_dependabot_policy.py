@@ -1,4 +1,12 @@
-"""Rendered Dependabot policy tests."""
+"""Verify the rendered Dependabot update policy.
+
+The template's ``.github/dependabot.yml`` must group routine updates, apply a
+cooldown to new releases, schedule each ecosystem on a fixed interval, and
+label pull requests consistently. These tests render a library project with
+``render_delivery_project`` and parse the generated configuration with the
+shared ``generated_files`` helpers, so the assertions cover the file a
+generated repository actually receives rather than the Jinja source.
+"""
 
 from __future__ import annotations
 

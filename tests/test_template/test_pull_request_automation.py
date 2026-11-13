@@ -1,4 +1,13 @@
-"""Rendered pull-request automation caller tests."""
+"""Verify the rendered pull-request automation callers.
+
+The generated project ships thin callers for shared pull-request automation:
+``dependabot-automerge.yml`` delegates to the pinned reusable workflow and
+``delayed-pr-comment.yml`` posts through a pinned action. These tests render
+application and library projects with ``render_delivery_project`` and parse
+each caller with the ``delivery_workflows`` helpers, asserting full-SHA pins,
+the permissions each caller grants, and the trigger types it accepts. Callers
+must hand the shared workflow metadata only, never a broader token scope.
+"""
 
 from __future__ import annotations
 

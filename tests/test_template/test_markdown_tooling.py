@@ -1,4 +1,13 @@
-"""Rendered Markdown formatting tests."""
+"""Verify the rendered Markdown formatting gate.
+
+The generated ``Makefile`` formats and checks Markdown with ``mdtablefix``
+over the files Git reports, including untracked ones, and the generated CI
+installs the formatter at a pinned commit. These tests render a project and
+run its ``check-fmt`` and ``format`` targets through
+``generated_project_env`` against a deliberately malformed table and a
+paragraph that needs wrapping, so a formatter that ran but selected nothing
+fails the test. Ignored files must stay untouched.
+"""
 
 from __future__ import annotations
 

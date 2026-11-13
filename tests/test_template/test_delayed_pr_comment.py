@@ -1,4 +1,13 @@
-"""Rendered delayed pull-request comment workflow tests."""
+"""Verify the rendered delayed pull-request comment workflow.
+
+The generated ``.github/workflows/delayed-pr-comment.yml`` accepts a pull
+request number and a delay from a ``workflow_dispatch`` caller. These tests
+render a library project with ``render_delivery_project``, parse the workflow
+with the shared YAML helpers, and execute the workflow's own validation step
+from ``named_step`` under a hermetic environment. Non-numeric numbers and
+delays beyond the documented limit must fail before any ``sleep`` runs, so an
+untrusted dispatch value cannot occupy a runner.
+"""
 
 from __future__ import annotations
 

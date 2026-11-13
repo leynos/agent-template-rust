@@ -1,4 +1,14 @@
-"""Rendered application release workflow tests."""
+"""Verify the rendered application release workflow.
+
+A generated application releases from ``.github/workflows/release.yml``, whose
+matrix pairs native macOS runners with ``cargo`` legs and Linux runners with
+``cross`` legs. These tests render application and library projects with
+``render_delivery_project`` and parse the workflow with the
+``delivery_workflows`` helpers. They assert each leg's builder, runner, target
+and toolchain, the release flags a Polonius or stable mode carries, the
+artefact checksums, and that only the ``release`` job receives write access.
+A library render has no release workflow at all.
+"""
 
 from __future__ import annotations
 

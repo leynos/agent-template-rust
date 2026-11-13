@@ -1,4 +1,16 @@
-"""Rendered release publication guard tests."""
+"""Exercise the rendered release workflow's publication guard.
+
+The release workflow publishes only for a tag push or a tag dispatch that
+explicitly turns the dry run off. These tests render an application project
+with ``render_delivery_project``, parse its
+``.github/workflows/release.yml`` with the shared YAML helpers, and extract
+the ``release`` job's ``if:`` expression. GitHub expression syntax has no
+evaluator in the test suite, so this module translates the subset the guard
+uses -- ``&&``, ``||``, ``!``, comparisons, ``startsWith`` and property
+access -- into Python and evaluates it with ``ast`` against representative
+event payloads. Both the Polonius and stable renders are checked because the
+release mode must not change what can publish.
+"""
 
 from __future__ import annotations
 

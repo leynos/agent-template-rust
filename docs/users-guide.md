@@ -112,6 +112,12 @@ Development builds use Cranelift for debug code generation. On Linux targets,
 link quickly. Coverage generation uses `lld` instead because LLVM coverage
 tools expect LLVM-compatible linker behaviour.
 
+The build-tool installers and checks, lint gates, Markdown formatter, test
+lanes, coverage dispatch and release workflow described in this guide are new
+in 0.5.0. Existing projects should follow the
+[0.5.0 migration guide](migrations/0.5.0.md) to adopt them, including the new
+required tools and the release dispatch model.
+
 ## Generated Contributor Guidance
 
 Generated projects include `AGENTS.md`. It asks contributors to plan

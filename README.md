@@ -80,7 +80,8 @@ targets are summarized in
 User-facing generated-project behaviour is documented in
 [`docs/users-guide.md`](docs/users-guide.md), with upgrade guidance in the
 [`0.2.0 migration guide`](docs/migrations/0.2.0.md), the
-[`0.3.0 migration guide`](docs/migrations/0.3.0.md), and the
-[`0.4.0 migration guide`](docs/migrations/0.4.0.md). Parent-template
+[`0.3.0 migration guide`](docs/migrations/0.3.0.md), the
+[`0.4.0 migration guide`](docs/migrations/0.4.0.md), and the
+[`0.5.0 migration guide`](docs/migrations/0.5.0.md). Parent-template
 development requirements are documented in
 [`docs/developers-guide.md`](docs/developers-guide.md).
