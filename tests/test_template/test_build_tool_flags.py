@@ -252,6 +252,7 @@ def test_rendered_project_ships_the_build_tool_assets(
     for name in (
         "build-tools-common.sh",
         "check-build-tools.sh",
+        "exclude-ui-targets.sh",
         "install-build-tools.sh",
     ):
         script = project / "scripts" / name

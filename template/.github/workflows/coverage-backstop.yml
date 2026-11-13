@@ -32,4 +32,7 @@ jobs:
       - name: Dispatch coverage for main
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # This job has no checkout, and `gh workflow run` needs a repository:
+          # without a local Git directory it fails before dispatching.
+          GH_REPO: ${{ github.repository }}
         run: gh workflow run coverage-main.yml --ref main

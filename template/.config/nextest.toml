@@ -20,6 +20,10 @@ global-timeout = "90m"
 
 [profile.ui]
 inherits = "default"
+# The lane names its targets with `--test`, and this keeps them selected even
+# when the inherited default profile has been narrowed: the hosted coverage
+# lane adds `not binary(compile_*)` to `[profile.default]` for its own run.
+default-filter = "all()"
 
 [[profile.ui.overrides]]
 filter = 'all()'

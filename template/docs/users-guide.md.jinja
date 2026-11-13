@@ -87,8 +87,8 @@ doctest therefore fails the command.
 
 The generated `Makefile` exposes these public targets:
 
-- `make all` runs formatting checks, linting, tests, workflow contracts, and
-  spelling checks.
+- `make all` runs formatting checks, linting, tests, compile-time contract
+  tests, workflow contracts, and spelling checks.
 - `make check-fmt` verifies Rust formatting and Markdown table formatting.
 - `make fmt` formats Rust and Markdown sources.
 - `make lint` runs the strict YAML, GitHub Actions, and shell gates, then
@@ -107,8 +107,10 @@ The generated `Makefile` exposes these public targets:
 - `make test-ui` runs compile-time contract targets named
   `tests/compile_*.rs`, or reports an intentional no-op when there are none.
   `make test` and `make coverage` exclude those targets when they exist, and
-  the hosted coverage job moves them out of the checkout after the UI lane so
-  their nested Cargo builds are never instrumented.
+  `make all` runs this lane, so the comprehensive gate still covers them. The
+  hosted coverage job deselects them in the project's nextest profile after the
+  UI lane, so their nested Cargo builds are never instrumented and their
+  `[[test]]` declarations keep pointing at existing files.
 - `make test-workflow-contracts` runs the pinned shared CV-005 checker over the
   repository, using the selection in `.github/cv005.toml`.
 - `make install-build-tools` installs the pinned `mold` release, verified

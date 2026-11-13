@@ -21,16 +21,18 @@ rustflags = [{% if enable_polonius %}"-Zpolonius=next", {% endif %}"-Zthreads=8"
 rustdocflags = ["-Zpolonius=next"]
 {% endif -%}
 {% if dev_target and 'linux' in dev_target %}
-# `mold` ships for Linux only. The linker selection lives on the requested
-# development triple; the linker flag lives in the `cfg` table below so every
-# Linux target receives it. Other targets, macOS and Windows included, keep
+# `mold` ships for Linux only, and the `cfg` table matches every Linux target
+# rather than the requested development triple alone. The linker selection and
+# the mold flag therefore live together: a target that receives the flag also
+# selects the driver that accepts it. GCC before 12.1 rejects `-fuse-ld=mold`,
+# so leaving the platform driver in place would fail a bare `cargo build` on a
+# native AArch64 Linux host. Other targets, macOS and Windows included, keep
 # their platform linker.
-[target.{{ dev_target }}]
-linker = "clang"
-
+#
 # The `cfg` table replaces `[build] rustflags` whenever it matches, so it must
 # repeat every development flag as well as the linker selection.
 [target.'cfg(target_os = "linux")']
+linker = "clang"
 rustflags = [{% if enable_polonius %}"-Zpolonius=next", {% endif %}"-Zthreads=8", "-Zcodegen-backend=cranelift", "-Clink-arg=-fuse-ld=mold"]
 {% endif -%}
 {% if rust_nightly_date >= '2026-07-31' %}

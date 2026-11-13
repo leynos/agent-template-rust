@@ -30,7 +30,17 @@ jobs:
       # revision rather than resolving through the caller's workflow context.
       # The token is not used for any external cloud authentication.
       id-token: write
-    if: ${{ github.event_name == 'workflow_dispatch' || github.actor == 'dependabot[bot]' }}
+    # The reusable workflow audits every commit on the branch and withdraws
+    # auto-merge when one is not Dependabot's, so it is safe to run for any
+    # push to a Dependabot-authored pull request. Selecting on the pull
+    # request's author rather than on the pushing actor is what makes a
+    # maintainer's push reach that audit: GitHub only cancels a superseded run
+    # for a pusher without write access.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.actor == 'dependabot[bot]' ||
+      (github.event_name == 'pull_request_target' &&
+      github.event.pull_request.user.login == 'dependabot[bot]')
     uses: leynos/shared-actions/.github/workflows/dependabot-automerge.yml@0eabb6bc07148981de5da395e30cd78d83f5c7c2
     with:
       pull-request-number: ${{ inputs.pull-request-number || github.event.pull_request.number }}
@@ -54,6 +64,10 @@ jobs:
       - name: Dispatch coverage for the merged trunk commit
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The job has no checkout, so `gh` cannot infer the repository from a
+          # local Git directory. The numeric pull-request argument is not a
+          # repository selector either.
+          GH_REPO: ${{ github.repository }}
           PULL_REQUEST_NUMBER: ${{ inputs.pull-request-number || github.event.pull_request.number }}
         run: |
           set -euo pipefail

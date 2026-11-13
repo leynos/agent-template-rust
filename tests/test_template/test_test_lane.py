@@ -85,6 +85,30 @@ def _output(result: subprocess.CompletedProcess[str]) -> str:
     return f"{result.stdout}\n{result.stderr}"
 
 
+def _run_in_project(project: Path, *command: str) -> subprocess.CompletedProcess[str]:
+    """Run a command in a rendered project without its development flags.
+
+    The development flags select Cranelift and the `mold` linker, which this
+    parent test does not provision. An empty ``RUSTFLAGS`` replaces them, and
+    the target-scoped linker value replaces the rendered clang selection, so
+    the assertion under test — which profile nextest loads — is the only
+    variable.
+    """
+    return subprocess.run(
+        list(command),
+        cwd=project,
+        env=generated_project_env(
+            {
+                "RUSTFLAGS": "",
+                "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER": "cc",
+            }
+        ),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
 def test_rendered_nextest_configuration_bounds_test_execution(
     tmp_path: Path, copier: CopierFixture
 ) -> None:
@@ -113,6 +137,11 @@ def test_rendered_nextest_configuration_bounds_test_execution(
     assert ui.get("inherits") == "default", (
         "expected the UI profile to inherit the bounded run defaults"
     )
+    assert ui.get("default-filter") == "all()", (
+        "expected the UI profile to keep selecting every target it is asked "
+        "for, including when the hosted coverage lane narrows the inherited "
+        "default profile"
+    )
 
     ui_overrides = [
         override
@@ -138,9 +167,22 @@ def test_rendered_nextest_configuration_bounds_test_execution(
         "expected the widened period to apply more than once before "
         "terminating a nested build"
     )
-    assert "binary(compile_" not in (project / ".config/nextest.toml").read_text(
-        encoding="utf-8"
-    ), "nextest rejects a binary filter that names no binary in the project"
+    assert "default-filter" not in default, (
+        "nextest validates every profile's filter when it loads the "
+        "configuration, so the checked-in default profile must not select "
+        "compile-time targets by a binary filter that may name nothing"
+    )
+    active_lines = [
+        line
+        for line in (project / ".config/nextest.toml")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if not line.lstrip().startswith("#")
+    ]
+    assert not any("binary(compile_" in line for line in active_lines), (
+        "expected compile-time targets to be selected by name rather than by a "
+        "binary filter; only the explanatory comments may mention the filter"
+    )
 
     groups = require_mapping(config, "test-groups", ".config/nextest.toml")
     nested_cargo = require_mapping(groups, "nested-cargo", "nextest test groups")
@@ -280,9 +322,13 @@ def test_rendered_workflows_provision_the_formatter_and_run_the_ui_lane(
             f"expected {workflow_name} to exclude compile-time targets from "
             "the coverage run"
         )
-        assert 'mv tests/compile_*.rs "$RUNNER_TEMP/ui-targets/"' in workflow, (
-            f"expected {workflow_name} to move compile-time targets out of "
-            "the instrumented build"
+        assert "run: scripts/exclude-ui-targets.sh" in workflow, (
+            f"expected {workflow_name} to deselect compile-time targets in the "
+            "nextest profile instead of moving their source files"
+        )
+        assert "mv tests/compile_*.rs" not in workflow, (
+            f"expected {workflow_name} to leave the compile-time targets in "
+            "the crate, so an explicit [[test]] declaration keeps its file"
         )
 
     assert re.search(r"install-mdtablefix@[0-9a-f]{40}\b", ci), (
@@ -291,4 +337,134 @@ def test_rendered_workflows_provision_the_formatter_and_run_the_ui_lane(
     )
     assert ci.index("install-mdtablefix") < ci.index("name: Format"), (
         "expected CI to provision the formatter before the formatting gate"
+    )
+
+
+def test_coverage_exclusion_narrows_the_profile_and_keeps_target_files(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """The coverage exclusion deselects UI targets without removing them.
+
+    The shared coverage action runs workspace nextest with no filter argument,
+    so the exclusion has to reach nextest through the project's profile. The
+    fixture is a real ``trybuild`` target, whose test spawns a nested Cargo
+    build, and the target stays in the crate, which keeps an explicit
+    ``[[test]]`` declaration pointing at a source file that exists.
+    """
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="ExclusionExample",
+        package_name="exclusion_example",
+    )
+    root = project.path
+    script = root / "scripts" / "exclude-ui-targets.sh"
+    config_path = root / ".config" / "nextest.toml"
+    assert script.stat().st_mode & 0o111, (
+        "expected the exclusion script to be executable, because the coverage "
+        "workflows run it directly"
+    )
+
+    untouched = config_path.read_text(encoding="utf-8")
+    without_targets = _run_in_project(root, str(script))
+    assert without_targets.returncode == 0, (
+        "expected the exclusion to succeed without compile-time targets\n"
+        f"output:\n{_output(without_targets)}"
+    )
+    assert "No compile-time UI targets" in _output(without_targets), (
+        "expected the exclusion to report its intentional no-op\n"
+        f"output:\n{_output(without_targets)}"
+    )
+    assert config_path.read_text(encoding="utf-8") == untouched, (
+        "expected a project without UI targets to keep its nextest profile, "
+        "because nextest rejects a filter that names no binary"
+    )
+
+    _add_trybuild_fixture(root)
+    target = root / "tests" / "compile_accept.rs"
+    manifest = root / "Cargo.toml"
+    manifest.write_text(
+        manifest.read_text(encoding="utf-8")
+        + '\n[[test]]\nname = "compile_accept"\npath = "tests/compile_accept.rs"\n',
+        encoding="utf-8",
+    )
+
+    excluded = _run_in_project(root, str(script))
+    assert excluded.returncode == 0, (
+        "expected the exclusion to narrow a profile that has a filter target\n"
+        f"output:\n{_output(excluded)}"
+    )
+    default = require_mapping(
+        require_mapping(parse_toml_file(config_path), "profile", "nextest config"),
+        "default",
+        "nextest default profile",
+    )
+    assert default.get("default-filter") == "not binary(compile_*)", (
+        "expected the default profile to deselect the compile-time targets, "
+        f"got {default.get('default-filter')!r}"
+    )
+    assert target.exists(), (
+        "expected the target file to stay in place; only its tests are "
+        "deselected, and an explicit [[test]] declaration still points at it"
+    )
+
+    coverage_run = _run_in_project(root, "cargo", "nextest", "run", "--all-features")
+    assert coverage_run.returncode == 0, (
+        "expected the filterless workspace run the coverage action performs to "
+        "load the narrowed profile\n"
+        f"output:\n{_output(coverage_run)}"
+    )
+    assert "replace_this_stub_when_real_tests_exist" in _output(coverage_run), (
+        "expected the instrumented run to execute the project's own tests\n"
+        f"output:\n{_output(coverage_run)}"
+    )
+    assert "accepts_the_supported_shape" not in _output(coverage_run), (
+        "expected the instrumented run to skip compile-time targets\n"
+        f"output:\n{_output(coverage_run)}"
+    )
+
+    ui_listed = _run_in_project(
+        root,
+        "cargo",
+        "nextest",
+        "list",
+        "--all-features",
+        "--profile",
+        "ui",
+        "--test",
+        "compile_accept",
+    )
+    assert ui_listed.returncode == 0, (
+        "expected the UI profile to keep its target selected even after the "
+        f"default profile was narrowed\noutput:\n{_output(ui_listed)}"
+    )
+    assert "accepts_the_supported_shape" in _output(ui_listed), (
+        "expected the UI profile to select the compile-time target\n"
+        f"output:\n{_output(ui_listed)}"
+    )
+
+    repeated = _run_in_project(root, str(script))
+    assert repeated.returncode == 0, (
+        f"expected a repeated exclusion to succeed\noutput:\n{_output(repeated)}"
+    )
+    assert "already excludes" in _output(repeated), (
+        f"expected a repeated exclusion to change nothing\noutput:\n{_output(repeated)}"
+    )
+
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace(
+            'default-filter = "not binary(compile_*)"',
+            'default-filter = "all()"',
+        ),
+        encoding="utf-8",
+    )
+    refused = _run_in_project(root, str(script))
+    assert refused.returncode != 0, (
+        "expected the exclusion to refuse a profile that already sets another "
+        "filter rather than overwrite the project's choice\n"
+        f"output:\n{_output(refused)}"
+    )
+    assert "default-filter" in _output(refused), (
+        "expected the refusal to name the setting it cannot replace\n"
+        f"output:\n{_output(refused)}"
     )

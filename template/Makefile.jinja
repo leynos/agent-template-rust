@@ -54,10 +54,17 @@ RUSTDOC_FLAGS := --cfg docsrs -D warnings $(POLONIUS_FLAGS) $(RUSTDOC_FLAGS)
 CARGO_FLAGS ?= --all-targets --all-features
 CLIPPY_FLAGS ?= $(CARGO_FLAGS) -- $(RUST_FLAGS)
 TEST_FLAGS ?= $(CARGO_FLAGS)
-TEST_CMD := $(if $(shell $(CARGO) nextest --version 2>/dev/null),nextest run,test)
+# Selecting the runner must not provision anything: rustup installs a missing
+# pinned toolchain on demand, so the probe disables that, exactly as the
+# read-only capability checks do. Only the explicit installer targets install.
+TEST_CMD := $(if $(shell RUSTUP_AUTO_INSTALL=0 $(CARGO) nextest --version 2>/dev/null),nextest run,test)
 # `cargo test` has no profiles. Under nextest, the `ui` profile carries the
 # serialized `nested-cargo` group and the longer compile-test timeout.
 UI_TEST_CMD := $(if $(filter nextest run,$(TEST_CMD)),$(TEST_CMD) --profile ui,$(TEST_CMD))
+# The UI lane selects its targets by name, so `--all-targets` would reintroduce
+# the ordinary tests it is separated from. It still needs the same feature
+# selection as `make test`: a contract fixture may use a non-default feature.
+UI_TEST_FLAGS ?= --all-features
 COVERAGE_LINKER_FLAGS ?= -fuse-ld=lld
 COVERAGE_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) -C link-arg=$(COVERAGE_LINKER_FLAGS)
 MDLINT ?= markdownlint-cli2
@@ -81,7 +88,8 @@ UI_TEST_TARGETS := $(patsubst tests/%.rs,%,$(wildcard tests/compile_*.rs))
 TEST_UI_EXCLUDE := $(if $(filter nextest run,$(TEST_CMD)),$(if $(strip $(UI_TEST_TARGETS)),-E 'not binary(compile_*)'))
 # Coverage makes the same split through the same filter. The shared CI
 # coverage action exposes no test filter and always runs workspace nextest, so
-# its caller removes the compile-time targets from the checkout instead.
+# its caller deselects the targets in the project's nextest profile with
+# `scripts/exclude-ui-targets.sh`; the targets stay in the crate.
 COVERAGE_NEXTEST := $(if $(filter nextest run,$(TEST_CMD)),nextest)
 NIXIE ?= nixie
 # YAML, workflow and shell lint tools are provisioned by the shared
@@ -106,7 +114,7 @@ CV005_CONTRACTS = $(UV) tool run --python 3.13 \
 build: target/debug/$(TARGET) ## Build debug binary
 release: {% if enable_polonius %}check-rust-toolchain {% endif %}target/release/$(TARGET) ## Build release binary
 
-all: check-fmt lint test test-workflow-contracts ## Perform a comprehensive check of code
+all: check-fmt lint test test-ui test-workflow-contracts ## Perform a comprehensive check of code
 	+$(MAKE) spelling
 
 install-build-tools: ## Install the pinned Rust toolchain and mold linker
@@ -135,15 +143,17 @@ test: ## Run tests with warnings treated as errors
 	PATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
 
 # Compile-time contract tests build nested Cargo projects, so the lane runs
-# them on their own instead of inside the instrumented coverage build. A
-# project without `tests/compile_*.rs` reports an intentional no-op.
+# them on their own instead of inside the instrumented coverage build. It is
+# part of `all` for exactly that reason: excluding the targets from `test`
+# would otherwise drop them from the comprehensive local gate. A project
+# without `tests/compile_*.rs` reports an intentional no-op.
 test-ui: check-build-tools ## Run compile-time contract tests
 	@set -euo pipefail; \
 	if [ -z "$(strip $(UI_TEST_TARGETS))" ]; then \
 	  echo "No compile-time UI test targets (tests/compile_*.rs); nothing to run."; \
 	  exit 0; \
 	fi; \
-	PATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) $(UI_TEST_CMD) $(addprefix --test ,$(UI_TEST_TARGETS))
+	PATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) $(UI_TEST_CMD) $(UI_TEST_FLAGS) $(addprefix --test ,$(UI_TEST_TARGETS))
 
 target/debug/$(TARGET): check-build-tools
 	PATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) build $(BUILD_JOBS){% if flavour == 'app' %} --bin $(TARGET){% endif %}
@@ -162,13 +172,15 @@ coverage: check-coverage-tools ## Generate lcov coverage with lld for llvm-tools
 # `git ls-files -z` enumerates the YAML this project owns. The patterns end in
 # `.yml` or `.yaml`, so Copier/Jinja sources are never handed to yamllint as
 # though they were YAML. `xargs -0 -r` preserves paths with spaces and runs
-# nothing when no file matches.
+# nothing when no file matches. `pipefail` keeps a failed enumeration from
+# reading as a clean run: without it the pipeline returns xargs's status and the
+# target reports success having linted nothing.
 lint-yaml: ## Lint every tracked YAML file strictly
 	@if ! command -v $(YAMLLINT) >/dev/null 2>&1; then \
 	  echo "yamllint is required to lint YAML; install it with: uv tool install yamllint" >&2; \
 	  exit 1; \
 	fi
-	@git ls-files -z '*.yml' '*.yaml' | xargs -0 -r $(YAMLLINT) --strict --
+	@set -o pipefail; git ls-files -z '*.yml' '*.yaml' | xargs -0 -r $(YAMLLINT) --strict --
 
 # actionlint inspects the workflow files GitHub actually executes and runs
 # ShellCheck over every `run:` script it finds.
@@ -188,7 +200,7 @@ lint-shell: ## Lint tracked shell scripts
 	  echo "shellcheck is required to lint shell scripts; install it using your OS package manager" >&2; \
 	  exit 1; \
 	fi
-	@git ls-files -z '*.sh' | xargs -0 -r $(SHELLCHECK)
+	@set -o pipefail; git ls-files -z '*.sh' | xargs -0 -r $(SHELLCHECK)
 
 lint: check-build-tools lint-yaml lint-actions lint-shell ## Run Clippy with warnings denied
 	PATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) doc --no-deps
