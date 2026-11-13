@@ -1,4 +1,17 @@
-"""Rendered test lane tests."""
+"""Verify the rendered test lanes and their coverage boundary.
+
+A generated project runs ordinary tests through nextest's bounded ``default``
+profile and compile-time contracts through an explicit ``test-ui`` lane. These
+tests render a project, parse ``.config/nextest.toml``, and run the generated
+Make targets through ``generated_project_env``. The dedicated fixtures are a
+passing, a failing and a ``trybuild`` compile target, so the lane's selection,
+serialization and failure reporting are exercised for real. The hosted
+coverage job cannot pass a filter to the shared action, so
+``scripts/exclude-ui-targets.sh`` narrows the ``default`` profile instead; the
+module proves the script keeps the target's source and any explicit
+``[[test]]`` declaration in place, and that the ``ui`` profile still selects
+the target afterwards.
+"""
 
 from __future__ import annotations
 

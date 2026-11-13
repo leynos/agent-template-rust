@@ -504,6 +504,19 @@ run; recorded skips and platform limits.
   `dispatch-coverage` job was re-read in the render: it needs the merge
   attempt, checks `mergedAt` and the `main` base, and dispatches
   `coverage-main.yml --ref main` with `GH_REPO` and `GH_TOKEN` set.
+- [x] 2026-11-13: CodeRabbit pre-merge rows addressed on the current head. The
+  Module-Level Documentation error listed seven new test modules that carried
+  only a one-line docstring; each now states its purpose, the rendered files
+  and Make targets it exercises, and the helper modules it depends on
+  (`test_release_publication_guard`, `test_dependabot_policy`,
+  `test_delayed_pr_comment`, `test_markdown_tooling`,
+  `test_pull_request_automation`, `test_release_workflow`, `test_test_lane`).
+  The User-Facing Documentation warning asked for an n+1 migration guide; the
+  repository already publishes a guide per increment (`0.2.0`, `0.3.0`,
+  `0.4.0`), so `docs/migrations/0.5.0.md` now lists the adoption steps for the
+  build tools, Cargo flags, test lanes, Markdown formatter, release dispatch,
+  coverage backstop and CV-005 configuration, and `docs/users-guide.md` and
+  `README.md` link it.
 
 ## Surprises & discoveries
 
