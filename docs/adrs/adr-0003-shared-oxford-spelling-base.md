@@ -2,10 +2,11 @@
 
 ## Status
 
-Accepted. Superseded by [ADR-006](adr-006-shared-typos-config-builder-gate.md),
-which keeps this record's policy but replaces its mechanism. The Decision and
-Consequences below describe the retired vendored generator and are retained as
-history; do not restore them.
+Accepted. Superseded by
+[ADR-006](adr-0006-shared-typos-config-builder-gate.md), which keeps this
+record's policy but replaces its mechanism. The Decision and Consequences below
+describe the retired vendored generator and are retained as history; do not
+restore them.
 
 ## Context
 
