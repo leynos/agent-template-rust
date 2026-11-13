@@ -38,6 +38,7 @@ def render_delivery_project(
     flavour: str,
     project_name: str,
     package_name: str,
+    enable_polonius: bool | None = None,
 ) -> CopierProject:
     """Render a generated project for a delivery-tooling test."""
     return render_project(
@@ -46,6 +47,7 @@ def render_delivery_project(
         project_name=project_name,
         package_name=package_name,
         flavour=flavour,
+        enable_polonius=enable_polonius,
     )
 
 

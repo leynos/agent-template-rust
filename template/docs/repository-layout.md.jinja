@@ -21,6 +21,7 @@ compact and omits build output such as `target/`.
 │   └── workflows/
 │       ├── act-validation.yml
 │       ├── ci.yml
+│       ├── coverage-backstop.yml
 │       ├── coverage-main.yml
 │       ├── delayed-pr-comment.yml
 │       ├── dependabot-automerge.yml
@@ -86,8 +87,11 @@ compact and omits build output such as `target/`.
   validation through `act` separately from main CI.
 - `.github/workflows/ci.yml`: Runs the generated project's continuous
   integration checks.
+- `.github/workflows/coverage-backstop.yml`: Dispatches the coverage publisher
+  daily, so a merge that fires no push event still reaches the ratchet baseline.
 - `.github/workflows/coverage-main.yml`: Publishes main-branch coverage through
-  the shared coverage workflow.
+  the shared coverage workflow. It runs on push to `main` and on dispatch; the
+  shared publisher contract permits no other trigger.
 - `.github/workflows/delayed-pr-comment.yml`: Posts a requested comment after a
   validated delay.
 - `.github/workflows/dependabot-automerge.yml`: Delegates Dependabot pull

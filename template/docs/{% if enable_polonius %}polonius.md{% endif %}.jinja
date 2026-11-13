@@ -12,13 +12,13 @@ rust-analyzer. An inherited `RUSTFLAGS` value overrides that configuration, so
 the Makefile and CI workflows re-state `-Zpolonius=next` whenever they set
 `RUSTFLAGS`.
 
-Release builds are the deliberate exception. The application release workflow
-uses stable Cargo and clears `RUSTFLAGS`, so a released artefact carries
-neither Polonius nor the other nightly development flags. Source that compiles
-only under Polonius therefore cannot be released by this workflow: keep such an
-API available in an NLL-compatible form, or change the release path
-deliberately. Verify every borrow-sensitive change under the supported nightly
-configuration before tagging.
+Release builds keep Polonius. The application release workflow selects the same
+dated nightly as development and sets `RUSTFLAGS=-Zpolonius=next` for both the
+native and cross legs, so source that requires the borrow-checker analysis can
+be tagged and released unchanged. The other nightly development flags
+(`-Zthreads=8`, Cranelift and `mold`) are still cleared: a release artefact
+carries only the flag its source needs. Verify every borrow-sensitive change
+under the supported nightly configuration before tagging.
 
 Source builds performed outside this repository, including registry installs,
 do not inherit its toolchain or Cargo configuration. If this crate later ships

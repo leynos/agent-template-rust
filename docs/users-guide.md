@@ -40,9 +40,11 @@ coverage workflows preserve `-Zpolonius=next`. The Linux target-specific `mold`
 flags repeat it because Cargo selects target rustflags instead of merging them
 with `[build].rustflags`. The generated project also includes
 `docs/polonius.md` and matching `AGENTS.md` guidance for borrow-centric APIs.
-The application release workflow is the deliberate exception: it builds with
-stable Cargo and clears `RUSTFLAGS`, so released artefacts carry no nightly
-development flags.
+The application release workflow follows the same mode: a Polonius project
+releases on its dated nightly with `RUSTFLAGS=-Zpolonius=next`, while a project
+without Polonius releases on stable with empty `RUSTFLAGS`. Both modes clear
+the Cranelift, thread, and mold development flags, so a released artefact
+carries only the flags its source needs.
 
 Generated CI and coverage workflows pass their base compiler flags through the
 shared `setup-rust` action's `rustflags` input. They pass `-Zpolonius=next`
@@ -54,8 +56,11 @@ dependency updates must preserve the passthrough contract.
 CodeScene coverage belongs to `main`. The generated `ci.yml` measures coverage
 on pull requests for its own ratchet and never receives the CodeScene token or
 contacts CodeScene. `coverage-main.yml` runs on pushes to `main` and on
-dispatch, advances the ratchet baseline, and is the only CodeScene caller. A
-`Check CodeScene token availability` step (id `codescene_token`) runs exactly
+dispatch, advances the ratchet baseline for `main` only, and is the only
+CodeScene caller. The shared publisher contract permits no other trigger on it,
+so the daily backstop lives in a separate `coverage-backstop.yml`, which
+dispatches the publisher. A `Check CodeScene token availability` step (id
+`codescene_token`) runs exactly
 `echo "available=${{ secrets.CS_ACCESS_TOKEN != '' }}" >> "$GITHUB_OUTPUT"`;
 the upload runs only when that output is `true` and `github.ref` is
 `refs/heads/main`, and takes the token as its `access-token` input, so the
@@ -63,16 +68,19 @@ generated workflow binds it in no `env` of its own; the action binds that input
 for its own nested steps. Until the repository has a `CS_ACCESS_TOKEN` secret
 the upload skips cleanly. Publisher runs share the concurrency group
 `coverage-main-${{ github.ref }}` and never cancel one another. A merge made by
-the Dependabot automerge workflow's `GITHUB_TOKEN` fires no push event, so it
-publishes nothing until a dispatch or the next push to `main`. Existing
-projects should follow the [0.3.0 migration guide](migrations/0.3.0.md) to
-adopt this shape.
+the Dependabot automerge workflow's `GITHUB_TOKEN` fires no push event, so the
+caller dispatches `coverage-main.yml` once it observes that the pull request
+merged into `main`. The backstop workflow dispatches it daily for a merge path
+that still fails to dispatch, such as auto-merge armed by the shared workflow
+and completed later by GitHub. Existing projects should follow the
+[0.3.0 migration guide](migrations/0.3.0.md) to adopt this shape.
 
 For screen readers: The following flowchart shows how `enable_polonius` selects
 the base Rust flags used by setup and coverage workflows. The enabled path uses
 `-Zpolonius=next`; the disabled path uses `-D warnings`. Coverage adds the
-`lld` linker flag to either base. The application release workflow is separate:
-it always selects stable Cargo with empty `RUSTFLAGS`.
+`lld` linker flag to either base. The application release workflow follows the
+same selection, using the dated nightly with `-Zpolonius=next` when Polonius is
+enabled and stable Cargo with empty `RUSTFLAGS` otherwise.
 
 ```mermaid
 flowchart TD
@@ -95,8 +103,9 @@ flowchart TD
 ```
 
 _Figure 1: Rust flag selection and propagation through generated setup and
-coverage workflows. The application-only release workflow uses stable Cargo and
-an empty `RUSTFLAGS` instead._
+coverage workflows. The application-only release workflow follows the same
+selection: the dated nightly with `-Zpolonius=next` when Polonius is enabled,
+and stable Cargo with empty `RUSTFLAGS` otherwise._
 
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so local debug builds

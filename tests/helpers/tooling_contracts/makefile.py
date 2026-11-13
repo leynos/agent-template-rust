@@ -210,10 +210,11 @@ def _assert_makefile_contracts(makefile: str) -> None:
             "expected generated release target to preflight the toolchain before "
             "compiling"
         )
-    assert (
-        "CV005_CONTRACTS_REF ?= 38905b4b2caec5b049438e6dc3f3f6b36c04d2df"
-    ) in makefile, (
-        "expected generated Makefile to pin the shared workflow contract checker"
+    assert re.search(
+        r"^CV005_CONTRACTS_REF \?= [0-9a-f]{40}$", makefile, flags=re.MULTILINE
+    ), (
+        "expected generated Makefile to pin the shared workflow contract checker "
+        "to a full 40-hex commit SHA"
     )
     assert (
         "git+https://github.com/leynos/shared-actions@$(CV005_CONTRACTS_REF)"

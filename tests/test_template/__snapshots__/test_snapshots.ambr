@@ -269,6 +269,17 @@
               'run': 'make test-ui',
             }),
             dict({
+              'name': 'Exclude compile-time targets from the coverage build',
+              'run': '''
+                set -euo pipefail
+                if ls tests/compile_*.rs >/dev/null 2>&1; then
+                  mkdir -p "$RUNNER_TEMP/ui-targets"
+                  mv tests/compile_*.rs "$RUNNER_TEMP/ui-targets/"
+                fi
+  
+              ''',
+            }),
+            dict({
               'name': 'Log coverage linker configuration',
               'run': '''
                 echo "Coverage linker: clang"
@@ -360,6 +371,17 @@
               'run': 'make test-ui',
             }),
             dict({
+              'name': 'Exclude compile-time targets from the coverage build',
+              'run': '''
+                set -euo pipefail
+                if ls tests/compile_*.rs >/dev/null 2>&1; then
+                  mkdir -p "$RUNNER_TEMP/ui-targets"
+                  mv tests/compile_*.rs "$RUNNER_TEMP/ui-targets/"
+                fi
+  
+              ''',
+            }),
+            dict({
               'name': 'Log coverage linker configuration',
               'run': '''
                 echo "Coverage linker: clang"
@@ -381,6 +403,7 @@
               'with': dict({
                 'format': 'lcov',
                 'output-path': 'lcov.info',
+                'publish-baseline': "${{ github.ref == 'refs/heads/main' && 'always' || 'auto' }}",
                 'with-ratchet': 'true',
               }),
             }),
@@ -482,6 +505,16 @@
       # lets the explicit UI lane select them without a declared manifest, and an
       # empty selection is an intentional no-op rather than a failure.
       UI_TEST_TARGETS := $(patsubst tests/%.rs,%,$(wildcard tests/compile_*.rs))
+      # `make test` owns every test except the compile-time contract targets: those
+      # build nested Cargo projects, so `test-ui` runs them alone with the serialized
+      # profile. nextest rejects a binary filter that names no binary, so the
+      # exclusion is added only when a target was discovered; the `cargo test`
+      # fallback cannot express it and runs them as ordinary tests.
+      TEST_UI_EXCLUDE := $(if $(filter nextest run,$(TEST_CMD)),$(if $(strip $(UI_TEST_TARGETS)),-E 'not binary(compile_*)'))
+      # Coverage makes the same split through the same filter. The shared CI
+      # coverage action exposes no test filter and always runs workspace nextest, so
+      # its caller removes the compile-time targets from the checkout instead.
+      COVERAGE_NEXTEST := $(if $(filter nextest run,$(TEST_CMD)),nextest)
       NIXIE ?= nixie
       # YAML, workflow and shell lint tools are provisioned by the shared
       # install-yaml-lint action in CI and may come from any package manager
@@ -530,7 +563,7 @@
       test: check-build-tools
       test: export RUSTFLAGS := $(DEV_RUST_FLAGS)
       test: ## Run tests with warnings treated as errors
-      \tPATH="$(BUILD_TOOLS_PATH)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
+      \tPATH="$(BUILD_TOOLS_PATH)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(TEST_UI_EXCLUDE) $(BUILD_JOBS)
       \tPATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
       
       # Compile-time contract tests build nested Cargo projects, so the lane runs
@@ -556,7 +589,7 @@
       \t\tRUSTFLAGS="$(COVERAGE_RUST_FLAGS)" \
       \t\tCFLAGS="$(COVERAGE_LINKER_FLAGS)" \
       \t\tLDFLAGS="$(COVERAGE_LINKER_FLAGS)" \
-      \t\t$(CARGO) llvm-cov --lcov --output-path lcov.info $(TEST_FLAGS)
+      \t\t$(CARGO) llvm-cov $(COVERAGE_NEXTEST) --lcov --output-path lcov.info $(TEST_FLAGS) $(TEST_UI_EXCLUDE)
       
       # `git ls-files -z` enumerates the YAML this project owns. The patterns end in
       # `.yml` or `.yaml`, so Copier/Jinja sources are never handed to yamllint as
@@ -706,7 +739,8 @@
               'uses': 'leynos/shared-actions/.github/actions/setup-rust@<sha>',
               'with': dict({
                 'expect-cache': 'any',
-                'toolchain': 'stable',
+                'rustflags': '-Zpolonius=next',
+                'toolchain': 'nightly-2026-11-06',
                 'use-sccache': 'false',
               }),
             }),
@@ -760,24 +794,24 @@
             dict({
               'if': "matrix.builder == 'cargo'",
               'name': 'Add native target',
-              'run': 'rustup target add --toolchain stable "${{ matrix.target }}"',
+              'run': 'rustup target add --toolchain nightly-2026-11-06 "${{ matrix.target }}"',
             }),
             dict({
               'env': dict({
                 'CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER': 'cc',
-                'RUSTFLAGS': '',
+                'RUSTFLAGS': '-Zpolonius=next',
               }),
               'if': "matrix.builder == 'cross'",
               'name': 'Build release binary (cross)',
-              'run': 'cross +stable build --release --target ${{ matrix.target }}',
+              'run': 'cross +nightly-2026-11-06 build --release --target ${{ matrix.target }}',
             }),
             dict({
               'env': dict({
-                'RUSTFLAGS': '',
+                'RUSTFLAGS': '-Zpolonius=next',
               }),
               'if': "matrix.builder == 'cargo'",
               'name': 'Build release binary (native)',
-              'run': 'cargo +stable build --release --target ${{ matrix.target }}',
+              'run': 'cargo +nightly-2026-11-06 build --release --target ${{ matrix.target }}',
             }),
             dict({
               'name': 'Prepare artifact',

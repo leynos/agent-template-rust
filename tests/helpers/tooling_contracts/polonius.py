@@ -240,21 +240,31 @@ def _assert_shared_action_passthrough_revision(
     )
 
 
-def _assert_release_workflow(release_workflow: str) -> None:
-    """Assert release builds use stable Cargo without development flags."""
+def _assert_release_workflow(release_workflow: str, *, enabled: bool) -> None:
+    """Assert release builds follow the project's borrow-checker mode."""
     setup = _setup_rust_step(release_workflow, "build")
     setup_inputs = require_mapping(setup, "with", "release setup-rust step")
-    actual_toolchain = setup_inputs.get("toolchain")
-    assert actual_toolchain == "stable", (
-        f"expected release build toolchain to be 'stable', got {actual_toolchain!r}"
-    )
-    assert "rustflags" not in setup_inputs, (
-        "expected release setup-rust not to receive development flags, got "
-        f"{setup_inputs.get('rustflags')!r}"
+    actual_toolchain = str(setup_inputs.get("toolchain", ""))
+    expected_flags = POLONIUS_FLAG if enabled else ""
+    if enabled:
+        # A Polonius release must use the same dated nightly as development:
+        # the source does not compile without the analysis.
+        assert actual_toolchain.startswith("nightly-"), (
+            "expected a Polonius release to build on its dated nightly, got "
+            f"{actual_toolchain!r}"
+        )
+    else:
+        assert actual_toolchain == "stable", (
+            "expected a release without Polonius to build on stable Cargo, got "
+            f"{actual_toolchain!r}"
+        )
+    assert setup_inputs.get("rustflags") == expected_flags, (
+        "expected the release setup-rust input to carry only the flags its "
+        f"borrow-checker mode needs, got {setup_inputs.get('rustflags')!r}"
     )
     expected_commands = {
-        "Build release binary (cross)": "cross +stable build",
-        "Build release binary (native)": "cargo +stable build",
+        "Build release binary (cross)": f"cross +{actual_toolchain} build",
+        "Build release binary (native)": f"cargo +{actual_toolchain} build",
     }
     for step_name, expected_command in expected_commands.items():
         build = _named_step(release_workflow, "build", step_name)
@@ -264,8 +274,8 @@ def _assert_release_workflow(release_workflow: str) -> None:
             f"got {actual_command!r}"
         )
         build_env = require_mapping(build, "env", f"{step_name} step")
-        assert build_env.get("RUSTFLAGS") == "", (
-            f"expected {step_name} to clear inherited RUSTFLAGS, "
+        assert build_env.get("RUSTFLAGS") == expected_flags, (
+            f"expected {step_name} to carry only its mode's flags, "
             f"got {build_env.get('RUSTFLAGS')!r}"
         )
     cross = _named_step(release_workflow, "build", "Build release binary (cross)")
@@ -273,11 +283,7 @@ def _assert_release_workflow(release_workflow: str) -> None:
     assert cross_env.get("CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER") == "cc", (
         "expected the cross image to link with gcc rather than the clang config"
     )
-    for development_flag in (
-        POLONIUS_FLAG,
-        "-Zthreads=8",
-        "-Zcodegen-backend=cranelift",
-    ):
+    for development_flag in ("-Zthreads=8", "-Zcodegen-backend=cranelift"):
         assert development_flag not in release_workflow, (
             f"expected the release workflow to omit {development_flag!r}"
         )
@@ -370,7 +376,7 @@ def assert_polonius_toolchain_contracts(
     )
     if release_workflow is not None:
         _assert_shared_action_passthrough_revision(release_workflow, "release workflow")
-        _assert_release_workflow(release_workflow)
+        _assert_release_workflow(release_workflow, enabled=enabled)
 
     if enabled:
         assert "Polonius alpha" in rust_toolchain

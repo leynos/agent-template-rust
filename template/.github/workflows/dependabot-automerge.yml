@@ -34,3 +34,31 @@ jobs:
     uses: leynos/shared-actions/.github/workflows/dependabot-automerge.yml@0eabb6bc07148981de5da395e30cd78d83f5c7c2
     with:
       pull-request-number: ${{ inputs.pull-request-number || github.event.pull_request.number }}
+
+  dispatch-coverage:
+    # The reusable workflow merges with GITHUB_TOKEN, and GitHub does not run
+    # push-event workflows for a GITHUB_TOKEN merge. coverage-main.yml also
+    # accepts workflow_dispatch, which is exempt from that suppression, so this
+    # job starts it once the pull request is observably merged into main.
+    # A BLOCKED pull request only has auto-merge armed here; if that later
+    # merge fires no push event, coverage-backstop.yml's daily dispatch is the
+    # backstop.
+    needs: automerge
+    if: ${{ needs.automerge.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      pull-requests: read
+    steps:
+      - name: Dispatch coverage for the merged trunk commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST_NUMBER: ${{ inputs.pull-request-number || github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          base=$(gh pr view "$PULL_REQUEST_NUMBER" \
+            --json mergedAt,baseRefName --jq 'select(.mergedAt != null) | .baseRefName')
+          if [ "$base" = "main" ]; then
+            gh workflow run coverage-main.yml --ref main
+          fi

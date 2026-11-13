@@ -24,15 +24,17 @@ and disabled, run generated public gates such as `make all`, validate generated
 Makefiles with `mbake`, and parse generated Cargo and workflow configuration.
 The Polonius contract checks every `RUSTFLAGS` override, including Linux mold
 linking and LLVM coverage, and proves that the application release workflow
-omits Polonius, Cranelift, and thread flags.
+carries exactly the flags its borrow-checker mode needs.
 
 Generated CI and coverage workflows pass their base compiler flags through the
 shared `setup-rust` action's `rustflags` input. Coverage repeats that base when
 its explicit `RUSTFLAGS` adds the `lld` linker flag because an environment
 override replaces the value supplied during setup. The application release
-workflow is the deliberate exception: it pins `toolchain: stable`, passes no
-`rustflags`, and clears `RUSTFLAGS` on each build step, so released artefacts
-carry no nightly development flags. The `rustflags` capability first appears in
+workflow follows the project's borrow-checker mode: a Polonius render releases
+on its dated nightly with `RUSTFLAGS=-Zpolonius=next`, and every other render
+releases on stable with an empty `RUSTFLAGS`. Both clear the Cranelift, thread,
+and mold development flags, so released artefacts carry only the flags their
+source needs. The `rustflags` capability first appears in
 `leynos/shared-actions` revision `47b337e4f230b591891656534d4ffad868131740`;
 using an older revision silently drops the input, so the Polonius contract
 verifies that the changed action references use one capability-bearing

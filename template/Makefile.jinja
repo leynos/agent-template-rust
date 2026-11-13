@@ -73,6 +73,16 @@ MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences
 # lets the explicit UI lane select them without a declared manifest, and an
 # empty selection is an intentional no-op rather than a failure.
 UI_TEST_TARGETS := $(patsubst tests/%.rs,%,$(wildcard tests/compile_*.rs))
+# `make test` owns every test except the compile-time contract targets: those
+# build nested Cargo projects, so `test-ui` runs them alone with the serialized
+# profile. nextest rejects a binary filter that names no binary, so the
+# exclusion is added only when a target was discovered; the `cargo test`
+# fallback cannot express it and runs them as ordinary tests.
+TEST_UI_EXCLUDE := $(if $(filter nextest run,$(TEST_CMD)),$(if $(strip $(UI_TEST_TARGETS)),-E 'not binary(compile_*)'))
+# Coverage makes the same split through the same filter. The shared CI
+# coverage action exposes no test filter and always runs workspace nextest, so
+# its caller removes the compile-time targets from the checkout instead.
+COVERAGE_NEXTEST := $(if $(filter nextest run,$(TEST_CMD)),nextest)
 NIXIE ?= nixie
 # YAML, workflow and shell lint tools are provisioned by the shared
 # install-yaml-lint action in CI and may come from any package manager
@@ -121,7 +131,7 @@ clean: ## Remove build artefacts
 test: check-build-tools
 test: export RUSTFLAGS := $(DEV_RUST_FLAGS)
 test: ## Run tests with warnings treated as errors
-	PATH="$(BUILD_TOOLS_PATH)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)
+	PATH="$(BUILD_TOOLS_PATH)" $(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(TEST_UI_EXCLUDE) $(BUILD_JOBS)
 	PATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc --workspace --all-features
 
 # Compile-time contract tests build nested Cargo projects, so the lane runs
@@ -147,7 +157,7 @@ coverage: check-coverage-tools ## Generate lcov coverage with lld for llvm-tools
 		RUSTFLAGS="$(COVERAGE_RUST_FLAGS)" \
 		CFLAGS="$(COVERAGE_LINKER_FLAGS)" \
 		LDFLAGS="$(COVERAGE_LINKER_FLAGS)" \
-		$(CARGO) llvm-cov --lcov --output-path lcov.info $(TEST_FLAGS)
+		$(CARGO) llvm-cov $(COVERAGE_NEXTEST) --lcov --output-path lcov.info $(TEST_FLAGS) $(TEST_UI_EXCLUDE)
 
 # `git ls-files -z` enumerates the YAML this project owns. The patterns end in
 # `.yml` or `.yaml`, so Copier/Jinja sources are never handed to yamllint as

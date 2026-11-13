@@ -1,3 +1,5 @@
+{%- set release_toolchain = 'nightly-' ~ rust_nightly_date if enable_polonius else 'stable' -%}
+{%- set release_rustflags = '-Zpolonius=next' if enable_polonius else '' -%}
 {% raw -%}
 name: Release Binary
 
@@ -74,16 +76,19 @@ jobs:
       - uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
         with:
           persist-credentials: false
-      # Release builds use stable Cargo: the generated Cargo configuration must
-      # parse on a stable release toolchain, and the nightly development flags
-      # are cleared below. sccache is disabled because a release build never
-      # saves it and cross runs in a container that receives neither
-      # RUSTC_WRAPPER nor SCCACHE_PATH.
+      # A Polonius project releases with the same dated nightly development
+      # uses, because its source requires `-Zpolonius=next`; the other nightly
+      # development flags are still cleared below. Every other project releases
+      # on stable, whose Cargo must parse the generated configuration.
+      # sccache is disabled because a release build never saves it and cross
+      # runs in a container that receives neither RUSTC_WRAPPER nor
+      # SCCACHE_PATH.
       - uses: leynos/shared-actions/.github/actions/setup-rust@b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea
         with:
           expect-cache: any
           use-sccache: 'false'
-          toolchain: stable
+          toolchain: '{% endraw %}{{ release_toolchain }}{% raw %}'
+          rustflags: '{% endraw %}{{ release_rustflags }}{% raw %}'
       - name: Log Rust compiler configuration
         run: |-
           rustc --version
@@ -117,7 +122,9 @@ jobs:
             ${{ runner.os }}-cargo-${{ matrix.target }}-
       - name: Add native target
         if: matrix.builder == 'cargo'
-        run: rustup target add --toolchain stable "${{ matrix.target }}"
+        run: >-
+          rustup target add --toolchain
+          {% endraw %}{{ release_toolchain }}{% raw %} "${{ matrix.target }}"
       # cross has no Docker image for Apple targets and falls back to the host
       # toolchain, which lacks the target on a Linux runner. The macOS legs
       # therefore build natively on macOS runners.
@@ -125,18 +132,26 @@ jobs:
         if: matrix.builder == 'cross'
         env:
           # Release artefacts carry no repository-local build flags, including
-          # the nightly-only development flags in .cargo/config.toml.
-          RUSTFLAGS: ""
+          # the nightly-only development flags in .cargo/config.toml. The one
+          # exception is `-Zpolonius=next` for a Polonius project, whose source
+          # needs it; it is restated here without the other development flags.
+          RUSTFLAGS: '{% endraw %}{{ release_rustflags }}{% raw %}'
           # .cargo/config.toml selects clang for this triple, but the cross
           # image has gcc and no clang. An environment value beats the config
           # file, and cross forwards CARGO_* variables into the container.
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: cc
-        run: cross +stable build --release --target ${{ matrix.target }}
+        run: >-
+          cross +{% endraw %}{{ release_toolchain }}{% raw %} build --release
+          --target ${{ matrix.target }}
       - name: Build release binary (native)
         if: matrix.builder == 'cargo'
         env:
-          RUSTFLAGS: ""
-        run: cargo +stable build --release --target ${{ matrix.target }}
+          # As for the cross leg: clear the development flags but keep the
+          # borrow checker a Polonius project's source requires.
+          RUSTFLAGS: '{% endraw %}{{ release_rustflags }}{% raw %}'
+        run: >-
+          cargo +{% endraw %}{{ release_toolchain }}{% raw %} build --release
+          --target ${{ matrix.target }}
       - name: Prepare artifact
         run: |
           mkdir -p artifacts/${{ matrix.os }}-${{ matrix.arch }}

@@ -51,14 +51,19 @@ requirements change.
 - Maintainers must treat the Copier answer, dated channel, and explicit flag
   propagation as one toolchain policy when updating generated projects.
 
-## Amendment: stable release builds
+## Amendment: releases follow the selected borrow-checker mode
 
-The application release workflow is deliberately exempt from the propagation
-rule above. Released artefacts must build from a stable toolchain with empty
-`RUSTFLAGS`, so a Polonius-enabled project cannot release source that depends
-on the nightly borrow checker. Development, lint, test, and coverage surfaces
-continue to carry `-Zpolonius=next`; only the release matrix pins stable Cargo
-and clears `RUSTFLAGS`. A project that needs Polonius-only source in a release
-must keep an NLL-compatible form, or change the release path deliberately and
-record that decision. The parent contracts in
-`tests/helpers/tooling_contracts/polonius.py` enforce both sides of this split.
+An earlier amendment exempted the application release workflow from the
+propagation rule above: every release built on stable Cargo with empty
+`RUSTFLAGS`. That exemption is withdrawn. It let a Polonius project pass every
+development gate and then fail to release, because its source does not compile
+without the analysis.
+
+The release matrix now selects the same posture as the rest of the project. A
+Polonius-enabled application builds on its dated nightly with
+`RUSTFLAGS=-Zpolonius=next`; a project without Polonius builds on stable Cargo
+with empty `RUSTFLAGS`, because stable Cargo cannot parse a nightly-only flag.
+Both modes clear the Cranelift, `-Zthreads`, and mold development flags, so a
+released artefact carries only the flags its source needs. The parent contracts
+in `tests/helpers/tooling_contracts/polonius.py` and
+`tests/test_template/test_release_workflow.py` enforce both sides of this split.
