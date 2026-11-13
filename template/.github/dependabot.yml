@@ -1,4 +1,10 @@
 version: 2
+# No `labels` are configured anywhere below, deliberately. Dependabot applies
+# `dependencies` plus the ecosystem label by default and creates those labels
+# in a new repository; once `labels` is defined, the listed labels replace the
+# defaults and any label the repository does not already define is ignored. A
+# freshly generated project defines none of them, so a custom list would leave
+# its update pull requests unlabelled.
 updates:
   # Group the shared actions so one revision bump updates every caller, and
   # keep routine GitHub Action minor and patch updates in a single pull
@@ -17,9 +23,6 @@ updates:
           - 'patch'
     directory: "/"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "github-actions"
     schedule:
       interval: "daily"
     cooldown:
@@ -37,9 +40,6 @@ updates:
           - "minor"
           - "patch"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "cargo"
     schedule:
       interval: "daily"
     cooldown:
@@ -58,9 +58,6 @@ updates:
           - "minor"
           - "patch"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "rust-toolchain"
     schedule:
       interval: "daily"
     cooldown:

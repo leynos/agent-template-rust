@@ -34,6 +34,35 @@ fn rejects_the_supported_shape() {
 }
 """
 
+TRYBUILD_UI_TEST = """//! Compile-time contract fixture driven by trybuild.
+
+#[test]
+fn accepts_the_supported_shape() {
+    let cases = trybuild::TestCases::new();
+    cases.pass("tests/compile-ui/pass.rs");
+}
+"""
+
+TRYBUILD_PASS_CASE = """fn main() {
+    assert_eq!(1 + 1, 2, "arithmetic must hold");
+}
+"""
+
+
+def _add_trybuild_fixture(project: Path) -> None:
+    """Add a compile-time target that builds a nested Cargo project."""
+    manifest = project / "Cargo.toml"
+    manifest.write_text(
+        manifest.read_text(encoding="utf-8") + '\n[dev-dependencies]\ntrybuild = "1"\n',
+        encoding="utf-8",
+    )
+    (project / "tests" / "compile_accept.rs").write_text(
+        TRYBUILD_UI_TEST, encoding="utf-8"
+    )
+    pass_case = project / "tests" / "compile-ui" / "pass.rs"
+    pass_case.parent.mkdir(parents=True)
+    pass_case.write_text(TRYBUILD_PASS_CASE, encoding="utf-8")
+
 
 def _run_make(
     project: Path, target: str, *arguments: str
@@ -101,9 +130,14 @@ def test_rendered_nextest_configuration_bounds_test_execution(
         for override in ui_overrides
         if "slow-timeout" in override
     ]
-    assert compile_timeouts == [
-        {"period": "180s", "terminate-after": 3, "grace-period": "5s"}
-    ], "expected compile-time tests to tolerate nested compiler invocations"
+    assert compile_timeouts and compile_timeouts[0]["period"] == "600s", (
+        "expected compile-time tests to tolerate nested compiler invocations "
+        "that wait on the package-cache lock and compiler admission"
+    )
+    assert compile_timeouts[0]["terminate-after"] >= 2, (
+        "expected the widened period to apply more than once before "
+        "terminating a nested build"
+    )
     assert "binary(compile_" not in (project / ".config/nextest.toml").read_text(
         encoding="utf-8"
     ), "nextest rejects a binary filter that names no binary in the project"
@@ -173,6 +207,53 @@ def test_rendered_test_ui_lane_selects_compile_targets(
     )
 
 
+def test_default_and_coverage_runs_leave_compile_targets_to_the_ui_lane(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """A real nested-Cargo target runs only in the UI lane, never twice."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="TrybuildLaneExample",
+        package_name="trybuild_lane_example",
+    )
+    _add_trybuild_fixture(project.path)
+
+    default_run = _run_make(project.path, "test")
+    assert default_run.returncode == 0, (
+        "expected the default test run to pass beside a compile-time target\n"
+        f"output:\n{_output(default_run)}"
+    )
+    assert "nextest run" in _output(default_run), (
+        f"expected the default run to use nextest\noutput:\n{_output(default_run)}"
+    )
+    assert "-E 'not binary(compile_*)'" in _output(default_run), (
+        "expected the default run to exclude compile-time targets\n"
+        f"output:\n{_output(default_run)}"
+    )
+    assert "compile_accept" not in _output(default_run), (
+        "expected the default run not to repeat the UI lane's nested build\n"
+        f"output:\n{_output(default_run)}"
+    )
+
+    ui_run = _run_make(project.path, "test-ui")
+    assert ui_run.returncode == 0, (
+        f"expected the UI lane to run a trybuild target\noutput:\n{_output(ui_run)}"
+    )
+    assert "compile_accept" in _output(ui_run), (
+        f"expected the UI lane to run the trybuild target\noutput:\n{_output(ui_run)}"
+    )
+
+    makefile = read_generated_text(project / "Makefile")
+    assert "$(CARGO) llvm-cov $(COVERAGE_NEXTEST)" in makefile, (
+        "expected coverage to run the same nextest-based lane"
+    )
+    assert "$(TEST_FLAGS) $(TEST_UI_EXCLUDE)" in makefile, (
+        "expected coverage to exclude compile-time targets through the same "
+        "conditional filter as the default run"
+    )
+
+
 def test_rendered_workflows_provision_the_formatter_and_run_the_ui_lane(
     tmp_path: Path, copier: CopierFixture
 ) -> None:
@@ -193,6 +274,16 @@ def test_rendered_workflows_provision_the_formatter_and_run_the_ui_lane(
         assert workflow.index("make test-ui") < workflow.index(
             "Test and Measure Coverage"
         ), f"expected {workflow_name} to run the UI lane before coverage"
+        assert workflow.index(
+            "Exclude compile-time targets from the coverage build"
+        ) < workflow.index("Test and Measure Coverage"), (
+            f"expected {workflow_name} to exclude compile-time targets from "
+            "the coverage run"
+        )
+        assert 'mv tests/compile_*.rs "$RUNNER_TEMP/ui-targets/"' in workflow, (
+            f"expected {workflow_name} to move compile-time targets out of "
+            "the instrumented build"
+        )
 
     assert re.search(r"install-mdtablefix@[0-9a-f]{40}\b", ci), (
         "expected CI to install the Markdown formatter pinned to a full 40-hex "

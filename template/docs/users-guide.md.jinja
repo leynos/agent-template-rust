@@ -102,8 +102,13 @@ The generated `Makefile` exposes these public targets:
   falls back to `cargo test` otherwise. It denies warnings in normal tests and
   in the separate all-feature workspace doctest run. `.config/nextest.toml`
   bounds each test and the whole run, and serializes compiler-spawning tests.
+  When the project has compile-time contract targets, the default run leaves
+  them to the UI lane.
 - `make test-ui` runs compile-time contract targets named
   `tests/compile_*.rs`, or reports an intentional no-op when there are none.
+  `make test` and `make coverage` exclude those targets when they exist, and
+  the hosted coverage job moves them out of the checkout after the UI lane so
+  their nested Cargo builds are never instrumented.
 - `make test-workflow-contracts` runs the pinned shared CV-005 checker over the
   repository, using the selection in `.github/cv005.toml`.
 - `make install-build-tools` installs the pinned `mold` release, verified
@@ -145,6 +150,14 @@ GitHub then refuses a dispatch of this workflow from any other branch before
 the job starts, which keeps the environment and its stored token out of reach
 of a modified branch workflow. The template cannot create that protection rule,
 so the repository setting is part of onboarding to CodeScene.
+
+A merge made with `GITHUB_TOKEN`, including a Dependabot auto-merge, fires no
+push-event workflow. The automerge caller therefore dispatches
+`coverage-main.yml` once its pull request is merged into `main`, and
+`.github/workflows/coverage-backstop.yml` dispatches it daily for any merge
+path that still skips that job. The shared publisher contract permits only push
+and workflow_dispatch on the CodeScene publisher, so the schedule lives in the
+backstop workflow rather than in `coverage-main.yml`.
 
 {% if flavour == 'app' -%}
 ## Releasing

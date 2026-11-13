@@ -92,6 +92,18 @@ jobs:
       # invocations are not instrumented and do not compete for the cache.
       - name: Run compile-time UI tests
         run: make test-ui
+      # The UI lane above already ran the compile-time targets. The shared
+      # coverage action exposes no test filter and always runs workspace
+      # nextest, so they leave the crate for the instrumented build: a nested
+      # Cargo project gains no coverage and would run outside the serialized
+      # group. `make test` and `make coverage` pass the equivalent `-E` filter.
+      - name: Exclude compile-time targets from the coverage build
+        run: |
+          set -euo pipefail
+          if ls tests/compile_*.rs >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/ui-targets"
+            mv tests/compile_*.rs "$RUNNER_TEMP/ui-targets/"
+          fi
       - name: Log coverage linker configuration
         run: |
           echo "Coverage linker: clang"

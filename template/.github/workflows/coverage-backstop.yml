@@ -1,0 +1,35 @@
+name: Coverage backstop
+
+# The shared CV-005 publisher contract permits only push and
+# workflow_dispatch on coverage-main.yml, because that workflow is the
+# repository's CodeScene publisher. The daily backstop for a merge that fires
+# no push event therefore lives here. A merge performed by a GITHUB_TOKEN runs
+# no push-event workflow, and an auto-merge armed on a BLOCKED pull request is
+# completed later by GitHub without passing through the automerge caller's
+# dispatch job. Dispatching the publisher re-measures main and publishes the
+# ratchet baseline that pull-request runs compare against.
+'on':
+  schedule:
+    # Daily, ahead of the working day in Europe and after the audit slot.
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+# One dispatch is enough: the publisher queues its own runs, so a pile of
+# backstop triggers would only replace each other's pending runs.
+concurrency:
+  group: coverage-backstop
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # `gh workflow run` needs actions: write. Nothing here reads the
+    # repository contents or the CodeScene credential.
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch coverage for main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run coverage-main.yml --ref main

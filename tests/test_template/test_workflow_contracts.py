@@ -8,6 +8,7 @@ to end, then mutate one workflow to show the run is not vacuous.
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -23,7 +24,6 @@ from tests.helpers.generated_files import (
 from tests.helpers.rendering import APP, LIB, render_project
 from tests.helpers.subprocess_env import generated_project_env
 
-CV005_CONTRACTS_REF = "38905b4b2caec5b049438e6dc3f3f6b36c04d2df"
 CHECK_TIMEOUT_SECONDS = 900
 
 
@@ -78,9 +78,12 @@ def test_rendered_workflow_contracts_pass_the_shared_checker(
         "with-ratchet": "true",
     }, "expected both coverage lanes to measure the same ratcheted selection"
     makefile = read_generated_text(project / "Makefile")
-    assert f"CV005_CONTRACTS_REF ?= {CV005_CONTRACTS_REF}" in makefile, (
-        "expected the generated target to use the reviewed shared revision"
-    )
+    # Assert the pin's shape, not its value: Dependabot owns this bump, and a
+    # literal shared-SHA assertion would make every bump a manual chore. The
+    # run below proves the pinned revision actually works.
+    assert re.search(
+        r"^CV005_CONTRACTS_REF \?= [0-9a-f]{40}$", makefile, flags=re.MULTILINE
+    ), "expected the generated target to pin a full 40-hex shared revision"
 
     result = _run_make(project.path, "test-workflow-contracts")
 

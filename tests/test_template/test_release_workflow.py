@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pytest
 from pytest_copier.plugin import CopierFixture
 
 from tests.helpers.delivery_workflows import (
@@ -17,12 +18,15 @@ from tests.helpers.delivery_workflows import (
     steps,
 )
 from tests.helpers.generated_files import (
+    parse_toml_file,
     parse_yaml_mapping,
     read_generated_text,
     require_mapping,
     require_sequence,
 )
 from tests.helpers.rendering import APP, LIB
+
+POLONIUS_FLAG = "-Zpolonius=next"
 
 
 def _assert_matrix_legs(build: dict[str, Any]) -> None:
@@ -58,8 +62,10 @@ def _assert_matrix_legs(build: dict[str, Any]) -> None:
     )
 
 
-def _assert_build_steps(build: dict[str, Any]) -> None:
-    """Assert the build job uses stable Cargo and uploads checksummed artefacts."""
+def _assert_build_steps(
+    build: dict[str, Any], *, toolchain: str, rustflags: str
+) -> None:
+    """Assert the build job uses the selected toolchain and flags."""
     build_steps = steps(build, "release build job")
     setup = next(
         step
@@ -73,38 +79,39 @@ def _assert_build_steps(build: dict[str, Any]) -> None:
     assert setup_inputs.get("expect-cache") == "any", (
         "expected a release build to tolerate an empty or populated cache"
     )
-    assert setup_inputs.get("toolchain") == "stable", (
-        "expected the release build to use stable Cargo"
+    assert setup_inputs.get("toolchain") == toolchain, (
+        f"expected the release build to use {toolchain}"
     )
-    assert "rustflags" not in setup_inputs, (
-        "expected no nightly development flags on the release toolchain"
+    assert setup_inputs.get("rustflags") == rustflags, (
+        "expected the release toolchain to keep only the flags its mode needs"
     )
 
     native = named_step(build, "Build release binary (native)", "release build job")
     native_command = str(native.get("run", ""))
-    assert native_command.startswith("cargo +stable build --release --target "), (
-        "expected the native leg to build with stable Cargo"
+    assert native_command.startswith(f"cargo +{toolchain} build --release --target "), (
+        f"expected the native leg to build with {toolchain}"
     )
     native_env = require_mapping(native, "env", "native release step")
-    assert native_env.get("RUSTFLAGS") == "", (
-        "expected the native release build to clear inherited Rust flags"
+    assert native_env.get("RUSTFLAGS") == rustflags, (
+        "expected the native release build to carry only its mode's flags"
     )
     cross = named_step(build, "Build release binary (cross)", "release build job")
     cross_command = str(cross.get("run", ""))
-    assert cross_command.startswith("cross +stable build --release --target "), (
-        "expected the cross leg to build with stable Cargo"
+    assert cross_command.startswith(f"cross +{toolchain} build --release --target "), (
+        f"expected the cross leg to build with {toolchain}"
     )
     cross_env = require_mapping(cross, "env", "cross release step")
-    assert cross_env.get("RUSTFLAGS") == "", (
-        "expected the cross release build to clear inherited Rust flags"
+    assert cross_env.get("RUSTFLAGS") == rustflags, (
+        "expected the cross release build to carry only its mode's flags"
     )
     assert cross_env.get("CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER") == "cc", (
         "expected the cross image to use gcc rather than the clang config"
     )
     add_target = named_step(build, "Add native target", "release build job")
-    assert 'rustup target add --toolchain stable "${{ matrix.target }}"' in str(
-        add_target.get("run")
-    ), "expected the native target to be added to the stable toolchain"
+    assert (
+        f'rustup target add --toolchain {toolchain} "${{{{ matrix.target }}}}"'
+        in str(add_target.get("run"))
+    ), f"expected the native target to be added to {toolchain}"
     prepare = named_step(build, "Prepare artifact", "release build job")
     assert "shasum -a 256" in str(prepare.get("run")), (
         "expected a checksum beside every release artefact"
@@ -135,16 +142,26 @@ def _assert_release_job(jobs: dict[str, Any]) -> None:
     ), "expected the release job to publish through the pinned release action"
 
 
+def _rendered_channel(project: Path) -> str:
+    """Return the generated project's pinned toolchain channel."""
+    toolchain = parse_toml_file(project / "rust-toolchain.toml")
+    channel = str(toolchain.get("toolchain", {}).get("channel", ""))
+    assert channel, "expected the generated project to pin a toolchain channel"
+    return channel
+
+
+@pytest.mark.parametrize("enable_polonius", [True, False])
 def test_application_release_matrix_uses_native_macos_and_cross_builders(
-    tmp_path: Path, copier: CopierFixture
+    tmp_path: Path, copier: CopierFixture, enable_polonius: bool
 ) -> None:
-    """Each matrix leg's runner agrees with its builder and target."""
+    """Each leg builds with the toolchain its borrow-checker mode requires."""
     project = render_delivery_project(
         tmp_path,
         copier,
         flavour=APP,
         project_name="ReleaseMatrix",
         package_name="release_matrix",
+        enable_polonius=enable_polonius,
     )
     workflow = parse_yaml_mapping(
         read_generated_text(project / ".github/workflows/release.yml"),
@@ -153,9 +170,70 @@ def test_application_release_matrix_uses_native_macos_and_cross_builders(
     jobs = require_mapping(workflow, "jobs", "release workflow")
     build = require_mapping(jobs, "build", "release workflow jobs")
 
+    if enable_polonius:
+        # A Polonius release must use the same dated nightly as development:
+        # the source does not compile without `-Zpolonius=next`.
+        toolchain = _rendered_channel(project.path)
+        rustflags = POLONIUS_FLAG
+        assert "nightly-" in toolchain, (
+            "expected a Polonius project to release on its dated nightly"
+        )
+    else:
+        toolchain = "stable"
+        rustflags = ""
+
     _assert_matrix_legs(build)
-    _assert_build_steps(build)
+    _assert_build_steps(build, toolchain=toolchain, rustflags=rustflags)
     _assert_release_job(jobs)
+
+
+def test_polonius_release_keeps_only_the_borrow_checker_flag(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """The Polonius release clears every development flag but the required one."""
+    project = render_delivery_project(
+        tmp_path,
+        copier,
+        flavour=APP,
+        project_name="ReleaseFlags",
+        package_name="release_flags",
+        enable_polonius=True,
+    )
+    release = read_generated_text(project / ".github/workflows/release.yml")
+
+    assert POLONIUS_FLAG in release, (
+        "expected a Polonius release to keep the borrow-checker flag"
+    )
+    for development_flag in ("-Zthreads=8", "cranelift", "-fuse-ld=mold"):
+        assert development_flag not in release, (
+            f"expected a release build to clear the {development_flag} flag"
+        )
+
+
+def test_stable_release_carries_no_nightly_flags(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """A project without Polonius releases on stable with no nightly flag."""
+    project = render_delivery_project(
+        tmp_path,
+        copier,
+        flavour=APP,
+        project_name="ReleaseStable",
+        package_name="release_stable",
+        enable_polonius=False,
+    )
+    release = read_generated_text(project / ".github/workflows/release.yml")
+    # Comments explain both modes, so judge only the code the runner executes.
+    executed = "\n".join(
+        line for line in release.splitlines() if not line.lstrip().startswith("#")
+    )
+
+    assert "+nightly-" not in executed, (
+        "expected a stable release to invoke no nightly toolchain"
+    )
+    assert "-Zpolonius" not in executed, (
+        "expected a stable release to carry no borrow-checker flag"
+    )
 
 
 def test_library_render_has_no_release_workflow(

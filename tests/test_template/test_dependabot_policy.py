@@ -98,6 +98,9 @@ def test_dependabot_groups_updates_and_applies_cooldowns(
         )
         == 7
     ), "expected a seven-day cooldown for toolchain updates"
-    assert "dependencies" in require_sequence(
-        toolchain, "labels", "rust-toolchain updates"
-    ), "expected toolchain updates to carry the dependencies label"
+    for ecosystem, update in by_ecosystem.items():
+        assert "labels" not in update, (
+            f"expected {ecosystem} updates to rely on Dependabot's default "
+            "labels; a custom list replaces the defaults and every entry a "
+            "fresh repository does not define is ignored"
+        )

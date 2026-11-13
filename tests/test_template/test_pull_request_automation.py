@@ -68,6 +68,39 @@ def test_pull_request_automation_callers_are_pinned_and_scoped(
         "${{ inputs.pull-request-number || github.event.pull_request.number }}"
     ), "expected the dispatch input to fall back to the event's pull request"
 
+    dispatch_job = require_mapping(
+        require_mapping(automerge_workflow, "jobs", "automerge workflow"),
+        "dispatch-coverage",
+        "automerge workflow jobs",
+    )
+    assert dispatch_job.get("needs") == "automerge", (
+        "expected the coverage dispatch to follow the merge attempt"
+    )
+    assert require_mapping(dispatch_job, "permissions", "dispatch job") == {
+        "actions": "write",
+        "pull-requests": "read",
+    }, "expected the dispatch job to receive only the access it needs"
+    dispatch_step = named_step(
+        dispatch_job,
+        "Dispatch coverage for the merged trunk commit",
+        "dispatch job",
+    )
+    assert require_mapping(dispatch_step, "env", "dispatch step").get(
+        "PULL_REQUEST_NUMBER"
+    ) == ("${{ inputs.pull-request-number || github.event.pull_request.number }}"), (
+        "expected the dispatch step to resolve the same pull request"
+    )
+    dispatch_run = str(dispatch_step.get("run", ""))
+    assert "gh pr view" in dispatch_run and "mergedAt" in dispatch_run, (
+        "expected the dispatch step to confirm the pull request really merged"
+    )
+    assert 'if [ "$base" = "main" ]' in dispatch_run, (
+        "expected the dispatch step to require a merge into main"
+    )
+    assert "gh workflow run coverage-main.yml --ref main" in dispatch_run, (
+        "expected the dispatch to start coverage for main"
+    )
+
     delayed_workflow = parse_yaml_mapping(
         read_generated_text(project / ".github/workflows/delayed-pr-comment.yml"),
         "delayed comment workflow",

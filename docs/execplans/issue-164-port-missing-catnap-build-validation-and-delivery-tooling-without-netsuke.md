@@ -378,6 +378,44 @@ run; recorded skips and platform limits.
   lease bound to the previously recorded remote head `c8fd955`, the tracking
   ref was refreshed, and the remote head now equals `fc15131`. On that head the
   pull request's `build-test` (4m36s) and `act-validation` (6m48s) checks pass.
+- [x] 2026-11-12: Resolved the seventh review round's four findings. Releases
+  follow the project's borrow-checker mode: a Polonius application releases on
+  its dated nightly with `RUSTFLAGS=-Zpolonius=next` on both the native and
+  cross legs, and an NLL application stays on stable with an empty `RUSTFLAGS`.
+  `make test` and `make coverage` pass a conditional
+  `-E 'not binary(compile_*)'` filter so the compile-time targets run only in
+  the UI lane, and the hosted coverage caller moves `tests/compile_*.rs` out of
+  the checkout after the UI lane because the shared action exposes no filter.
+  `coverage-main.yml` gained a ref-conditional `publish-baseline`, and the
+  automerge caller dispatches it after observing that its pull request merged
+  into `main`. The shared CV-005 publisher contract permits only push and
+  `workflow_dispatch` on the CodeScene publisher, so the daily backstop lives
+  in a separate `coverage-backstop.yml` that dispatches the publisher. The
+  CV-005 pin assertions now match a full-SHA shape instead of the literal
+  commit. A scratch render with a real `trybuild` target proves the default run
+  skips `compile_accept`, the UI lane runs and passes it in 539s, and the
+  widened 600s × 2 UI slow timeout is what makes that possible under host
+  compile admission.
+- [x] 2026-11-13: Parent commit gates on the round-eight tree.
+  `make check-fmt`, `make typecheck`, `make lint`, and `make spelling` all exit
+  0. The full suite cannot finish inside this host's background-command limit,
+  so it runs as ordered file-scoped passes over the same tree. One uninterrupted
+  `make test` reached 54% of the 214 collected tests with every executed test
+  passing before the two-hour limit stopped it. The remainder ran in sequence:
+  `test_compilation`, `test_delayed_pr_comment`, `test_dependabot_policy`, and
+  `test_doctests` passed; then 42 tests covering `test_lint_targets` through
+  `test_test_lane` passed in 1:44:16; then the 30 tooling and workflow contract
+  tests passed in 0:34:05. Together the runs cover the whole suite with no
+  failure.
+- [x] 2026-11-13: Removed every custom `labels` list from the generated
+  Dependabot configuration. GitHub's options reference states that a defined
+  `labels` list replaces the automatic `dependencies` and ecosystem labels, and
+  that an entry the repository does not already define is ignored. A freshly
+  generated project defines none of them, so the previous list would have left
+  update pull requests unlabelled. The policy test now asserts that no
+  ecosystem configures `labels`, and the configuration header records the
+  reason. The snapshot is unaffected because it covers workflows and the
+  Makefile, not `dependabot.yml`.
 
 ## Surprises & discoveries
 
@@ -459,9 +497,23 @@ run; recorded skips and platform limits.
   the next full run; the test's first assertion (non-zero exit) cannot
   distinguish the two causes. Treat a lone failure of this shape under heavy
   contention as environmental, and re-run before changing the template.
+- The shared CV-005 checker treats the CodeScene caller as the publisher and
+  permits only `push` and `workflow_dispatch` on it. A `schedule` trigger added
+  for a coverage backstop therefore failed the rendered project's
+  `make test-workflow-contracts` with
+  `publisher.triggers: trigger 'schedule' is not permitted`, even though the
+  workflow is otherwise valid. Backstops for a publisher must dispatch it from
+  a separate workflow rather than extend its trigger list.
 
 ## Decision log
 
+- The daily coverage backstop is a separate `coverage-backstop.yml` rather than
+  a `schedule` trigger on `coverage-main.yml`. The shared CV-005 checker
+  refuses any trigger but push and `workflow_dispatch` on the repository's
+  CodeScene publisher, and the rendered `make all` proved it with
+  `publisher.triggers: trigger 'schedule' is not permitted`. The backstop holds
+  only `actions: write`, and its dispatch keeps the publisher's own queue and
+  main-only baseline publication unchanged.
 - Use Catnap's `.yamllint-estate.yml` byte-for-byte and a two-line extending
   overlay, as the issue requires.
 - Keep tool installation explicit; check targets remain read-only.
@@ -515,10 +567,15 @@ run; recorded skips and platform limits.
   zero plus the `environment.placement` clause, because `make` reports a
   non-zero recipe as its own exit status 2 and cannot distinguish the checker's
   violation status 1 from its read-fault status 2.
-- M5 keeps every generated release build on stable Cargo, clears `RUSTFLAGS`
-  on the build steps, and omits the setup-rust `rustflags` input. The release
-  workflow therefore contains no Polonius, Cranelift, or threads flags even
-  when the project's development toolchain is the Polonius nightly.
+- M5's first draft kept every generated release build on stable Cargo with an
+  empty `RUSTFLAGS`. The seventh review round replaced that: a release now
+  follows the project's borrow-checker mode. A Polonius application builds on
+  the same dated nightly as development with `RUSTFLAGS=-Zpolonius=next` on
+  both the native and cross legs, because its source does not compile without
+  the analysis; an NLL application stays on stable with empty flags, because
+  stable Cargo cannot parse a nightly-only flag. Both modes still clear the
+  Cranelift, `-Zthreads`, and mold development flags, so a released artefact
+  carries only what its source needs.
 - M5 validates the delayed-comment dispatch inputs in the shell and passes
   them to the comment action as inputs. A dispatch is free-form text, so placing
   `inputs.message` or an unvalidated number directly in a `run:` step would
@@ -530,7 +587,11 @@ run; recorded skips and platform limits.
 - M5 keeps the generated Dependabot policy product-neutral: it groups shared
   actions and routine GitHub Action updates, groups Cargo minor and patch
   updates, and tracks `rust-toolchain`, without porting Catnap's product crate
-  group.
+  group. It configures no `labels` list: the vendor reference says a defined
+  list replaces Dependabot's automatic `dependencies` and ecosystem labels, and
+  silently ignores an entry that the repository does not already define. A
+  generated repository defines none of them, so keeping the default labels is
+  the only route that leaves its update pull requests labelled.
 - The generated lint recipe prefixes `cargo doc` and `cargo clippy` with
   `PATH="$(BUILD_TOOLS_PATH)"`, because both receive `DEV_RUST_FLAGS`, whose
   Linux `-fuse-ld=mold` argument needs the installed linker on `PATH` just as
@@ -548,11 +609,11 @@ run; recorded skips and platform limits.
   unbounded delay input could occupy a runner indefinitely; bounding the input
   keeps the accepted worst case inside the job limit and gives the extra 30
   minutes to validation and the comment step.
-- The release workflow adds native targets with
-  `rustup target add --toolchain stable`, because setup-rust selects stable
-  while `rustup` may already have another default toolchain. Naming the
-  toolchain keeps the added target and the subsequent `cargo +stable build` in
-  agreement.
+- The release workflow adds native targets with an explicit
+  `rustup target add --toolchain <release toolchain>`, because `rustup` may
+  already have another default toolchain. Naming the selected toolchain keeps
+  the added target, the setup-rust `toolchain` input, and the subsequent
+  `cargo +<toolchain> build` in agreement in both borrow-checker modes.
 - Build-tool and delivery test modules stay under the repository's 400-line
   limit by moving reusable sandbox and workflow parsing into `tests/helpers/`.
   Helpers take public names; test modules keep only their scenario-specific
@@ -616,10 +677,13 @@ Delivered behaviour:
   Generated callers delegate to the shared automerge workflow and a validated
   delayed-comment workflow.
 - The application release workflow uses native macOS runners, `cross` for
-  Linux/Windows/FreeBSD, a non-fail-fast matrix, stable Cargo with cleared
-  `RUSTFLAGS`, checksum files beside each artefact, and a dry-run dispatch that
-  can never publish from a branch. Both Polonius modes remain supported and the
-  release exception is documented in the guides and ADR-004.
+  Linux/Windows/FreeBSD, a non-fail-fast matrix, checksum files beside each
+  artefact, and a dry-run dispatch that can never publish from a branch. The
+  release toolchain and flags follow the project's borrow-checker mode: a
+  Polonius application releases on its dated nightly with
+  `RUSTFLAGS=-Zpolonius=next`, and every other application releases on stable
+  with an empty `RUSTFLAGS`, so neither mode loses what its source needs. The
+  mode-dependent behaviour is documented in the guides and ADR-004.
 
 Retrospective lessons:
 

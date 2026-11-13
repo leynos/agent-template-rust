@@ -19,6 +19,7 @@ from tests.helpers.generated_files import (
 )
 from tests.helpers.rendering import APP, LIB, render_project
 from tests.helpers.tooling_contracts import (
+    assert_coverage_backstop_workflow_contract,
     assert_coverage_main_workflow_contract,
     assert_generated_tooling_contracts,
     assert_polonius_toolchain_contracts,
@@ -106,6 +107,34 @@ def test_polonius_contract_rejects_incorrect_coverage_log() -> None:
         _assert_coverage_workflow(workflow, "build-test", enabled=True)
 
 
+def test_polonius_contract_rejects_a_stable_release_for_polonius_source() -> None:
+    """Reject a Polonius release that builds on stable Cargo."""
+    workflow = """jobs:
+  build:
+    steps:
+      - uses: leynos/shared-actions/.github/actions/setup-rust@b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea
+        with:
+          toolchain: stable
+          rustflags: -Zpolonius=next
+      - name: Log Rust compiler configuration
+        run: |
+          rustc --version
+          printf 'Base RUSTFLAGS: %s\\n' "$RUSTFLAGS"
+      - name: Build release binary (cross)
+        env:
+          RUSTFLAGS: -Zpolonius=next
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: cc
+        run: cross +stable build --release
+      - name: Build release binary (native)
+        env:
+          RUSTFLAGS: -Zpolonius=next
+        run: cargo +stable build --release
+"""
+
+    with pytest.raises(AssertionError, match="dated nightly"):
+        _assert_release_workflow(workflow, enabled=True)
+
+
 def test_polonius_contract_rejects_incorrect_coverage_rustdocflags() -> None:
     """Reject a coverage step whose doctest flags differ from make test's."""
     workflow = """jobs:
@@ -144,8 +173,10 @@ def test_coverage_main_contract_rejects_a_missing_scope_input(
         assert_coverage_main_workflow_contract(narrowed)
 
 
-def test_polonius_contract_rejects_release_development_flags() -> None:
-    """Reject a release setup-rust that carries development flags."""
+
+
+def test_polonius_contract_rejects_the_flag_in_a_stable_release() -> None:
+    """Reject a release without Polonius that carries the nightly flag."""
     workflow = """jobs:
   build:
     steps:
@@ -159,19 +190,17 @@ def test_polonius_contract_rejects_release_development_flags() -> None:
           printf 'Base RUSTFLAGS: %s\\n' "$RUSTFLAGS"
       - name: Build release binary (cross)
         env:
-          RUSTFLAGS: ""
+          RUSTFLAGS: -Zpolonius=next
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: cc
         run: cross +stable build --release
       - name: Build release binary (native)
         env:
-          RUSTFLAGS: ""
+          RUSTFLAGS: -Zpolonius=next
         run: cargo +stable build --release
 """
 
-    with pytest.raises(AssertionError, match="not to receive development flags"):
-        _assert_release_workflow(workflow)
-
-
+    with pytest.raises(AssertionError, match="carry only the flags"):
+        _assert_release_workflow(workflow, enabled=False)
 
 
 @pytest.mark.parametrize(
@@ -220,6 +249,9 @@ def test_generated_tooling_contracts(
     )
     coverage_main_workflow = read_generated_text(
         project / ".github/workflows/coverage-main.yml"
+    )
+    coverage_backstop_workflow = read_generated_text(
+        project / ".github/workflows/coverage-backstop.yml"
     )
     mutation_workflow = read_generated_text(
         project / ".github/workflows/mutation-testing.yml"
@@ -272,6 +304,7 @@ def test_generated_tooling_contracts(
         release_workflow=release_workflow,
     )
     assert_coverage_main_workflow_contract(coverage_main_workflow)
+    assert_coverage_backstop_workflow_contract(coverage_backstop_workflow)
     assert_polonius_toolchain_contracts(
         enabled=enable_polonius,
         dev_target=dev_target,
@@ -373,4 +406,5 @@ def test_ci_contract_rejects_unguarded_duplicate_audit_step(
         AssertionError, match="each audit-specific CI step exactly once"
     ):
         _assert_ci_workflow_contracts(parsed_ci_workflow, ci_workflow, test_stub)
+# weave: run 'weave explain tests/test_template/test_tooling_contracts.py' for per-hunk detail, 'weave check' to verify your resolution
 # weave: run 'weave explain tests/test_template/test_tooling_contracts.py' for per-hunk detail, 'weave check' to verify your resolution
