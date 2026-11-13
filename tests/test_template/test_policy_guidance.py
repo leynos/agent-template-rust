@@ -156,7 +156,7 @@ def test_policy_documentation_covers_validation_and_migration(
             "warnings as failures",
             "only the composition root constructs `mockable::DefaultEnv`",
             "`test_make_lint_rejects_rust_and_rustdoc_policy_violations`",
-            "[ADR-005](adr-0005-injected-environment-boundary.md)",
+            "[ADR-005](adrs/adr-0005-injected-environment-boundary.md)",
         ),
     )
     _assert_contains_all(
