@@ -182,8 +182,8 @@ doctest therefore fails the command.
 
 The generated `Makefile` exposes these public targets:
 
-- `make all` runs formatting checks, linting, tests, workflow contracts, and
-  spelling checks.
+- `make all` runs formatting checks, linting, tests, the compile-time contract
+  lane, and workflow contracts. Spelling is a separate target.
 - `make check-fmt` verifies Rust formatting and Markdown table formatting.
 - `make fmt` formats Rust and Markdown sources.
 - `make lint` runs the strict YAML, GitHub Actions, and shell gates, then
