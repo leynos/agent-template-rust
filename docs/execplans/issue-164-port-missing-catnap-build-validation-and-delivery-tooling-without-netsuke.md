@@ -541,6 +541,15 @@ run; recorded skips and platform limits.
   lists the two new test helper modules. Parent gates rerun green:
   `make check-fmt`, 218 pytest cases in three passes, `make typecheck`,
   `make lint` and `make spelling`.
+- [x] 2026-11-14: Fixes published as `4eded53` (remote head verified by
+  `ls-remote`). Disposition replies were posted through the comment-token pool
+  in all three threads, and CodeRabbit verified each fix against the commit:
+  the migration-guide section structure, the per-target linker selection, and
+  the qualified nextest wording. All three threads are resolved, hosted
+  `CI`/`build-test` and `Act Validation` pass on `4eded53`, and
+  `mergeStateStatus` is `CLEAN`. The head's `CodeRabbit` check is `SKIPPED`
+  because the branch review is paused, so a fresh review is queued as comenq
+  `5d323265`; the queue quotes roughly eleven hours.
 
 ## Surprises & discoveries
 
