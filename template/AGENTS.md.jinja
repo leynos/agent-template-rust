@@ -392,9 +392,11 @@ cloned only on insertion, and error context is built lazily. See
   `some-crate = "1.2.3"`, equivalent to `^1.2.3`). This is Cargo's default.
   For crates at 1.0.0 or later, it allows safe, non-breaking updates to minor
   and patch versions while preventing breaking changes from new major versions.
-  For 0.x crates, the caret allows only patch updates within the same minor
-  series, so `some-crate = "0.2.3"` accepts `0.2.4` but not `0.3.0`. This
-  approach is critical for ensuring build stability and reproducibility.
+  For 0.x crates, the caret allows only patch updates, so
+  `some-crate = "0.2.3"` accepts `0.2.4` but not `0.3.0`. The bare `^0` form is
+  wider and accepts minor updates across the 0.x series, while `^0.0.3` accepts
+  no update beyond `0.0.3`. This approach is critical for ensuring build
+  stability and reproducibility.
 - **Prohibit unstable version specifiers.** The use of wildcard (`*`) or
   open-ended inequality (`>=`) version requirements is strictly forbidden, as
   they introduce unacceptable risk and unpredictability. Tilde requirements (
