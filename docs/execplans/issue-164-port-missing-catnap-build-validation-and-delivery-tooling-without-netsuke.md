@@ -598,9 +598,26 @@ run; recorded skips and platform limits.
   `make check-fmt`, `make test` (218 passed, 2 expected `act` skips),
   `make typecheck`, `make lint` and `make spelling`, and a fresh render into
   `/tmp` confirms `AGENTS.md` and both guides stay `mdtablefix` fixed points.
+- [x] 2026-11-15: The fixes were committed as `2f803b3` and pushed over SSH in a
+  clean environment with an explicit lease. `git push` initially reported
+  `stale info` because the session's `GIT_CONFIG_*` entries rewrite
+  `git@github.com:` to HTTPS and route it through the Lody credential helper;
+  unsetting those entries, as the global instructions require, made the push
+  succeed and the re-read remote head matched `2f803b3`. Hosted `CI` and
+  `Act Validation` both completed `success` on the new head. Replies were
+  posted to all three inline threads and to the pre-merge reconciliation
+  through the pool-token helper. `CodeRabbit` still reports `Review paused` for
+  the head, so a fresh review is queued as comenq `84ea26e2` with an ETA of
+  roughly seven hours.
 
 ## Surprises & discoveries
 
+- The Lody session exports `GIT_CONFIG_KEY_*`/`GIT_CONFIG_VALUE_*` entries that
+  rewrite `git@github.com:` and `ssh://git@github.com/` to HTTPS and install
+  the Lody credential helper. A push started with only `GIT_SSH_COMMAND` set is
+  therefore rerouted to HTTPS and fails with `stale info` plus
+  `personal_auth_missing`. Removing those entries, not just setting the SSH
+  command, is what keeps the push on SSH.
 - GitHub's Dependabot `cooldown` setting applies to version updates only.
   Security updates open as soon as an advisory is published, whatever the
   cooldown says, so widening or shortening it changes routine upgrade cadence
