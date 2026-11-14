@@ -48,7 +48,7 @@ def test_rendered_agents_requires_injected_environment_and_diagnostics(
                 'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
                 'RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps'
             ),
-            "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+            "cargo clippy --all-targets --all-features -- -D warnings",
             (
                 'RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- '
                 "--all-targets --all-features"
@@ -67,7 +67,7 @@ def test_rendered_agents_requires_injected_environment_and_diagnostics(
             "falling back to `cargo test`",
             "with Rust warnings denied",
             "all-feature workspace doctests separately with Rustdoc warnings denied",
-            "Documentation warnings, Clippy warnings, and Whitaker findings",
+            "The Makefile decides which warnings are denied",
             "Every module **must** begin with a module level (`//!`) comment",
             "Document public APIs using Rustdoc comments (`///`)",
             "Every `assert!`, `assert_eq!`, and `assert_ne!` invocation",

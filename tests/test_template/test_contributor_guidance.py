@@ -127,8 +127,8 @@ PLANNING_AND_BOUNDARY_GUIDANCE = (
 DECISION_HISTORY_REFERENCE = (
     (
         "**Decision history:** Preserve accepted ADR decisions; record subsequent "
-        "changes through the [ADR amendment and supersession process]"
-        "(docs/documentation-style-guide.md#amendment-and-supersession). Capture "
+        "changes through the ADR amendment and supersession process in the "
+        "[documentation style guide](docs/documentation-style-guide.md). Capture "
         "proof-driven API, representation, and invariant decisions in the design "
         "documentation."
     ),

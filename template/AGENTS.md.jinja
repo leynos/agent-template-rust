@@ -37,10 +37,8 @@
 
 - **Reference:** Use the markdown files within the `docs/` directory as a
   knowledge base and source of truth for project requirements, dependency
-  choices, and architectural decisions. Start with
-  [documentation contents](docs/contents.md) and
-  [repository layout](docs/repository-layout.md) when orienting within the
-  project.
+  choices, and architectural decisions. Start with `docs/contents.md` and
+  `docs/repository-layout.md` when orienting within the project.
 - **Update:** When new decisions are made, requirements change, libraries are
   added/removed, or architectural patterns evolve, **proactively update** the
   relevant file(s) in the `docs/` directory to reflect the latest state. Ensure
@@ -49,8 +47,8 @@
   document. When a decision is substantive, capture it in an Architectural
   Decision Record (ADR) following the documentation style guide, and reference
   that ADR from the design document.
-- **User-facing behaviour:** Update [users' guide](docs/users-guide.md) for
-  behaviour or user-interface changes that users should know about. Add
+- **User-facing behaviour:** Update the users' guide (`docs/users-guide.md`)
+  for behaviour or user-interface changes that users should know about. Add
   migration guidance for compatibility or usage changes, and keep maintained
   translations synchronized.
 - **Internal interfaces:** Document internally facing interfaces in the
@@ -66,10 +64,10 @@
   indexes when names or locations change. Keep transient validation results in
   the PR or execution record.
 - **Decision history:** Preserve accepted ADR decisions; record subsequent
-  changes through the
-  [ADR amendment and supersession process](docs/documentation-style-guide.md#amendment-and-supersession).
-  Capture proof-driven API, representation, and invariant decisions in the
-  design documentation.
+  changes through the ADR amendment and supersession process in the
+  [documentation style guide](docs/documentation-style-guide.md). Capture
+  proof-driven API, representation, and invariant decisions in the design
+  documentation.
 - **Completed execplans:** Completed execplans are historical documents and
   should reflect the state of the repository at time of implementation. Do not
   retroactively update completed execplan documents to reflect subsequent
@@ -239,13 +237,15 @@ cloned only on insertion, and error context is built lazily. See
 
     ```makefile
     RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
+    cargo clippy --all-targets --all-features -- -D warnings
     RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- --all-targets --all-features
     ```
 
     building documentation before linting every target with all features
-    enabled. Documentation warnings, Clippy warnings, and Whitaker findings
-    fail the command.
+    enabled. The Makefile decides which warnings are denied. By default,
+    `RUSTDOC_FLAGS` and `RUST_FLAGS` both pass `-D warnings`, so documentation
+    and Clippy warnings fail the command unless those variables are
+    overridden. Whitaker's exit status decides its findings.
   - `make test` executes:
 
     ```makefile
@@ -338,16 +338,15 @@ cloned only on insertion, and error context is built lazily. See
   `newt-hype` when introducing many homogeneous wrappers that share behaviour;
   add small shims such as `From<&str>` and `AsRef<str>` for string-backed
   wrappers. For path-centric wrappers implement `AsRef<Path>` alongside
-  `into_inner()` and `to_path_buf()`, avoid attempting
-  `impl From<Wrapper> for PathBuf` because of the orphan rule. Prefer explicit
-  tuple structs whenever bespoke validation or tailored trait surfaces are
-  required, customizing `Deref`, `AsRef`, and `TryFrom` per type. Use
-  `the-newtype` when defining traits and needing blanket implementations that
-  apply across wrappers satisfying `Newtype + AsRef/AsMut<Inner>`, or when
-  establishing a coherent internal convention that keeps trait forwarding
-  consistent without per-type boilerplate. Combine approaches: lean on
-  `newt-hype` for the common case, tuple structs for outliers, and
-  `the-newtype` to unify behaviour when owning the trait definitions.
+  `into_inner()` and `to_path_buf()`. Prefer explicit tuple structs whenever
+  bespoke validation or tailored trait surfaces are required, customizing
+  `Deref`, `AsRef`, and `TryFrom` per type. Use `the-newtype` when defining
+  traits and needing blanket implementations that apply across wrappers
+  satisfying `Newtype + AsRef/AsMut<Inner>`, or when establishing a coherent
+  internal convention that keeps trait forwarding consistent without per-type
+  boilerplate. Combine approaches: lean on `newt-hype` for the common case,
+  tuple structs for outliers, and `the-newtype` to unify behaviour when owning
+  the trait definitions.
 - Use `cap_std` and `cap_std::fs_utf8` / `camino` in place of `std::fs` and
   `std::path` for enhanced cross-platform support and capabilities oriented
   filesystem access.
@@ -391,10 +390,14 @@ cloned only on insertion, and error context is built lazily. See
 
 - **Mandate caret requirements for all dependencies.** All crate versions
   specified in `Cargo.toml` must use SemVer-compatible caret requirements (e.g.,
-  `some-crate = "1.2.3"`, equivalent to `^1.2.3`). This is Cargo's default and
-  allows for safe, non-breaking updates to minor and patch versions while
-  preventing breaking changes from new major versions. This approach is
-  critical for ensuring build stability and reproducibility.
+  `some-crate = "1.2.3"`, equivalent to `^1.2.3`). This is Cargo's default.
+  For crates at 1.0.0 or later, it allows safe, non-breaking updates to minor
+  and patch versions while preventing breaking changes from new major versions.
+  For 0.x crates, the caret allows only patch updates, so
+  `some-crate = "0.2.3"` accepts `0.2.4` but not `0.3.0`. The bare `^0` form is
+  wider and accepts minor updates across the 0.x series, while `^0.0.3` accepts
+  no update beyond `0.0.3`. This approach is critical for ensuring build
+  stability and reproducibility.
 - **Prohibit unstable version specifiers.** The use of wildcard (`*`) or
   open-ended inequality (`>=`) version requirements is strictly forbidden, as
   they introduce unacceptable risk and unpredictability. Tilde requirements (
