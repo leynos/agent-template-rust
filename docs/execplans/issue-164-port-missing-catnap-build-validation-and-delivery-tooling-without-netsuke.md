@@ -562,6 +562,20 @@ run; recorded skips and platform limits.
   CI tool-installation step and a Dependabot step. Gates rerun green:
   `make check-fmt`, 220 pytest cases across scoped passes, `make typecheck`,
   `make lint` and `make spelling`.
+- [x] 2026-11-14: Rebased onto `a377f65` ("Wrap the generated AGENTS.md at 80
+  columns (#172)"). The PR had become `CONFLICTING`, and the missing `CI` and
+  `Act Validation` runs for head `c577c12` were a consequence of that, not a
+  workflow fault: GitHub creates no `pull_request` workflow run while a pull
+  request has a merge conflict. The only conflicting file was
+  `template/AGENTS.md.jinja`. #172's reflow is the same wrap this branch made in
+  `8a2443b`, so the replay drops that commit as empty and drops the duplicated
+  reflow hunks from the first commit, while keeping the one thing only main
+  had: the corrected parenthesis in the caret-requirement bullet.
+  `git range-diff` shows 24 of 25 commits identical, and
+  `git diff c577c12 7464f77` is exactly that correction. Parent gates rerun
+  green on the rebased head `7464f77`: `make check-fmt`, `make test` (218
+  passed, 2 expected `act` skips), `make typecheck`, `make lint` and
+  `make spelling`.
 
 ## Surprises & discoveries
 
@@ -700,6 +714,12 @@ run; recorded skips and platform limits.
   rather than merely omit the flag; the release recipe still states
   `-Zpolonius=next` so the mode is named rather than inherited from a nightly
   default that could change.
+- A pull request that gains a merge conflict stops receiving `pull_request`
+  workflow runs. After `a377f65` landed on `main`, head `c577c12` produced only
+  its `pull_request_target` caller and no `CI` or `Act Validation` run, which
+  looks identical to a disabled workflow or a dropped event. Check
+  `mergeStateStatus` before diagnosing the workflows; resolving the conflict by
+  rebasing restored both runs without touching any workflow file.
 
 ## Decision log
 
