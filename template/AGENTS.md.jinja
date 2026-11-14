@@ -63,8 +63,8 @@
   [documentation style guide](docs/documentation-style-guide.md).
 - **Accuracy:** Verify changed examples, commands, imports, links, paths, and
   stated guarantees against the implementation. Update maintained copies and
-  indexes when names or locations change. Keep transient validation results
-  in the PR or execution record.
+  indexes when names or locations change. Keep transient validation results in
+  the PR or execution record.
 - **Decision history:** Preserve accepted ADR decisions; record subsequent
   changes through the
   [ADR amendment and supersession process](docs/documentation-style-guide.md#amendment-and-supersession).
@@ -91,8 +91,9 @@
   premises, invariants, representation relationships, and principal proof
   obligations. Treat proposed lemmas as provisional. Defer detailed proof
   engineering until implementation exposes the verification conditions; do not
-  add assumptions, admissions, or trusted proof bodies merely to make incomplete
-  proofs pass. Unproved statements may remain in the plan until that milestone.
+  add assumptions, admissions, or trusted proof bodies merely to make
+  incomplete proofs pass. Unproved statements may remain in the plan until that
+  milestone.
 - Give each major milestone explicit acceptance commands, including applicable
   proof checks and the formatting, linting, and test gates. Keep commits
   coherent and useful as rollback points.
@@ -187,17 +188,17 @@
   boundaries; queries must not hide writes or unrelated workflow policy.
 - For streams, subprocesses, retries, caches, queues, and background tasks,
   define applicable size limits, deadlines, ownership, cancellation, and
-  cleanup.
-  A timeout does not bound accumulated bytes. Include waiting and cleanup in
-  the operation's budget. Define partial-failure and retry behaviour where
-  updates span multiple effects; keep locks narrow and ordered, avoiding holds
-  across awaits or external calls unless explicitly justified.
+  cleanup. A timeout does not bound accumulated bytes. Include waiting and
+  cleanup in the operation's budget. Define partial-failure and retry behaviour
+  where updates span multiple effects; keep locks narrow and ordered, avoiding
+  holds across awaits or external calls unless explicitly justified.
 - Validate untrusted inputs before privileged effects, use structured APIs
   instead of executable string construction, and grant only required
   permissions.
 - When performance materially motivates a change, measure realistic inputs and
-  distinguish build, execution, queueing, and cache state. Avoid repeated I/O or
-  unnecessary allocation in per-item loops and blocking work on async executors.
+  distinguish build, execution, queueing, and cache state. Avoid repeated I/O
+  or unnecessary allocation in per-item loops and blocking work on async
+  executors.
 
 ## Rust specific guidance
 
@@ -208,11 +209,11 @@ project:
 {% if enable_polonius -%}
 ### Borrow checker: Polonius, not NLL
 
-This repository compiles with the Polonius alpha analysis
-(`-Zpolonius=next`) on the dated nightly pinned in `rust-toolchain.toml`.
-Internal APIs should be borrow-centric: lookups and get-or-create accessors
-return references, keys are cloned only on insertion, and error context is
-built lazily. See `docs/polonius.md` for the full contract.
+This repository compiles with the Polonius alpha analysis (`-Zpolonius=next`)
+on the dated nightly pinned in `rust-toolchain.toml`. Internal APIs should be
+borrow-centric: lookups and get-or-create accessors return references, keys are
+cloned only on insertion, and error context is built lazily. See
+`docs/polonius.md` for the full contract.
 
 - Never rewrite a site tagged `POLONIUS(...)` into a double lookup, an
   `entry(key.clone())` call, id or index indirection, or eager error context.
@@ -291,9 +292,9 @@ built lazily. See `docs/polonius.md` for the full contract.
   boundaries, UI flows, or other system-level behaviour.
 - Select verification proportionately: named examples or `rstest` tables for
   finite contracts, `proptest` for broad input spaces or operation sequences,
-  and `kani` for exhaustive exploration within explicit bounds. Use `verus`
-  for selected lemmas or contractual invariants requiring unbounded proof over
-  a suitable semantic model. Proofs must establish the property from appropriate
+  and `kani` for exhaustive exploration within explicit bounds. Use `verus` for
+  selected lemmas or contractual invariants requiring unbounded proof over a
+  suitable semantic model. Proofs must establish the property from appropriate
   premises, not restate or assume it. Straightforward integration and
   presentation work must not acquire artificial proof obligations. Keep
   executable integration and behavioural tests alongside proofs.
@@ -314,8 +315,8 @@ built lazily. See `docs/polonius.md` for the full contract.
 - Use predicate functions for conditional criteria with more than two branches.
 - Lints must not be silenced except as a **last resort**.
 - Use item-scoped `#[expect(lint, reason = "...")]`; blanket allowances and
-  artificial references that hide unused code are forbidden. Narrow feature
-  and test-support compilation boundaries instead. Delete unused helpers unless
+  artificial references that hide unused code are forbidden. Narrow feature and
+  test-support compilation boundaries instead. Delete unused helpers unless
   concrete tracked work justifies a temporary expectation linked to that work.
 - Use `concat!()` to combine long string literals rather than escaping newlines
   with a backslash.
@@ -362,9 +363,9 @@ built lazily. See `docs/polonius.md` for the full contract.
   support relevant failures and verify their propagation through orchestration.
   Test local integration contracts rather than third-party tools themselves.
 - Test relevant partial failures, cancellation, shutdown, and cleanup with
-  deterministic coordination where practical. Avoid relying solely on sleeps
-  or exact deltas from shared global counters. Restore fixture resources even
-  when assertions fail, and account for host capabilities and privileges.
+  deterministic coordination where practical. Avoid relying solely on sleeps or
+  exact deltas from shared global counters. Restore fixture resources even when
+  assertions fail, and account for host capabilities and privileges.
 - Use `rstest` fixtures for shared setup.
 - Replace duplicated tests with `#[rstest(...)]` parameterized cases.
 - Prefer `mockall` for ad hoc mocks/stubs.
@@ -390,11 +391,10 @@ built lazily. See `docs/polonius.md` for the full contract.
 
 - **Mandate caret requirements for all dependencies.** All crate versions
   specified in `Cargo.toml` must use SemVer-compatible caret requirements (e.g.,
-   `some-crate = "1.2.3"` (equivalent to `^1.2.3`). This is Cargo's default and
-   allows for safe,
-  non-breaking updates to minor and patch versions while preventing breaking
-  changes from new major versions. This approach is critical for ensuring build
-  stability and reproducibility.
+  `some-crate = "1.2.3"`, equivalent to `^1.2.3`). This is Cargo's default and
+  allows for safe, non-breaking updates to minor and patch versions while
+  preventing breaking changes from new major versions. This approach is
+  critical for ensuring build stability and reproducibility.
 - **Prohibit unstable version specifiers.** The use of wildcard (`*`) or
   open-ended inequality (`>=`) version requirements is strictly forbidden, as
   they introduce unacceptable risk and unpredictability. Tilde requirements (
@@ -428,7 +428,7 @@ built lazily. See `docs/polonius.md` for the full contract.
 
 - Use `tracing` for logging and diagnostics. Prefer structured
   `tracing::{trace, debug, info, warn, error}` events and spans over `println!`,
-   `eprintln!`, or direct `log` macros. Add fields for identifiers, state, and
+  `eprintln!`, or direct `log` macros. Add fields for identifiers, state, and
   error context so downstream subscribers can filter and correlate events
   without parsing message text.
 - Use `#[tracing::instrument]` or explicit spans around request handling,
