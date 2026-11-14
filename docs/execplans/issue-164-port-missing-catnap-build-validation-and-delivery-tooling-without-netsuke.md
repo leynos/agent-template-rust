@@ -576,6 +576,14 @@ run; recorded skips and platform limits.
   green on the rebased head `7464f77`: `make check-fmt`, `make test` (218
   passed, 2 expected `act` skips), `make typecheck`, `make lint` and
   `make spelling`.
+- [x] 2026-11-14: Rebased history force-pushed with a lease as `b626e4e`, and
+  the remote head was read back with `ls-remote`. `mergeStateStatus` moved from
+  `DIRTY` to `BLOCKED` with `mergeable: MERGEABLE`, and GitHub created both
+  `pull_request` runs again: `CI` and `Act Validation` both complete with
+  `success` on `b626e4e`. All 19 review threads are resolved. The head's
+  `CodeRabbit` check is still `SKIPPED` because the branch review is paused, so
+  a fresh review is queued as comenq `8bf1ed5c` with an ETA of roughly seven
+  hours; `reviewDecision` stays `CHANGES_REQUESTED` until that review lands.
 
 ## Surprises & discoveries
 
