@@ -237,14 +237,15 @@ cloned only on insertion, and error context is built lazily. See
 
     ```makefile
     RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
+    cargo clippy --all-targets --all-features -- -D warnings
     RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- --all-targets --all-features
     ```
 
     building documentation before linting every target with all features
-    enabled. The Makefile decides which warnings are denied: `RUSTDOC_FLAGS`
-    and `RUST_FLAGS` both pass `-D warnings`, so documentation and Clippy
-    warnings fail the command. Whitaker's exit status decides its findings.
+    enabled. The Makefile decides which warnings are denied. By default,
+    `RUSTDOC_FLAGS` and `RUST_FLAGS` both pass `-D warnings`, so documentation
+    and Clippy warnings fail the command unless those variables are
+    overridden. Whitaker's exit status decides its findings.
   - `make test` executes:
 
     ```makefile

@@ -48,7 +48,7 @@ def test_rendered_agents_requires_injected_environment_and_diagnostics(
                 'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
                 'RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps'
             ),
-            "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+            "cargo clippy --all-targets --all-features -- -D warnings",
             (
                 'RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- '
                 "--all-targets --all-features"
