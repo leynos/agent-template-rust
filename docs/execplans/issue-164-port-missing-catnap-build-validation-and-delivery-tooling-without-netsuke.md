@@ -550,6 +550,18 @@ run; recorded skips and platform limits.
   `mergeStateStatus` is `CLEAN`. The head's `CodeRabbit` check is `SKIPPED`
   because the branch review is paused, so a fresh review is queued as comenq
   `5d323265`; the queue quotes roughly eleven hours.
+- [x] 2026-11-14: The queued review posted at 16:43 and reviewed `492e525`. It
+  found one inline issue and one failed User-Facing Documentation row. The
+  inline finding was valid and corrected an earlier mistake: `make all` does
+  invoke spelling last through `+$(MAKE) spelling`, so the users guides no
+  longer call spelling a separate target. The pre-merge row asked for the
+  delayed-comment workflow, the Dependabot policy, and the `rust-analyzer` and
+  shared Whitaker installer changes to appear in both users guides and in the
+  migration guide. All three are now documented in `docs/users-guide.md` and
+  `template/docs/users-guide.md.jinja`, and `docs/migrations/0.5.0.md` gained a
+  CI tool-installation step and a Dependabot step. Gates rerun green:
+  `make check-fmt`, 220 pytest cases across scoped passes, `make typecheck`,
+  `make lint` and `make spelling`.
 
 ## Surprises & discoveries
 

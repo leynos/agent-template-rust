@@ -112,6 +112,12 @@ Development builds use Cranelift for debug code generation. On Linux targets,
 link quickly. Coverage generation uses `lld` instead because LLVM coverage
 tools expect LLVM-compatible linker behaviour.
 
+Generated CI installs `rust-analyzer` with `rustup component add rust-analyzer`
+after the pinned toolchain is available, so editors and analysis tools use the
+same compiler as the build. It installs Whitaker through the shared
+`leynos/shared-actions` `install-whitaker` action rather than a project-local
+cache or installer script.
+
 The build-tool installers and checks, lint gates, Markdown formatter, test
 lanes, coverage dispatch and release workflow described in this guide are new
 in 0.5.0. Existing projects should follow the
@@ -183,7 +189,8 @@ doctest therefore fails the command.
 The generated `Makefile` exposes these public targets:
 
 - `make all` runs formatting checks, linting, tests, the compile-time contract
-  lane, and workflow contracts. Spelling is a separate target.
+  lane, and workflow contracts, then runs spelling last, after those
+  prerequisites.
 - `make check-fmt` verifies Rust formatting and Markdown table formatting.
 - `make fmt` formats Rust and Markdown sources.
 - `make lint` runs the strict YAML, GitHub Actions, and shell gates, then
@@ -228,6 +235,32 @@ The generated `Makefile` exposes these public targets:
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
 full generated workflow locally on Linux.
+
+## Dependency Updates
+
+Generated projects configure `.github/dependabot.yml` to check GitHub Actions,
+Cargo dependencies, and the pinned `rust-toolchain` file daily. It groups
+shared-action callers into one pull request, routine GitHub Action minor and
+patch updates into another, and Cargo and toolchain minor and patch updates
+into further pull requests; a Cargo major update stays on its own pull request.
+Fresh releases cool down for seven days and Cargo major updates for fourteen,
+so a withdrawn or broken release is not adopted immediately. No `labels` list
+is configured, so Dependabot applies its default `dependencies` and ecosystem
+labels.
+
+## Delayed Pull Request Comment
+
+Generated projects include `.github/workflows/delayed-pr-comment.yml`, which
+posts one comment on a pull request after a requested delay. It runs only on
+manual dispatch and takes three inputs: `pr_number`, the pull request to
+comment on; `delay_minutes`, a whole number of minutes capped at 300; and
+`message`, the comment body.
+
+The job declares a 330-minute timeout, so the 300-minute wait and the remaining
+work fit inside one bounded run, and asks for only `pull-requests: write`.
+Every input is untrusted: the numeric inputs are validated in the shell before
+arithmetic or `sleep` sees them, and the comment body reaches the action as an
+action input rather than as part of a shell command.
 
 ## Scheduled Mutation Testing
 
