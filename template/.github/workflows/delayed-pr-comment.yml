@@ -1,0 +1,59 @@
+name: delayed-pr-comment
+
+# Posts one comment after a requested delay. A dispatch is started with
+# free-form text, so every input is untrusted: the numeric inputs are
+# validated in the shell before arithmetic or `sleep` sees them, and the
+# comment body reaches the action as an action input rather than as part of a
+# shell command.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull request number to comment on'
+        required: true
+        type: string
+      delay_minutes:
+        description: 'Whole minutes to wait before commenting'
+        required: true
+        type: string
+      message:
+        description: 'Comment body'
+        required: true
+        type: string
+
+jobs:
+  delay-and-comment:
+    runs-on: ubuntu-latest
+    # The wait below is capped at 300 minutes; this bounds everything else in
+    # the job so a dispatch cannot occupy a runner indefinitely.
+    timeout-minutes: 330
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Validate inputs
+        id: validate
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          DELAY_MINUTES: ${{ inputs.delay_minutes }}
+        run: |
+          for value in "$PR_NUMBER" "$DELAY_MINUTES"; do
+            if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+              echo "pr_number and delay_minutes must be whole numbers" >&2
+              exit 1
+            fi
+          done
+          if (( ${#DELAY_MINUTES} > 4 || 10#$DELAY_MINUTES > 300 )); then
+            echo "delay_minutes must not exceed 300" >&2
+            exit 1
+          fi
+          printf 'delay-seconds=%s\n' "$((10#$DELAY_MINUTES * 60))" >> "$GITHUB_OUTPUT"
+      - name: Wait requested time
+        env:
+          DELAY_SECONDS: ${{ steps.validate.outputs.delay-seconds }}
+        run: sleep "$DELAY_SECONDS"
+      - name: Comment on pull request
+        uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b
+        with:
+          pr-number: ${{ inputs.pr_number }}
+          message: ${{ inputs.message }}

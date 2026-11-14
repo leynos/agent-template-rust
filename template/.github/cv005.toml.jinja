@@ -1,0 +1,10 @@
+# Parameters for the shared CV-005 workflow contract checker that
+# `make test-workflow-contracts` runs. Only `repository` is required.
+repository = "{{ github_repository }}"
+
+# What the ratchet baseline measures: the publisher's generator must carry
+# exactly these inputs, and every lane must measure the same selection.
+[selection]
+format = "lcov"
+output-path = "lcov.info"
+with-ratchet = "true"

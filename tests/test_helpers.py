@@ -488,6 +488,7 @@ def test_ci_coverage_action_contract_validates_edges() -> None:
             coverage_inputs=(
                 "          output-path: lcov.info\n          format: lcov\n"
                 "          with-ratchet: 'true'\n"
+                "          publish-artefact: 'false'\n"
             ),
         )
     )
@@ -501,6 +502,21 @@ def test_ci_coverage_action_contract_validates_edges() -> None:
                 persist_credentials="false",
                 coverage_inputs=(
                     "          output-path: lcov.info\n          format: lcov\n"
+                ),
+            )
+        )
+
+    with pytest.raises(
+        AssertionError,
+        match="expected the pull-request lane to leave the report artefact",
+    ):
+        assert_ci_coverage_action_contract(
+            _ci_workflow(
+                persist_credentials="false",
+                coverage_inputs=(
+                    "          output-path: lcov.info\n          format: lcov\n"
+                    "          with-ratchet: 'true'\n"
+                    "          publish-artefact: 'true'\n"
                 ),
             )
         )

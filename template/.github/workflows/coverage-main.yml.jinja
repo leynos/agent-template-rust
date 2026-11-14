@@ -11,9 +11,14 @@
 # workflow_dispatch is mandatory, not a convenience: merges performed by
 # the automerge workflow's GITHUB_TOKEN do not fire push-event workflows,
 # so automerged changes to main only receive coverage when this workflow
-# is dispatched. The upload is guarded on the token being present, so a
-# generated repository that has not yet been onboarded to CodeScene skips
-# it cleanly.
+# is dispatched. The dependabot-automerge caller dispatches it as soon as it
+# observes that its pull request merged. A merge path that still fails to
+# dispatch, such as an auto-merge armed by the shared workflow and completed
+# later by GitHub, is covered by the daily dispatch in
+# coverage-backstop.yml. The shared CV-005 publisher contract permits only
+# push and workflow_dispatch here, so the schedule cannot live in this file.
+# The upload is guarded on the token being present, so a generated repository
+# that has not yet been onboarded to CodeScene skips it cleanly.
 
 'on':
   push:
@@ -22,9 +27,11 @@
 
 # Publishers queue rather than race or cancel. Runs in the group never
 # overlap, and a newer trigger replaces an older pending run; nothing here
-# promises that runs start in commit order. The coverage action saves the
-# ratchet baseline only on a push, so a dispatch uploads coverage but leaves
-# the baseline where the last completed push left it.
+# promises that runs start in commit order. The baseline is published for
+# every successful run on main: a dispatched run measures the same trunk
+# commit a push would, and a GITHUB_TOKEN merge may produce no push at all.
+# The `publish-baseline` expression keeps a run started from any other ref
+# from advancing the baseline, because the upload itself is main-only.
 concurrency:
   group: coverage-main-${{ github.ref }}
   cancel-in-progress: false
@@ -32,6 +39,12 @@ concurrency:
 jobs:
   coverage-upload:
     runs-on: ubuntu-latest
+    # CV-005 permits the CodeScene credential in this one job only. Restrict
+    # this environment to the `main` branch in repository settings: GitHub
+    # then refuses a branch dispatch of the workflow before the job runs,
+    # rather than relying on the upload step's own ref guard. The template
+    # cannot configure that protection rule for the generated repository.
+    environment: codescene
     permissions:
       contents: read
     env:
@@ -55,6 +68,18 @@ jobs:
         env:
           RUSTFLAGS: ""
         run: cargo binstall --no-confirm --locked cargo-nextest
+      # Compile-time contract tests run before coverage so their nested Cargo
+      # invocations are not instrumented and do not compete for the cache.
+      - name: Run compile-time UI tests
+        run: make test-ui
+      # As in ci.yml: the UI lane already ran the compile-time targets, and the
+      # shared coverage action always runs workspace nextest. Deselecting them
+      # in the project's nextest profile keeps their nested Cargo builds out of
+      # the instrumented run, where they would repeat work without the
+      # serialized group. They stay in the crate, so an explicit `[[test]]`
+      # declaration keeps pointing at an existing file.
+      - name: Exclude compile-time targets from the coverage build
+        run: scripts/exclude-ui-targets.sh
       - name: Log coverage linker configuration
         run: |
           echo "Coverage linker: clang"
@@ -72,6 +97,11 @@ jobs:
           output-path: lcov.info
           format: lcov
           with-ratchet: 'true'
+          # A push event is not the only way main changes: an automerge caller
+          # dispatches this workflow, and a GITHUB_TOKEN merge produces no push
+          # event at all. Publish the baseline whenever the measured ref is
+          # main, and leave any other ref's baseline untouched.
+          publish-baseline: ${{ github.ref == 'refs/heads/main' && 'always' || 'auto' }}
       # Publishes whether the token exists, and nothing else. The token is in
       # no `env` on this workflow: the upload is a composite action whose
       # nested steps inherit the calling step's `env`. GitHub evaluates the
@@ -93,4 +123,4 @@ jobs:
           format: lcov
           mode: upload
           access-token: ${{ secrets.CS_ACCESS_TOKEN }}
-{% endraw %}
+{%- endraw %}

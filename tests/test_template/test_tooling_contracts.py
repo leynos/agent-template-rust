@@ -19,6 +19,7 @@ from tests.helpers.generated_files import (
 )
 from tests.helpers.rendering import APP, LIB, render_project
 from tests.helpers.tooling_contracts import (
+    assert_coverage_backstop_workflow_contract,
     assert_coverage_main_workflow_contract,
     assert_generated_tooling_contracts,
     assert_polonius_toolchain_contracts,
@@ -106,31 +107,68 @@ def test_polonius_contract_rejects_incorrect_coverage_log() -> None:
         _assert_coverage_workflow(workflow, "build-test", enabled=True)
 
 
-def test_polonius_contract_rejects_release_rustflags_env_override() -> None:
-    """Reject a release build step that overrides setup-rust flags."""
-    workflow = """jobs:
+@pytest.mark.parametrize("toolchain", ["stable", "nightly-2026-01-01"])
+def test_polonius_contract_rejects_a_pinned_release_toolchain(
+    toolchain: str,
+) -> None:
+    """Reject a Polonius release that selects a toolchain of its own.
+
+    ``rust-toolchain.toml`` is the single source of truth for the dated
+    nightly, so a release that names a channel or another date can drift from
+    the compiler development uses.
+    """
+    workflow = f"""jobs:
   build:
     steps:
       - uses: leynos/shared-actions/.github/actions/setup-rust@b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea
         with:
-          toolchain: nightly-2025-06-10
+          toolchain: {toolchain}
           rustflags: -Zpolonius=next
       - name: Log Rust compiler configuration
         run: |
           rustc --version
           printf 'Base RUSTFLAGS: %s\\n' "$RUSTFLAGS"
-      - name: Build release binary
+      - name: Build release binary (cross)
         env:
-          RUSTFLAGS: -D warnings
-        run: cross +nightly-2025-06-10 build --release
+          RUSTFLAGS: -Zpolonius=next
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: cc
+        run: cross build --release
+      - name: Build release binary (native)
+        env:
+          RUSTFLAGS: -Zpolonius=next
+        run: cargo build --release
 """
 
-    with pytest.raises(AssertionError, match="release build env to be absent"):
-        _assert_release_workflow(
-            workflow,
-            '[toolchain]\nchannel = "nightly-2025-06-10"\n',
-            enabled=True,
-        )
+    with pytest.raises(AssertionError, match="release setup-rust toolchain input"):
+        _assert_release_workflow(workflow, enabled=True)
+
+
+def test_polonius_contract_rejects_the_flag_in_a_stable_release() -> None:
+    """Reject a release without Polonius that carries the nightly flag."""
+    workflow = """jobs:
+  build:
+    steps:
+      - uses: leynos/shared-actions/.github/actions/setup-rust@b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea
+        with:
+          toolchain: stable
+          rustflags: -Zpolonius=next
+      - name: Log Rust compiler configuration
+        run: |
+          rustc --version
+          printf 'Base RUSTFLAGS: %s\\n' "$RUSTFLAGS"
+      - name: Build release binary (cross)
+        env:
+          RUSTFLAGS: -Zpolonius=next
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: cc
+        run: cross +stable build --release
+      - name: Build release binary (native)
+        env:
+          RUSTFLAGS: -Zpolonius=next
+        run: cargo +stable build --release
+"""
+
+    with pytest.raises(AssertionError, match="carry only the flags"):
+        _assert_release_workflow(workflow, enabled=False)
 
 
 @pytest.mark.parametrize(
@@ -167,6 +205,8 @@ def test_generated_tooling_contracts(
     cargo = parse_toml_file(project / "Cargo.toml")
     package = require_mapping(cargo, "package", "Cargo.toml")
     metadata = require_optional_mapping(package, "metadata", "Cargo.toml package")
+    profile = require_mapping(cargo, "profile", "Cargo.toml")
+    dev_profile = require_mapping(profile, "dev", "Cargo.toml profile")
     makefile = read_generated_text(project / "Makefile")
     cargo_config = read_generated_text(project / ".cargo/config.toml")
     ci_workflow = read_generated_text(project / ".github/workflows/ci.yml")
@@ -174,6 +214,9 @@ def test_generated_tooling_contracts(
     act_workflow = read_generated_text(project / ".github/workflows/act-validation.yml")
     coverage_main_workflow = read_generated_text(
         project / ".github/workflows/coverage-main.yml"
+    )
+    coverage_backstop_workflow = read_generated_text(
+        project / ".github/workflows/coverage-backstop.yml"
     )
     mutation_workflow = read_generated_text(
         project / ".github/workflows/mutation-testing.yml"
@@ -210,6 +253,7 @@ def test_generated_tooling_contracts(
     assert_generated_tooling_contracts(
         package=package,
         metadata=metadata,
+        dev_profile=dev_profile,
         flavour=flavour,
         makefile=makefile,
         cargo_config=cargo_config,
@@ -227,6 +271,7 @@ def test_generated_tooling_contracts(
         release_workflow=release_workflow,
     )
     assert_coverage_main_workflow_contract(coverage_main_workflow)
+    assert_coverage_backstop_workflow_contract(coverage_backstop_workflow)
     assert_polonius_toolchain_contracts(
         enabled=enable_polonius,
         dev_target=dev_target,

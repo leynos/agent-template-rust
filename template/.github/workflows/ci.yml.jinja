@@ -1,4 +1,4 @@
-{% raw %}
+{% raw -%}
 name: CI
 
 'on':
@@ -14,7 +14,6 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       BUILD_PROFILE: debug
-      WHITAKER_INSTALLER_VERSION: '0.2.11'
     steps:
       - uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
         with:
@@ -30,6 +29,15 @@ jobs:
         run: |-
           rustc --version
           printf 'Base RUSTFLAGS: %s\n' "$RUSTFLAGS"
+      # setup-rust installs rustfmt, clippy and llvm-tools-preview; the
+      # editor and analysis integrations need rust-analyzer separately.
+      - name: Install rust-analyzer
+        run: rustup component add rust-analyzer
+      - name: Install mdtablefix
+        # `make check-fmt` runs `mdtablefix --check --git`.
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@0eabb6bc07148981de5da395e30cd78d83f5c7c2
+        with:
+          version: "0.6.1"
       - name: Format
         run: make check-fmt
       - name: Markdown lint
@@ -41,6 +49,13 @@ jobs:
             !**/dist/**
       - name: Setup uv
         uses: astral-sh/setup-uv@12d13f90bc3a5a1971bebad4beb09a4dfa962e91
+      - name: Install the YAML lint tools
+        uses: leynos/shared-actions/.github/actions/install-yaml-lint@26c918632c5413039a84358fafe012a4399a9ec7
+      # The checker is the shared CV-005 rules, pinned in the Makefile; it
+      # proves the pull-request lane never reaches CodeScene and that only the
+      # publisher uploads and advances the ratchet baseline.
+      - name: Check the CV-005 workflow contracts
+        run: make test-workflow-contracts
       - name: Check spelling
         run: make spelling
       - name: Install test runner
@@ -61,35 +76,31 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.x'
-      - name: Cache Whitaker installation
-        id: cache-whitaker
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
-        with:
-          path: |
-            ~/.cargo/bin/whitaker-installer
-            ~/.local/bin/whitaker
-            ~/.dylint_drivers
-            ~/.local/share/whitaker
-          key: whitaker-v3-${{ runner.os }}-${{ env.WHITAKER_INSTALLER_VERSION }}
+      # The shared action owns the installer version, its archive checksums,
+      # the bootstrap cache and the no-source-fallback policy. Cranelift is
+      # installed because development builds select that codegen backend.
       - name: Install Whitaker
-        env:
-          RUSTFLAGS: ""
-          WHITAKER_CACHE_HIT: ${{ steps.cache-whitaker.outputs.cache-hit }}
-        run: |
-          set -euo pipefail
-          echo "Whitaker cache hit: ${WHITAKER_CACHE_HIT}"
-          if [ "${WHITAKER_CACHE_HIT}" != "true" ]; then
-            echo "Installing whitaker-installer ${WHITAKER_INSTALLER_VERSION}"
-            cargo binstall --no-confirm --locked \
-              whitaker-installer@"${WHITAKER_INSTALLER_VERSION}"
-          fi
-          whitaker-installer --cranelift
-          echo "Whitaker binary: $(command -v whitaker || true)"
+        uses: leynos/shared-actions/.github/actions/install-whitaker@0eabb6bc07148981de5da395e30cd78d83f5c7c2
+        with:
+          cranelift: 'true'
       - name: Audit dependencies
         if: github.actor != 'dependabot[bot]'
         run: make audit
       - name: Lint
         run: make lint
+      # Compile-time contract tests run before coverage so their nested Cargo
+      # invocations are not instrumented and do not compete for the cache.
+      - name: Run compile-time UI tests
+        run: make test-ui
+      # The UI lane above already ran the compile-time targets. The shared
+      # coverage action exposes no test filter and always runs workspace
+      # nextest, so the instrumented build deselects them in the project's own
+      # nextest profile: a nested Cargo project gains no coverage and would run
+      # outside the serialized group. `make test` and `make coverage` pass the
+      # equivalent `-E` filter. The targets stay in the crate, so an explicit
+      # `[[test]]` declaration keeps pointing at an existing file.
+      - name: Exclude compile-time targets from the coverage build
+        run: scripts/exclude-ui-targets.sh
       - name: Log coverage linker configuration
         run: |
           echo "Coverage linker: clang"
@@ -110,4 +121,4 @@ jobs:
           # The publisher in coverage-main.yml owns the coverage artefact and
           # the ratchet baseline; this lane only compares against it.
           publish-artefact: 'false'
-{% endraw %}
+{%- endraw %}

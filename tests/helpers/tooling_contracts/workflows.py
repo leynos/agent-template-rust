@@ -16,16 +16,15 @@ from tests.helpers.generated_files import (
     require_mapping,
     require_sequence,
 )
-from tests.helpers.tooling_contracts.codescene_publisher import (
-    assert_ci_workflow_reaches_no_codescene,
-    assert_codescene_publisher_contract,
-)
 
 _GENERATE_COVERAGE_USES_RE = re.compile(
     r"^leynos/shared-actions/\.github/actions/generate-coverage@[0-9a-f]{40}$"
 )
 _UPLOAD_CODESCENE_COVERAGE_USES_RE = re.compile(
     r"^leynos/shared-actions/\.github/actions/upload-codescene-coverage@[0-9a-f]{40}$"
+)
+_INSTALL_WHITAKER_USES_RE = re.compile(
+    r"^leynos/shared-actions/\.github/actions/install-whitaker@[0-9a-f]{40}$"
 )
 _SETUP_RUST_USES_RE = re.compile(
     r"leynos/shared-actions/\.github/actions/setup-rust@[0-9a-f]{40}"
@@ -118,6 +117,9 @@ def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
     )
     assert coverage_inputs.get("with-ratchet") == "true", (
         "expected CI coverage step to enable the coverage ratchet"
+    )
+    assert coverage_inputs.get("publish-artefact") == "false", (
+        "expected the pull-request lane to leave the report artefact to the publisher"
     )
 
 
@@ -221,10 +223,12 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
     ------
     AssertionError
         Raised when the workflow does not trigger on push to main and
-        ``workflow_dispatch``, omits the pinned shared coverage action, drops
-        the ratchet baseline that pull-request runs compare against, or
-        breaks the CodeScene token, guard or queue shape held by
-        ``assert_codescene_publisher_contract``.
+        ``workflow_dispatch``, carries any other trigger (the shared CV-005
+        publisher contract permits only those two), omits the pinned shared
+        coverage action, drops the ratchet baseline that pull-request runs
+        compare against, publishes that baseline from a non-main ref, or omits
+        the ``codescene`` environment from the uploading job. The shared
+        CV-005 checker holds the token, guard and queue shape.
     pytest.fail.Exception
         Raised by YAML parsing helpers when the workflow cannot be parsed as
         the expected mapping structure.
@@ -235,9 +239,10 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
     assert push.get("branches") == ["main"], (
         "expected coverage-main.yml to upload on push to main"
     )
-    assert "workflow_dispatch" in triggers, (
-        "expected coverage-main.yml to allow workflow_dispatch; automerge "
-        "GITHUB_TOKEN pushes do not fire push-event workflows"
+    assert set(triggers) == {"push", "workflow_dispatch"}, (
+        "expected coverage-main.yml to trigger only on push to main and "
+        "workflow_dispatch; the shared publisher contract permits no other "
+        "trigger, and automerge GITHUB_TOKEN merges fire no push workflow"
     )
     jobs = require_mapping(parsed, "jobs", "coverage-main workflow")
     coverage_upload = require_mapping(jobs, "coverage-upload", "coverage-main jobs")
@@ -255,6 +260,18 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
     assert coverage_inputs.get("with-ratchet") == "true", (
         "expected coverage-main.yml to advance the ratchet baseline"
     )
+    publish_baseline = str(coverage_inputs.get("publish-baseline", ""))
+    # The whole expression is asserted rather than its parts: "refs/heads/main"
+    # also appears in a negated condition, and "always" also appears in the
+    # fallback a non-main ref receives.
+    expected_publish_baseline = (
+        "${{ github.ref == 'refs/heads/main' && 'always' || 'auto' }}"
+    )
+    assert publish_baseline == expected_publish_baseline, (
+        "expected a run measured on main to publish the baseline, including a "
+        "dispatch, and any other ref to leave it untouched, got "
+        f"{publish_baseline!r}"
+    )
     upload_steps = [
         step
         for step in steps
@@ -269,7 +286,77 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
         "expected coverage-main.yml to use the shared upload action pinned "
         f"to a full 40-hex commit SHA, got {upload_uses!r}"
     )
-    assert_codescene_publisher_contract(parsed)
+    assert coverage_upload.get("environment") == "codescene", (
+        "expected the uploading job to declare the codescene environment; "
+        "CV-005 refuses the credential anywhere else"
+    )
+    upload_inputs = require_mapping(upload_steps[0], "with", "upload step")
+    assert upload_inputs.get("mode") == "upload", (
+        "expected the publisher to upload the measured report"
+    )
+    assert upload_inputs.get("access-token") == "${{ secrets.CS_ACCESS_TOKEN }}", (
+        "expected the upload to take the token as its access-token input"
+    )
+
+
+def assert_coverage_backstop_workflow_contract(backstop_workflow: str) -> None:
+    """Assert the generated ``coverage-backstop.yml`` dispatch contract.
+
+    Parameters
+    ----------
+    backstop_workflow
+        Rendered generated-project ``coverage-backstop.yml`` workflow text.
+
+    Returns
+    -------
+    None
+        The helper returns ``None`` when the backstop contract passes.
+
+    Raises
+    ------
+    AssertionError
+        Raised when the workflow is not scheduled, does not allow a manual
+        dispatch, lacks ``actions: write`` for the dispatch job, or does not
+        dispatch the coverage publisher on ``main``.
+    pytest.fail.Exception
+        Raised by YAML parsing helpers when the workflow cannot be parsed as
+        the expected mapping structure.
+    """
+    parsed = parse_yaml_mapping(backstop_workflow, "coverage-backstop workflow")
+    triggers = require_mapping(parsed, "on", "coverage-backstop workflow")
+    assert set(triggers) == {"schedule", "workflow_dispatch"}, (
+        "expected coverage-backstop.yml to run on a schedule and on manual "
+        "dispatch only"
+    )
+    schedule = require_sequence(triggers, "schedule", "coverage-backstop workflow on")
+    assert schedule, "expected coverage-backstop.yml to declare a daily schedule"
+    for entry in schedule:
+        assert isinstance(entry, dict) and "cron" in entry, (
+            "expected every coverage-backstop schedule entry to declare a cron slot"
+        )
+    jobs = require_mapping(parsed, "jobs", "coverage-backstop workflow")
+    dispatch = require_mapping(jobs, "dispatch", "coverage-backstop jobs")
+    permissions = require_mapping(dispatch, "permissions", "coverage-backstop job")
+    assert permissions.get("actions") == "write", (
+        "expected the backstop dispatch job to request actions: write, which "
+        "gh workflow run needs"
+    )
+    steps = require_sequence(dispatch, "steps", "coverage-backstop job")
+    dispatch_steps = [
+        step
+        for step in _step_mappings(steps)
+        if step.get("run") == "gh workflow run coverage-main.yml --ref main"
+    ]
+    assert dispatch_steps, (
+        "expected coverage-backstop.yml to dispatch coverage-main.yml on main, "
+        "because a GITHUB_TOKEN merge fires no push-event workflow"
+    )
+    dispatch_env = require_mapping(dispatch_steps[0], "env", "backstop dispatch step")
+    # This job has no checkout, and `gh workflow run` needs a repository:
+    # without a local Git directory it fails before dispatching.
+    assert dispatch_env.get("GH_REPO") == "${{ github.repository }}", (
+        "expected the checkout-free dispatch to name the repository for gh"
+    )
 
 
 def assert_setup_rust_revision_consistency(
@@ -382,7 +469,6 @@ def _assert_ci_workflow_contracts(
     rust_tool_install_step_names = [
         "Install test runner",
         "Install cargo-audit",
-        "Install Whitaker",
     ]
     for step_name in rust_tool_install_step_names:
         matching_steps = [
@@ -398,8 +484,36 @@ def _assert_ci_workflow_contracts(
             f"expected generated CI {step_name} step to clear inherited RUSTFLAGS"
         )
 
-    assert "Cache Whitaker installation" in ci_workflow, (
-        "expected generated CI workflow to cache Whitaker installation"
+    whitaker_steps = [
+        step
+        for step in _step_mappings(steps)
+        if str(step.get("uses", "")).startswith(
+            "leynos/shared-actions/.github/actions/install-whitaker@"
+        )
+    ]
+    assert len(whitaker_steps) == 1, (
+        "expected generated CI to install Whitaker once through the shared action"
+    )
+    assert _INSTALL_WHITAKER_USES_RE.fullmatch(
+        str(whitaker_steps[0].get("uses", ""))
+    ), (
+        "expected generated CI to pin the shared install-whitaker action to a "
+        "full 40-hex commit SHA"
+    )
+    whitaker_inputs = whitaker_steps[0].get("with") or {}
+    assert whitaker_inputs.get("cranelift") == "true", (
+        "expected the shared Whitaker installer to provide Cranelift for "
+        "development builds"
+    )
+    whitaker_env = whitaker_steps[0].get("env") or {}
+    assert "RUSTFLAGS" not in whitaker_env, (
+        "expected the shared Whitaker action to own its build flags"
+    )
+    assert "Cache Whitaker installation" not in ci_workflow, (
+        "expected generated CI to leave the installer cache to the shared action"
+    )
+    assert "whitaker-installer" not in ci_workflow, (
+        "expected generated CI to leave installer selection to the shared action"
     )
     _assert_pinned_step_uses(
         steps, _SETUP_RUST_USES_RE, "generated CI shared setup-rust action"
@@ -427,7 +541,6 @@ def _assert_ci_workflow_contracts(
         "expected the generated pull-request CI job to omit the CodeScene "
         "upload step; coverage-main.yml is the only CodeScene caller"
     )
-    assert_ci_workflow_reaches_no_codescene(ci_workflow)
     assert "cargo-nextest" in ci_workflow, (
         "expected generated CI workflow to install cargo-nextest"
     )
@@ -462,15 +575,16 @@ def _assert_ci_workflow_contracts(
     assert "LDFLAGS: -fuse-ld=lld" in ci_workflow, (
         "expected generated CI workflow coverage to set LDFLAGS for lld"
     )
-    assert "Whitaker cache hit:" in ci_workflow, (
-        "expected generated CI workflow to log Whitaker cache status"
-    )
-    assert "Installing whitaker-installer" in ci_workflow, (
-        "expected generated CI workflow to log Whitaker installation"
-    )
-    assert "Whitaker binary:" in ci_workflow, (
-        "expected generated CI workflow to log Whitaker binary resolution"
-    )
+    assert any(
+        step.get("name") == "Install rust-analyzer"
+        and "rustup component add rust-analyzer" in str(step.get("run", ""))
+        for step in _step_mappings(steps)
+    ), "expected generated CI to install rust-analyzer beyond setup-rust"
+    assert any(
+        step.get("name") == "Check the CV-005 workflow contracts"
+        and step.get("run") == "make test-workflow-contracts"
+        for step in _step_mappings(steps)
+    ), "expected generated CI to run the shared workflow contract checker"
     assert "Log coverage linker configuration" in ci_workflow, (
         "expected generated CI workflow to log coverage linker configuration"
     )

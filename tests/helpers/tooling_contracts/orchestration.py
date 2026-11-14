@@ -7,6 +7,7 @@ from typing import Any
 from tests.helpers.tooling_contracts.cargo import (
     _assert_cargo_config_contracts,
     _assert_cargo_package_contracts,
+    _assert_dev_profile_contracts,
 )
 from tests.helpers.tooling_contracts.documentation import (
     assert_documentation_navigation_contracts,
@@ -26,6 +27,7 @@ def assert_generated_tooling_contracts(
     *,
     package: dict[str, Any],
     metadata: dict[str, Any],
+    dev_profile: dict[str, Any],
     flavour: str,
     makefile: str,
     cargo_config: str,
@@ -50,6 +52,8 @@ def assert_generated_tooling_contracts(
         Parsed ``Cargo.toml`` package table for the generated project.
     metadata
         Parsed optional ``Cargo.toml`` package metadata table.
+    dev_profile
+        Parsed ``Cargo.toml`` development profile table.
     flavour
         Generated project flavour, such as ``app`` or ``lib``.
     makefile
@@ -90,8 +94,9 @@ def assert_generated_tooling_contracts(
     Raises
     ------
     AssertionError
-        Raised when any generated Cargo metadata, Makefile, Cargo config, CI,
-        documentation, README, test-stub, or release-workflow contract fails.
+        Raised when any generated Cargo metadata, development profile,
+        Makefile, Cargo config, CI, documentation, README, test-stub, or
+        release-workflow contract fails.
 
     Notes
     -----
@@ -99,6 +104,7 @@ def assert_generated_tooling_contracts(
     can validate a rendered project through one contract entrypoint.
     """
     _assert_cargo_package_contracts(package, metadata, flavour)
+    _assert_dev_profile_contracts(dev_profile)
     _assert_makefile_contracts(makefile)
     _assert_cargo_config_contracts(cargo_config, dev_target, rust_toolchain)
     _assert_ci_workflow_contracts(
