@@ -517,6 +517,30 @@ run; recorded skips and platform limits.
   build tools, Cargo flags, test lanes, Markdown formatter, release dispatch,
   coverage backstop and CV-005 configuration, and `docs/users-guide.md` and
   `README.md` link it.
+- [x] 2026-11-13: Docstring and migration work published as `162e5ae` after
+  `make check-fmt`, the whole pytest suite in three scoped passes (97 + 66 + 55
+  = 218 collected, 2 expected `act` skips), `make typecheck`, `make lint` and
+  `make spelling` passed. Six disposition replies were posted to the open
+  review threads through the comment-token pool, CodeRabbit confirmed the
+  `GH_REPO` fix, and the last open thread was resolved, leaving all 15 threads
+  resolved. Hosted `act-validation` and `build-test` both pass on `162e5ae` and
+  `mergeStateStatus` is `CLEAN`. CodeRabbit has auto-paused the review for this
+  branch, so a fresh review request is queued as comenq `5b27616d`; the shared
+  queue is roughly five hours deep, which is a wait rather than a blocker.
+- [x] 2026-11-14: The queued review ran and returned three inline findings plus
+  one failed pre-merge row. The AArch64 linker finding was valid: the pinned
+  `cross` image sets `CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER` to
+  `aarch64-linux-gnu-gcc` and installs a host `cc` beside it, so the workflow's
+  blanket `cc` override would have linked the release with the wrong compiler.
+  The step now keeps `cc` for x86_64 and selects the target-prefixed driver for
+  AArch64. `docs/migrations/0.5.0.md` was restructured to the repository's
+  migration-guide contract (both endpoints in the title, who should read it, an
+  obligation table, numbered tasks, unaffected behaviour, a checklist and exact
+  diagnostics), the nextest exclusion statements in the generated `AGENTS.md`
+  and users guide now name the `cargo test` fallback, and the developer's guide
+  lists the two new test helper modules. Parent gates rerun green:
+  `make check-fmt`, 218 pytest cases in three passes, `make typecheck`,
+  `make lint` and `make spelling`.
 
 ## Surprises & discoveries
 

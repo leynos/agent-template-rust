@@ -319,8 +319,12 @@ def _assert_release_workflow(release_workflow: str, *, enabled: bool) -> None:
         f"targets, got {linker_step.get('if')!r}"
     )
     linker_run = str(linker_step.get("run", ""))
-    assert "CARGO_TARGET_%s_LINKER=cc" in linker_run, (
+    assert "CARGO_TARGET_%s_LINKER=%s" in linker_run, (
         "expected the cross linker step to override the matrix target's linker"
+    )
+    assert "aarch64-*) linker=aarch64-linux-gnu-gcc" in linker_run, (
+        "expected the AArch64 leg to keep the image's target-prefixed gcc, "
+        "because the image also installs a host compiler called cc"
     )
     assert "$GITHUB_ENV" in linker_run, (
         "expected the cross linker override to reach later steps"

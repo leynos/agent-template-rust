@@ -273,6 +273,14 @@ Reusable test support lives under `tests/helpers/`:
   apply controlled overrides.
 - `tests/helpers/generated_files.py` centralizes generated text, TOML, and YAML
   parsing with pytest failure messages.
+- `tests/helpers/build_tool_sandbox.py` builds a PATH-limited sandbox with
+  fake rustup, version stubs, and checksum-verified `mold` releases, so
+  `test_build_tools.py` and `test_build_tool_flags.py` can exercise the
+  generated installers and checks without touching the machine.
+- `tests/helpers/delivery_workflows.py` renders delivery-test projects and
+  provides the workflow trigger and named-step lookup helpers shared by the
+  Dependabot, delayed-comment, pull-request automation, release-publication,
+  and release-workflow tests.
 - `tests/helpers/tooling_contracts/` contains generated Makefile, Cargo,
   documentation, CI, release, coverage-action, delivery, and mutation-testing
   contract assertions. Workflow-level CV-005 checks live in

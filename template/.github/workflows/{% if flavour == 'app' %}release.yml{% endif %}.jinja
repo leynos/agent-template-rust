@@ -132,11 +132,18 @@ jobs:
         # targets, the cross image has gcc and no clang instead. An environment
         # value beats the config file, and cross forwards CARGO_* variables
         # into the container. The variable name carries the matrix target, so
-        # it cannot be spelled as a static `env` key.
+        # it cannot be spelled as a static `env` key. The image also installs a
+        # native compiler beside the cross one, so the target keeps the
+        # image's target-prefixed driver and only the native x86_64 leg uses
+        # `cc`.
         run: |
           set -euo pipefail
           target_key=$(printf '%s' "${{ matrix.target }}" | tr 'a-z-' 'A-Z_')
-          printf 'CARGO_TARGET_%s_LINKER=cc\n' "$target_key" >> "$GITHUB_ENV"
+          linker=cc
+          case "${{ matrix.target }}" in
+            aarch64-*) linker=aarch64-linux-gnu-gcc ;;
+          esac
+          printf 'CARGO_TARGET_%s_LINKER=%s\n' "$target_key" "$linker" >> "$GITHUB_ENV"
       - name: Add native target
         if: matrix.builder == 'cargo'
         run: >-

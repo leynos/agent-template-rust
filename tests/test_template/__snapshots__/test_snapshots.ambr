@@ -797,7 +797,11 @@
               'run': '''
                 set -euo pipefail
                 target_key=$(printf '%s' "${{ matrix.target }}" | tr 'a-z-' 'A-Z_')
-                printf 'CARGO_TARGET_%s_LINKER=cc\n' "$target_key" >> "$GITHUB_ENV"
+                linker=cc
+                case "${{ matrix.target }}" in
+                  aarch64-*) linker=aarch64-linux-gnu-gcc ;;
+                esac
+                printf 'CARGO_TARGET_%s_LINKER=%s\n' "$target_key" "$linker" >> "$GITHUB_ENV"
   
               ''',
             }),

@@ -277,8 +277,10 @@ cloned only on insertion, and error context is built lazily. See
     all-feature workspace doctests separately with Rustdoc warnings denied.
     `make test-ui` runs compile-time contract targets named
     `tests/compile_*.rs` when a project adds them, with
-    `UI_TEST_FLAGS ?= --all-features`; `make test` excludes those targets and
-    `make all` runs the lane. The hosted coverage job runs the lane and then
+    `UI_TEST_FLAGS ?= --all-features`; with nextest, `make test` excludes those
+    targets and `make all` runs the lane, while the `cargo test` fallback has
+    no filter syntax and runs them as ordinary tests. The hosted coverage job
+    runs the lane and then
     `scripts/exclude-ui-targets.sh`, which adds the same filter as
     `default-filter` to `[profile.default]`; the shared coverage action takes no
     filter argument, and the targets stay in the crate so an explicit

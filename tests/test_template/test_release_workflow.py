@@ -129,8 +129,15 @@ def _assert_build_steps(
         "matrix.builder == 'cross' && contains(matrix.target, 'linux')"
     ), "expected the linker override to apply to cross-built Linux legs only"
     linker_run = str(linker.get("run"))
-    assert "CARGO_TARGET_%s_LINKER=cc" in linker_run, (
-        "expected the cross image to select gcc for the matrix target"
+    assert "linker=cc" in linker_run, (
+        "expected the native Linux leg to keep the image's cc driver"
+    )
+    assert "aarch64-*) linker=aarch64-linux-gnu-gcc" in linker_run, (
+        "expected the AArch64 leg to select the image's target-prefixed gcc "
+        "instead of the native compiler"
+    )
+    assert "CARGO_TARGET_%s_LINKER=%s" in linker_run, (
+        "expected the selected driver to reach the matrix target's variable"
     )
     assert "$GITHUB_ENV" in linker_run, (
         "expected the linker override to reach the following build step"
