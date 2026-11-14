@@ -584,9 +584,27 @@ run; recorded skips and platform limits.
   `CodeRabbit` check is still `SKIPPED` because the branch review is paused, so
   a fresh review is queued as comenq `8bf1ed5c` with an ETA of roughly seven
   hours; `reviewDecision` stays `CHANGES_REQUESTED` until that review lands.
+- [x] 2026-11-14: The queued review of `206c82d` landed at 22:39:56 with three
+  inline findings and one failed pre-merge row, all verified against source
+  before repair. The migration guide now states that `cooldown` applies to
+  version updates only, so a security update opens immediately and shortening a
+  cooldown cannot accelerate one; that a local `make lint` still needs
+  `whitaker` on `PATH` or at `$HOME/.local/bin/whitaker` while CI uses the
+  shared installer; and it gains a section for both new callers,
+  `delayed-pr-comment.yml` and `dependabot-automerge.yml`, including that the
+  automerge caller dispatches `coverage-main.yml` only after it observes a
+  merge into `main`. The generated `AGENTS.md` pre-commit list now names
+  `make test-ui` and explains the lane. Parent gates rerun green sequentially:
+  `make check-fmt`, `make test` (218 passed, 2 expected `act` skips),
+  `make typecheck`, `make lint` and `make spelling`, and a fresh render into
+  `/tmp` confirms `AGENTS.md` and both guides stay `mdtablefix` fixed points.
 
 ## Surprises & discoveries
 
+- GitHub's Dependabot `cooldown` setting applies to version updates only.
+  Security updates open as soon as an advisory is published, whatever the
+  cooldown says, so widening or shortening it changes routine upgrade cadence
+  and nothing about the security path.
 - Stable Cargo 1.99 fails to parse `[profile.dev] codegen-backend` with
   "feature `codegen-backend` is required", so the existing template
   configuration cannot be used by a stable release build. Catnap's

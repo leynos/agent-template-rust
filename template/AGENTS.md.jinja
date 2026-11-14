@@ -236,7 +236,7 @@ cloned only on insertion, and error context is built lazily. See
   with and without `-Zpolonius=next` as described in `docs/polonius.md`.
 
 {% endif -%}
-- Run `make check-fmt`, `make lint`, `make test`, and
+- Run `make check-fmt`, `make lint`, `make test`, `make test-ui`, and
   `make test-workflow-contracts` before committing. These targets wrap the
   following commands, so contributors understand the exact behaviour and policy
   enforced:
@@ -298,6 +298,9 @@ cloned only on insertion, and error context is built lazily. See
     `default-filter` to `[profile.default]`; the shared coverage action takes no
     filter argument, and the targets stay in the crate so an explicit
     `[[test]]` declaration keeps its file.
+  - `make test-ui` runs the compile-time contract targets named
+    `tests/compile_*.rs` under the serialized `ui` profile, and reports an
+    intentional no-op when the project has none.
   - `make test-workflow-contracts` runs the pinned shared CV-005 checker over
     the repository using the selection in `.github/cv005.toml`.
 - Clippy warnings MUST be disallowed.
