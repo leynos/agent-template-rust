@@ -488,9 +488,25 @@ def test_ci_coverage_action_contract_validates_edges() -> None:
             coverage_inputs=(
                 "          output-path: lcov.info\n          format: lcov\n"
                 "          with-ratchet: 'true'\n"
+                "          all-targets: 'true'\n          all-features: 'true'\n"
+                "          doctests: 'true'\n"
             ),
         )
     )
+
+    with pytest.raises(
+        AssertionError, match="expected CI coverage step to enable doctests"
+    ):
+        assert_ci_coverage_action_contract(
+            _ci_workflow(
+                persist_credentials="false",
+                coverage_inputs=(
+                    "          output-path: lcov.info\n          format: lcov\n"
+                    "          with-ratchet: 'true'\n"
+                    "          all-targets: 'true'\n          all-features: 'true'\n"
+                ),
+            )
+        )
 
     with pytest.raises(
         AssertionError,

@@ -119,6 +119,11 @@ def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
     assert coverage_inputs.get("with-ratchet") == "true", (
         "expected CI coverage step to enable the coverage ratchet"
     )
+    for scope_input in ("all-targets", "all-features", "doctests"):
+        assert coverage_inputs.get(scope_input) == "true", (
+            f"expected CI coverage step to enable {scope_input}, because it is "
+            "the pull request's only test execution and must match make test"
+        )
 
 
 def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
@@ -255,6 +260,11 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
     assert coverage_inputs.get("with-ratchet") == "true", (
         "expected coverage-main.yml to advance the ratchet baseline"
     )
+    for scope_input in ("all-targets", "all-features", "doctests"):
+        assert coverage_inputs.get(scope_input) == "true", (
+            f"expected coverage-main.yml to enable {scope_input}, so the "
+            "baseline measures the scope the pull request gate runs"
+        )
     upload_steps = [
         step
         for step in steps

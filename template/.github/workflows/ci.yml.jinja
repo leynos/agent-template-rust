@@ -110,4 +110,9 @@ jobs:
           # The publisher in coverage-main.yml owns the coverage artefact and
           # the ratchet baseline; this lane only compares against it.
           publish-artefact: 'false'
+          # Match `make test`'s scope (all targets, all features, doctests):
+          # this job is the pull request's only test execution in CI.
+          all-targets: 'true'
+          all-features: 'true'
+          doctests: 'true'
 {% endraw %}

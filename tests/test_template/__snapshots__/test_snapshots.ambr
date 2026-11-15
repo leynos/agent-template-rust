@@ -220,6 +220,9 @@
               'name': 'Test and Measure Coverage',
               'uses': 'leynos/shared-actions/.github/actions/generate-coverage@<sha>',
               'with': dict({
+                'all-features': 'true',
+                'all-targets': 'true',
+                'doctests': 'true',
                 'format': 'lcov',
                 'output-path': 'lcov.info',
                 'publish-artefact': 'false',
@@ -306,6 +309,9 @@
               'name': 'Test and Measure Coverage',
               'uses': 'leynos/shared-actions/.github/actions/generate-coverage@<sha>',
               'with': dict({
+                'all-features': 'true',
+                'all-targets': 'true',
+                'doctests': 'true',
                 'format': 'lcov',
                 'output-path': 'lcov.info',
                 'with-ratchet': 'true',

@@ -72,6 +72,12 @@ jobs:
           output-path: lcov.info
           format: lcov
           with-ratchet: 'true'
+          # Match `make test`'s scope (all targets, all features, doctests), so
+          # this job is the project's only test execution in CI and the
+          # ratchet baseline measures the same code the pull request gate runs.
+          all-targets: 'true'
+          all-features: 'true'
+          doctests: 'true'
       # Publishes whether the token exists, and nothing else. The token is in
       # no `env` on this workflow: the upload is a composite action whose
       # nested steps inherit the calling step's `env`. GitHub evaluates the
