@@ -163,6 +163,14 @@ def _assert_coverage_workflow(workflow: str, job_name: str, *, enabled: bool) ->
     assert actual == expected, (
         f"expected {job_name} coverage RUSTFLAGS to be {expected!r}, got {actual!r}"
     )
+    expected_rustdoc = "--cfg docsrs -D warnings" + (
+        f" {POLONIUS_FLAG}" if enabled else ""
+    )
+    actual_rustdoc = str(env.get("RUSTDOCFLAGS", ""))
+    assert actual_rustdoc == expected_rustdoc, (
+        f"expected {job_name} coverage RUSTDOCFLAGS to be {expected_rustdoc!r}, "
+        f"got {actual_rustdoc!r}; the doctest run must use make test's flags"
+    )
     log_step = _named_step(workflow, job_name, "Log coverage linker configuration")
     actual_log = str(log_step.get("run", ""))
     expected_log = f'echo "Coverage RUSTFLAGS: {expected}"'
@@ -238,7 +246,6 @@ def assert_polonius_toolchain_contracts(
     ci_workflow: str,
     coverage_main_workflow: str,
     audit_workflow: str,
-    act_validation_workflow: str,
     release_workflow: str | None,
     agents: str,
     readme: str,
@@ -268,8 +275,6 @@ def assert_polonius_toolchain_contracts(
         Rendered main-branch coverage workflow.
     audit_workflow : str
         Rendered scheduled dependency audit workflow.
-    act_validation_workflow : str
-        Rendered act-validation workflow.
     release_workflow : str | None
         Rendered release workflow, or ``None`` when the project has none.
     agents : str
@@ -305,9 +310,6 @@ def assert_polonius_toolchain_contracts(
         coverage_main_workflow, "coverage-main workflow"
     )
     _assert_shared_action_passthrough_revision(audit_workflow, "audit workflow")
-    _assert_shared_action_passthrough_revision(
-        act_validation_workflow, "act-validation workflow"
-    )
     _assert_coverage_workflow(ci_workflow, "build-test", enabled=enabled)
     _assert_coverage_workflow(
         coverage_main_workflow, "coverage-upload", enabled=enabled

@@ -119,6 +119,11 @@ def assert_ci_coverage_action_contract(ci_workflow: str) -> None:
     assert coverage_inputs.get("with-ratchet") == "true", (
         "expected CI coverage step to enable the coverage ratchet"
     )
+    for scope_input in ("all-targets", "all-features", "doctests"):
+        assert coverage_inputs.get(scope_input) == "true", (
+            f"expected CI coverage step to enable {scope_input}, because it is "
+            "the pull request's only test execution and must match make test"
+        )
 
 
 def _assert_audit_workflow_contracts(audit_workflow: str) -> None:
@@ -255,6 +260,11 @@ def assert_coverage_main_workflow_contract(coverage_main_workflow: str) -> None:
     assert coverage_inputs.get("with-ratchet") == "true", (
         "expected coverage-main.yml to advance the ratchet baseline"
     )
+    for scope_input in ("all-targets", "all-features", "doctests"):
+        assert coverage_inputs.get(scope_input) == "true", (
+            f"expected coverage-main.yml to enable {scope_input}, so the "
+            "baseline measures the scope the pull request gate runs"
+        )
     upload_steps = [
         step
         for step in steps
@@ -314,7 +324,6 @@ def assert_setup_rust_revision_consistency(
 def _assert_ci_workflow_contracts(
     parsed_ci_workflow: dict[str, Any],
     ci_workflow: str,
-    act_workflow: str,
     test_stub: str,
 ) -> None:
     """Assert generated CI workflow and adjacent documentation contracts."""
@@ -322,7 +331,7 @@ def _assert_ci_workflow_contracts(
     assert "act-validation" not in jobs, (
         "expected generated main CI workflow to keep act validation separate"
     )
-    assert "ACT_VERSION: v0.2.80" not in ci_workflow, (
+    assert "ACT_VERSION" not in ci_workflow, (
         "expected generated main CI workflow not to install act"
     )
     assert "act_Linux_x86_64.tar.gz" not in ci_workflow, (
@@ -332,30 +341,6 @@ def _assert_ci_workflow_contracts(
         "expected generated main CI workflow not to run act validation"
     )
 
-    parsed_act_workflow = parse_yaml_mapping(act_workflow, "act-validation workflow")
-    act_jobs = require_mapping(parsed_act_workflow, "jobs", "act-validation workflow")
-    act_validation = require_mapping(
-        act_jobs, "act-validation", "act-validation workflow jobs"
-    )
-    act_steps = require_sequence(act_validation, "steps", "CI act-validation job")
-    assert any(
-        isinstance(step, dict)
-        and isinstance(step.get("with"), dict)
-        and step["with"].get("persist-credentials") is False
-        for step in act_steps
-    ), "expected generated act-validation job checkout to disable credentials"
-    assert "ACT_VERSION: v0.2.80" in act_workflow, (
-        "expected generated act-validation workflow to pin the act release"
-    )
-    assert "act_Linux_x86_64.tar.gz" in act_workflow, (
-        "expected generated act-validation workflow to install the act Linux binary"
-    )
-    assert "docker info" in act_workflow, (
-        "expected generated act-validation workflow to verify Docker"
-    )
-    assert "make test WITH_ACT=1" in act_workflow, (
-        "expected generated act-validation workflow to run an act-enabled test gate"
-    )
     checkout_steps = extract_checkout_steps(jobs)
     assert checkout_steps, "expected generated CI workflow to check out sources"
     assert all(

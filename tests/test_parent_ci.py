@@ -14,7 +14,7 @@ def test_parent_ci_runs_template_tests_without_act_enabled() -> None:
     """Validate parent main CI keeps act validation separate."""
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
-    assert "ACT_VERSION: v0.2.80" not in workflow, (
+    assert "ACT_VERSION: v0.2.84" not in workflow, (
         "expected parent main CI not to pin the act release"
     )
     assert "act_Linux_x86_64.tar.gz" not in workflow, (
@@ -38,7 +38,7 @@ def test_parent_act_validation_runs_template_tests_with_act_enabled() -> None:
     """Validate parent act workflow runs the act-enabled parent test gate."""
     workflow = Path(".github/workflows/act-validation.yml").read_text(encoding="utf-8")
 
-    assert "ACT_VERSION: v0.2.80" in workflow, (
+    assert "ACT_VERSION: v0.2.84" in workflow, (
         "expected parent act workflow to pin the act release used for workflow tests"
     )
     assert "act_Linux_x86_64.tar.gz" in workflow, (
@@ -47,18 +47,21 @@ def test_parent_act_validation_runs_template_tests_with_act_enabled() -> None:
     assert "docker info" in workflow, (
         "expected parent act workflow to verify the Docker runtime before act tests"
     )
-    assert "make test WITH_ACT=1" in workflow, (
-        "expected parent act workflow to run parent tests with act validation enabled"
+    assert "make test-act" in workflow, (
+        "expected parent act workflow to run only the act-backed tests"
+    )
+    assert "make test WITH_ACT=1" not in workflow, (
+        "expected parent act workflow not to re-run the full suite"
+    )
+    assert "ACT_GITHUB_TOKEN: ${{ github.token }}" in workflow, (
+        "expected parent act workflow to hand the shared setup-rust action a token"
     )
     assert "PYTEST_ADDOPTS: -rx" in workflow, (
         "expected parent act validation to report xfailed test IDs and reasons"
     )
 
 
-@pytest.mark.parametrize(
-    "workflow_path",
-    [".github/workflows/ci.yml", ".github/workflows/act-validation.yml"],
-)
+@pytest.mark.parametrize("workflow_path", [".github/workflows/ci.yml"])
 def test_parent_workflows_accept_any_sccache_backend(workflow_path: str) -> None:
     """Every parent Rust setup step names its cache expectation explicitly.
 

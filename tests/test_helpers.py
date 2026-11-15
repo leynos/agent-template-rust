@@ -488,9 +488,45 @@ def test_ci_coverage_action_contract_validates_edges() -> None:
             coverage_inputs=(
                 "          output-path: lcov.info\n          format: lcov\n"
                 "          with-ratchet: 'true'\n"
+                "          all-targets: 'true'\n          all-features: 'true'\n"
+                "          doctests: 'true'\n"
             ),
         )
     )
+
+    with pytest.raises(
+        AssertionError, match="expected CI coverage step to enable doctests"
+    ):
+        assert_ci_coverage_action_contract(
+            _ci_workflow(
+                persist_credentials="false",
+                coverage_inputs=(
+                    "          output-path: lcov.info\n          format: lcov\n"
+                    "          with-ratchet: 'true'\n"
+                    "          all-targets: 'true'\n          all-features: 'true'\n"
+                ),
+            )
+        )
+
+    scope = {
+        "all-targets": "          all-targets: 'true'\n",
+        "all-features": "          all-features: 'true'\n",
+        "doctests": "          doctests: 'true'\n",
+    }
+    for missing in ("all-targets", "all-features"):
+        kept = "".join(line for name, line in scope.items() if name != missing)
+        with pytest.raises(
+            AssertionError, match=f"expected CI coverage step to enable {missing}"
+        ):
+            assert_ci_coverage_action_contract(
+                _ci_workflow(
+                    persist_credentials="false",
+                    coverage_inputs=(
+                        "          output-path: lcov.info\n          format: lcov\n"
+                        "          with-ratchet: 'true'\n" + kept
+                    ),
+                )
+            )
 
     with pytest.raises(
         AssertionError,
@@ -559,6 +595,8 @@ def test_act_archive_failure_requires_rust_and_test_signals() -> None:
     logs = (
         "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times\n"
         "Provided artifact name input during validation is empty\n"
+        '{"step":"Test and Measure Coverage","stepID":["4","out"],'
+        '"stepResult":"failure"}\n'
     )
 
     with pytest.raises(
@@ -574,8 +612,12 @@ def test_act_archive_failure_xfails_after_rust_and_test_signals() -> None:
         '"Output":"Base RUSTFLAGS: -D warnings"}\n'
         '{"Output":"$ cargo llvm-cov nextest"}\n'
         '{"Output":"$ cargo llvm-cov test"}\n'
+        '{"step":"Test and Measure Coverage","stepID":["4","rust"],'
+        '"stepResult":"success"}\n'
         "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times\n"
-        "Provided artifact name input during validation is empty"
+        "Provided artifact name input during validation is empty\n"
+        '{"step":"Test and Measure Coverage","stepID":["4","out"],'
+        '"stepResult":"failure"}'
     )
 
     with pytest.raises(

@@ -16,37 +16,24 @@ jobs:
     permissions:
       contents: read
     env:
-      ACT_VERSION: v0.2.80
-      CARGO_TERM_COLOR: always
-      BUILD_PROFILE: debug
+      ACT_VERSION: v0.2.84
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@0eabb6bc07148981de5da395e30cd78d83f5c7c2
-        with:
-          expect-cache: any
-          install-mold: 'true'
-          install-clang-lld: 'true'
       - name: Setup uv
         uses: astral-sh/setup-uv@5e83ccf689000bf635d77af2cdbad36ca1397375
-      - name: Install template test tools
+      - name: Install act
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           curl -fsSL "https://github.com/nektos/act/releases/download/${ACT_VERSION}/act_Linux_x86_64.tar.gz" |
             sudo tar -xz -C /usr/local/bin act
-          cargo binstall --no-confirm --locked cargo-nextest
-          uv tool install mbake
       - name: Check Docker runtime
         run: docker info
-      - name: Install Whitaker
-        uses: leynos/shared-actions/.github/actions/install-whitaker@0eabb6bc07148981de5da395e30cd78d83f5c7c2
-        with:
-          cranelift: true
       - name: Test with act validation
         env:
+          ACT_GITHUB_TOKEN: ${{ github.token }}
           PYTEST_ADDOPTS: -rx
-        run: make test WITH_ACT=1
+        run: make test-act

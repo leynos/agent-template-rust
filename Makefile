@@ -1,4 +1,4 @@
-.PHONY: help check-fmt fmt interrogate lint spelling typecheck test
+.PHONY: help check-fmt fmt interrogate lint spelling typecheck test test-act
 
 MAKEFLAGS += --no-print-directory
 
@@ -29,6 +29,10 @@ test: ## Run template tests
 		exit 1; \
 	fi
 	$(ACT_TEST_ENV) $(UV) $(PYTEST_DEPS) pytest tests/
+
+test-act: ## Run only the act-backed workflow checks (needs act and Docker)
+	$(REQUIRE_UVX)
+	RUN_ACT_VALIDATION=1 $(UV) $(PYTEST_DEPS) pytest -m act -v tests/
 
 check-fmt: ## Verify parent Python formatting
 	$(REQUIRE_UVX)

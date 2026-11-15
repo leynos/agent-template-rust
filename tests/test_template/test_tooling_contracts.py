@@ -50,7 +50,6 @@ POLONIUS_RENDER_CASES = tuple(
         "CI workflow",
         "coverage-main workflow",
         "audit workflow",
-        "act-validation workflow",
         "release workflow",
     ],
 )
@@ -100,10 +99,49 @@ def test_polonius_contract_rejects_incorrect_coverage_log() -> None:
       - name: Test and Measure Coverage
         env:
           RUSTFLAGS: -Zpolonius=next -C link-arg=-fuse-ld=lld
+          RUSTDOCFLAGS: --cfg docsrs -D warnings -Zpolonius=next
 """
 
     with pytest.raises(AssertionError, match="coverage log"):
         _assert_coverage_workflow(workflow, "build-test", enabled=True)
+
+
+def test_polonius_contract_rejects_incorrect_coverage_rustdocflags() -> None:
+    """Reject a coverage step whose doctest flags differ from make test's."""
+    workflow = """jobs:
+  build-test:
+    steps:
+      - name: Log coverage linker configuration
+        run: |
+          echo "Coverage RUSTFLAGS: -D warnings -C link-arg=-fuse-ld=lld"
+      - name: Test and Measure Coverage
+        env:
+          RUSTFLAGS: -D warnings -C link-arg=-fuse-ld=lld
+          RUSTDOCFLAGS: -D warnings
+"""
+
+    with pytest.raises(AssertionError, match="RUSTDOCFLAGS"):
+        _assert_coverage_workflow(workflow, "build-test", enabled=False)
+
+
+@pytest.mark.parametrize("scope_input", ["all-targets", "all-features", "doctests"])
+def test_coverage_main_contract_rejects_a_missing_scope_input(
+    tmp_path: Path, copier: CopierFixture, scope_input: str
+) -> None:
+    """Reject coverage-main when it narrows the test scope the PR gate runs."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="ScopeExample",
+        package_name="scope_example",
+        flavour=APP,
+    )
+    workflow = read_generated_text(project / ".github/workflows/coverage-main.yml")
+    narrowed = workflow.replace(f"          {scope_input}: 'true'\n", "")
+    assert narrowed != workflow, f"expected the render to carry {scope_input}"
+
+    with pytest.raises(AssertionError, match=scope_input):
+        assert_coverage_main_workflow_contract(narrowed)
 
 
 def test_polonius_contract_rejects_release_rustflags_env_override() -> None:
@@ -171,7 +209,10 @@ def test_generated_tooling_contracts(
     cargo_config = read_generated_text(project / ".cargo/config.toml")
     ci_workflow = read_generated_text(project / ".github/workflows/ci.yml")
     audit_workflow = read_generated_text(project / ".github/workflows/audit.yml")
-    act_workflow = read_generated_text(project / ".github/workflows/act-validation.yml")
+    assert not (project / ".github/workflows/act-validation.yml").exists(), (
+        "expected generated projects to ship no act-validation workflow; the "
+        "template's own tests exercise the rendered workflows through act"
+    )
     coverage_main_workflow = read_generated_text(
         project / ".github/workflows/coverage-main.yml"
     )
@@ -199,7 +240,6 @@ def test_generated_tooling_contracts(
             "CI workflow": ci_workflow,
             "coverage-main workflow": coverage_main_workflow,
             "audit workflow": audit_workflow,
-            "act-validation workflow": act_workflow,
             "release workflow": release_workflow,
         }
     )
@@ -218,7 +258,6 @@ def test_generated_tooling_contracts(
         parsed_ci_workflow=parsed_ci_workflow,
         ci_workflow=ci_workflow,
         audit_workflow=audit_workflow,
-        act_workflow=act_workflow,
         mutation_workflow=mutation_workflow,
         docs_contents=docs_contents,
         repository_layout=repository_layout,
@@ -236,7 +275,6 @@ def test_generated_tooling_contracts(
         ci_workflow=ci_workflow,
         coverage_main_workflow=coverage_main_workflow,
         audit_workflow=audit_workflow,
-        act_validation_workflow=act_workflow,
         release_workflow=release_workflow,
         agents=agents,
         readme=readme,
@@ -290,9 +328,6 @@ def test_polonius_flag_invariant_across_rendered_configuration_space(
             project / ".github/workflows/coverage-main.yml"
         ),
         audit_workflow=read_generated_text(project / ".github/workflows/audit.yml"),
-        act_validation_workflow=read_generated_text(
-            project / ".github/workflows/act-validation.yml"
-        ),
         release_workflow=(
             read_generated_text(release_path) if release_path.exists() else None
         ),
@@ -320,7 +355,6 @@ def test_ci_contract_rejects_unguarded_duplicate_audit_step(
         flavour=APP,
     )
     ci_workflow = read_generated_text(project / ".github/workflows/ci.yml")
-    act_workflow = read_generated_text(project / ".github/workflows/act-validation.yml")
     test_stub = read_generated_text(project / "tests/stub.rs")
     parsed_ci_workflow = parse_yaml_mapping(ci_workflow, "CI workflow")
 
@@ -332,6 +366,4 @@ def test_ci_contract_rejects_unguarded_duplicate_audit_step(
     with pytest.raises(
         AssertionError, match="each audit-specific CI step exactly once"
     ):
-        _assert_ci_workflow_contracts(
-            parsed_ci_workflow, ci_workflow, act_workflow, test_stub
-        )
+        _assert_ci_workflow_contracts(parsed_ci_workflow, ci_workflow, test_stub)

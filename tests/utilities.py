@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 SAFE_ENV_KEYS = (
+    "ACT_GITHUB_TOKEN",
     "ACT_SOCKET_DEBUG",
     "HOME",
     "LANG",
