@@ -189,6 +189,15 @@ Migration: a project rendered before this change keeps the old
 references to it in `docs/repository-layout.md` and `docs/developers-guide.md`;
 nothing else depends on it, because rendered projects have no act-marked tests.
 
+The same update widens the rendered coverage jobs to all targets, all features,
+and doctests (with `RUSTDOCFLAGS` as `make test` sets it), so the pull request
+job stays the project's only test execution. The shared coverage action's
+ratchet baseline does not distinguish scope: the first main run after the
+update compares against the baseline measured with the narrower scope. If the
+wider scope measures more than the ratchet's one percentage point tolerance
+below it, the ratchet fails and the baseline must be reset by an intentional
+run on main.
+
 The act checks deliberately omit the rendered project's audit, spelling and
 Markdown lint. `make audit` needs the network and vulnerability databases, so
 the rendered CI and the weekly `audit.yml` run it on GitHub, and the rendered
