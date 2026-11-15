@@ -508,6 +508,26 @@ def test_ci_coverage_action_contract_validates_edges() -> None:
             )
         )
 
+    scope = {
+        "all-targets": "          all-targets: 'true'\n",
+        "all-features": "          all-features: 'true'\n",
+        "doctests": "          doctests: 'true'\n",
+    }
+    for missing in ("all-targets", "all-features"):
+        kept = "".join(line for name, line in scope.items() if name != missing)
+        with pytest.raises(
+            AssertionError, match=f"expected CI coverage step to enable {missing}"
+        ):
+            assert_ci_coverage_action_contract(
+                _ci_workflow(
+                    persist_credentials="false",
+                    coverage_inputs=(
+                        "          output-path: lcov.info\n          format: lcov\n"
+                        "          with-ratchet: 'true'\n" + kept
+                    ),
+                )
+            )
+
     with pytest.raises(
         AssertionError,
         match="expected CI coverage step to enable the coverage ratchet",
