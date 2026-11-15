@@ -14,7 +14,7 @@ from tests.helpers.generated_files import (
 )
 
 POLONIUS_FLAG = "-Zpolonius=next"
-RUSTFLAGS_PASSTHROUGH_REVISION = "b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea"
+RUSTFLAGS_PASSTHROUGH_REVISION = "1123a35f1cc7810f65bfffa5ea4c8b981d6c0090"
 _SETUP_RUST_USES_RE = re.compile(
     r"^leynos/shared-actions/\.github/actions/setup-rust@[0-9a-f]{40}$"
 )

@@ -33,13 +33,14 @@ the value supplied during setup. The `rustflags` capability first appears in
 `leynos/shared-actions` revision `47b337e4f230b591891656534d4ffad868131740`;
 using an older revision silently drops the input, so the Polonius contract
 verifies that the changed action references use one capability-bearing
-revision. That revision is now `b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea`,
-which also carries the `install-mold` and `install-clang-lld` inputs and
-`mutation-cargo.yml`'s `install-clang-lld` forward, so generated CI, coverage
-and mutation workflows provision `clang`, `lld`, and `mold` through those
-inputs rather than an `apt-get` step. The inputs install the packages on Linux
-and fail the job unless the tools resolve on `PATH`; they set no linker flag, so
-`.cargo/config.toml` and the coverage environment still choose the linker.
+revision. That revision is now `1123a35f1cc7810f65bfffa5ea4c8b981d6c0090`,
+which also carries the ratchet floor, the `install-mold` and
+`install-clang-lld` inputs and `mutation-cargo.yml`'s `install-clang-lld`
+forward, so generated CI, coverage and mutation workflows provision `clang`,
+`lld`, and `mold` through those inputs rather than an `apt-get` step. The
+inputs install the packages on Linux and fail the job unless the tools resolve
+on `PATH`; they set no linker flag, so `.cargo/config.toml` and the coverage
+environment still choose the linker.
 
 The parent CI workflows run on GitHub-hosted runners, where the shared
 `setup-rust` action gives sccache a local-disk directory under `runner.temp`,
@@ -193,29 +194,28 @@ The same update widens the rendered coverage jobs to all targets, all features,
 and doctests, so the pull request job stays the project's only test execution.
 The shared coverage action's ratchet baseline does not name the coverage scope,
 so the first main run after the update compares the wider measurement with the
-baseline stored from the narrower one. A baseline above 85% only warns on a
-drop that stays at or above 85% once
-[leynos/shared-actions#695](https://github.com/leynos/shared-actions/pull/695)
-lands and the project's pinned `generate-coverage` revision (a Dependabot
-update) includes it; a baseline at or below 85% still fails when the
-measurement falls more than one percentage point below it. A run that fails the
-ratchet saves no baseline, and turning the ratchet off does not reset one
-either: in the action (`.github/actions/generate-coverage/action.yml` at
-shared-actions `163e3749`) the `Restore baselines`, `Ratchet coverage` and
-`Save baselines` steps all run only when `inputs.with-ratchet == 'true'` (lines
-271-290, 458-474 and 476-509), so a main push with `with-ratchet: 'false'`
-stores nothing new. The reset the action does support is a new baseline path.
-In the upgrade pull request, set
+baseline stored from the narrower one. The rendered workflows pin the action at
+shared-actions `1123a35f`, which includes the ratchet floor
+([leynos/shared-actions#695](https://github.com/leynos/shared-actions/pull/695)):
+a baseline above 85% only warns on a drop that stays at or above 85%, while a
+baseline at or below 85% still fails when the measurement falls more than one
+percentage point below it. A run that fails the ratchet saves no baseline, and
+turning the ratchet off does not reset one either: in the action
+(`.github/actions/generate-coverage/action.yml` at that revision) the
+`Restore baselines`, `Ratchet coverage` and `Save baselines` steps all run only
+when `inputs.with-ratchet == 'true'` (lines 279-298, 466-487 and 488-521), so a
+main push with `with-ratchet: 'false'` stores nothing new. The reset the action
+does support is a new baseline path. In the upgrade pull request, set
 `baseline-rust-file: .coverage-baseline.rust-all` on the coverage step in both
 the CI and `coverage-main` workflows. `actions/cache` versions an entry by its
 path list, so the changed list no longer matches the stored entry and nothing
-is restored; the `Ensure baseline files` step (lines 291-300) then creates the
+is restored; the `Ensure baseline files` step (lines 299-310) then creates the
 missing files as `0`. The ratchet passes, and the next push to main saves the
 fresh measurement that guards later runs. The action creates a Python baseline
 file too, but generated Rust projects measure no Python, so no Python ratchet
 is reset; a project that has added Python coverage of its own loses that
 baseline in the same reset and must accept it. The action publishes only on a
-push to main (`Save baselines`, lines 476-509), so a manual dispatch publishes
+push to main (`Save baselines`, lines 488-521), so a manual dispatch publishes
 nothing; an update that fires no push event needs a job restricted to main that
 sets `publish-baseline: always`.
 
