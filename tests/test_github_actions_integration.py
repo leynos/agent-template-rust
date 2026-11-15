@@ -34,9 +34,11 @@ def trim_ci_workflow(workflow: str) -> str:
     """Reduce a rendered CI workflow to the steps the coverage job needs.
 
     The parent ``make test`` already renders each variant and runs its format,
-    lint, audit and test targets once. A real act run only has to prove that the
-    Rust set-up and the shared coverage action work end to end, so the other
-    steps (spelling, audit, Whitaker, lint) are dropped from the act copy.
+    lint and test targets once (``make all``); the audit and spelling targets
+    run in the rendered project's own CI on GitHub. A real act run only has to
+    prove that the Rust set-up and the shared coverage action work end to end
+    (it does not verify every output), so the other steps (spelling, audit,
+    Whitaker, lint) are dropped from the act copy.
 
     Parameters
     ----------
