@@ -34,5 +34,6 @@ jobs:
         run: docker info
       - name: Test with act validation
         env:
+          ACT_GITHUB_TOKEN: ${{ github.token }}
           PYTEST_ADDOPTS: -rx
         run: make test-act

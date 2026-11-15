@@ -135,6 +135,12 @@ def run_act(
         phase_logs.append("act phase: using explicit container daemon socket")
     else:
         phase_logs.append("act phase: using act default container daemon socket")
+    act_github_token = env.get("ACT_GITHUB_TOKEN")
+    if act_github_token:
+        # The shared setup-rust action reads github-token while choosing its
+        # sccache backend; without a secret it fails under act.
+        command.extend(["-s", f"GITHUB_TOKEN={act_github_token}"])
+        phase_logs.append("act phase: forwarding ACT_GITHUB_TOKEN as GITHUB_TOKEN")
     phase_logs.append("act phase: workflow execution started")
     completed = subprocess.run(
         command,

@@ -53,6 +53,9 @@ def test_parent_act_validation_runs_template_tests_with_act_enabled() -> None:
     assert "make test WITH_ACT=1" not in workflow, (
         "expected parent act workflow not to re-run the full suite"
     )
+    assert "ACT_GITHUB_TOKEN: ${{ github.token }}" in workflow, (
+        "expected parent act workflow to hand the shared setup-rust action a token"
+    )
     assert "PYTEST_ADDOPTS: -rx" in workflow, (
         "expected parent act validation to report xfailed test IDs and reasons"
     )
