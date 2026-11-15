@@ -638,6 +638,19 @@ run; recorded skips and platform limits.
   Both were verified against `template/Makefile.jinja` and fixed as `e2327fd`;
   both hosted checks are green on it, the replies are posted, and comenq
   `5040de2b` requests the next review.
+- [x] 2026-11-15: Main advanced five more commits, through `93c19d2` (#174,
+  #87, #175, #176, #177), and the PR became `DIRTY`/`CONFLICTING`, which also
+  suppresses new `pull_request` runs. The branch was rebased onto `93c19d2`
+  with recovery refs `r13-*`. Main touched only `template/AGENTS.md.jinja`: a
+  new "Functions tell a story" bullet, state-machine guidance, and #177's
+  `cargo fmt --workspace` to `cargo fmt --all` correction. Two replayed commits
+  conflicted and were resolved to keep main's `--all` spelling, since the
+  replayed Makefile uses `cargo fmt --all` on the pinned nightly toolchain,
+  while retaining this branch's `mdtablefix` line and test-lane prose.
+  `git range-diff` shows 31 of 33 commits identical; only those two differ, and
+  only in the `--all` wording. Gates rerun green sequentially: `make check-fmt`,
+  `make test` (218 passed, 2 expected `act` skips), `make typecheck`,
+  `make lint` and `make spelling`.
 
 ## Surprises & discoveries
 
