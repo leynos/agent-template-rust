@@ -299,8 +299,10 @@ cloned only on insertion, and error context is built lazily. See
     filter argument, and the targets stay in the crate so an explicit
     `[[test]]` declaration keeps its file.
   - `make test-ui` runs the compile-time contract targets named
-    `tests/compile_*.rs` under the serialized `ui` profile, and reports an
-    intentional no-op when the project has none.
+    `tests/compile_*.rs` under the serialized `ui` profile when nextest is
+    available, and reports an intentional no-op when the project has none. The
+    `cargo test` fallback has no profiles, so it runs those targets without
+    serialization.
   - `make test-workflow-contracts` runs the pinned shared CV-005 checker over
     the repository using the selection in `.github/cv005.toml`.
 - Clippy warnings MUST be disallowed.
