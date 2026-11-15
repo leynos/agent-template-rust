@@ -163,6 +163,14 @@ def _assert_coverage_workflow(workflow: str, job_name: str, *, enabled: bool) ->
     assert actual == expected, (
         f"expected {job_name} coverage RUSTFLAGS to be {expected!r}, got {actual!r}"
     )
+    expected_rustdoc = "--cfg docsrs -D warnings" + (
+        f" {POLONIUS_FLAG}" if enabled else ""
+    )
+    actual_rustdoc = str(env.get("RUSTDOCFLAGS", ""))
+    assert actual_rustdoc == expected_rustdoc, (
+        f"expected {job_name} coverage RUSTDOCFLAGS to be {expected_rustdoc!r}, "
+        f"got {actual_rustdoc!r}; the doctest run must use make test's flags"
+    )
     log_step = _named_step(workflow, job_name, "Log coverage linker configuration")
     actual_log = str(log_step.get("run", ""))
     expected_log = f'echo "Coverage RUSTFLAGS: {expected}"'

@@ -208,6 +208,38 @@ def assert_ci_exercised_expected_steps(
     assert saw_rust, f"Rust coverage tests were not observed:\n{logs}"
 
 
+def only_coverage_output_failures(events: list[dict[str, object]]) -> bool:
+    """Return whether every failed step is the coverage action's output phase.
+
+    The failures act reports for the known output limitation are the composite
+    step itself (a one-element step ID) and its ``out`` sub-step. Any other
+    failed step, such as the test or coverage run, is a real failure.
+
+    Parameters
+    ----------
+    events
+        Parsed act JSON events.
+
+    Returns
+    -------
+    bool
+        ``True`` when there is at least one failure and all of them belong to the
+        coverage action's output phase.
+    """
+    failures = [event for event in events if event.get("stepResult") == "failure"]
+    if not failures:
+        return False
+    for event in failures:
+        step_ids = event.get("stepID", event.get("stepid", []))
+        if event_text(event, "step", "Step") != COVERAGE_STEP:
+            return False
+        if not isinstance(step_ids, list) or not (
+            len(step_ids) == 1 or step_ids[-1:] == ["out"]
+        ):
+            return False
+    return True
+
+
 def xfail_known_act_runtime_limitations(
     logs: str, *, expected_base_rustflags: str
 ) -> None:
@@ -221,10 +253,14 @@ def xfail_known_act_runtime_limitations(
             "runs.using: node24"
         )
     # act v0.2.84 reports only the first message; earlier versions reported the
-    # artefact-name validation error as well. Either way the failure is in the
-    # composite action's output phase, after tests and coverage ran, and the
-    # evidence check below proves they did.
-    if "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times" in logs:
+    # artefact-name validation error as well. The composite action's output step
+    # runs even after an earlier failure, so the xfail applies only when every
+    # failed step belongs to that output phase; a failed test or coverage run
+    # falls through to the assertions below.
+    if (
+        "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times" in logs
+        and only_coverage_output_failures(iter_json_log_events(logs))
+    ):
         assert_ci_exercised_expected_steps(
             logs, expected_base_rustflags=expected_base_rustflags
         )

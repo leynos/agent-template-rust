@@ -101,6 +101,8 @@ jobs:
         env:
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: clang
           RUSTFLAGS: {% endraw %}{% if enable_polonius %}-Zpolonius=next{% else %}-D warnings{% endif %}{% raw %} -C link-arg=-fuse-ld=lld
+          # The doctest run reads RUSTDOCFLAGS, as `make test` sets it.
+          RUSTDOCFLAGS: --cfg docsrs -D warnings{% endraw %}{% if enable_polonius %} -Zpolonius=next{% endif %}{% raw %}
           CFLAGS: -fuse-ld=lld
           LDFLAGS: -fuse-ld=lld
         with:

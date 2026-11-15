@@ -575,6 +575,8 @@ def test_act_archive_failure_requires_rust_and_test_signals() -> None:
     logs = (
         "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times\n"
         "Provided artifact name input during validation is empty\n"
+        '{"step":"Test and Measure Coverage","stepID":["4","out"],'
+        '"stepResult":"failure"}\n'
     )
 
     with pytest.raises(
@@ -591,7 +593,9 @@ def test_act_archive_failure_xfails_after_rust_and_test_signals() -> None:
         '{"Output":"$ cargo llvm-cov nextest"}\n'
         '{"Output":"$ cargo llvm-cov test"}\n'
         "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times\n"
-        "Provided artifact name input during validation is empty"
+        "Provided artifact name input during validation is empty\n"
+        '{"step":"Test and Measure Coverage","stepID":["4","out"],'
+        '"stepResult":"failure"}'
     )
 
     with pytest.raises(

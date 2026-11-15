@@ -99,6 +99,7 @@ def test_polonius_contract_rejects_incorrect_coverage_log() -> None:
       - name: Test and Measure Coverage
         env:
           RUSTFLAGS: -Zpolonius=next -C link-arg=-fuse-ld=lld
+          RUSTDOCFLAGS: --cfg docsrs -D warnings -Zpolonius=next
 """
 
     with pytest.raises(AssertionError, match="coverage log"):
