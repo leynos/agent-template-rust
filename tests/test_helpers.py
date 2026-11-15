@@ -866,4 +866,3 @@ jobs:
         uses: leynos/shared-actions/.github/actions/generate-coverage@0000000000000000000000000000000000000000
         with:
 {coverage_inputs}"""
-# weave: run 'weave explain tests/test_helpers.py' for per-hunk detail, 'weave check' to verify your resolution

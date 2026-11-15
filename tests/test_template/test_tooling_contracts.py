@@ -181,10 +181,6 @@ def test_coverage_main_contract_rejects_a_missing_scope_input(
         assert_coverage_main_workflow_contract(narrowed)
 
 
-
-
-
-
 def test_polonius_contract_rejects_the_flag_in_a_stable_release() -> None:
     """Reject a release without Polonius that carries the nightly flag."""
     workflow = """jobs:
@@ -416,5 +412,3 @@ def test_ci_contract_rejects_unguarded_duplicate_audit_step(
         AssertionError, match="each audit-specific CI step exactly once"
     ):
         _assert_ci_workflow_contracts(parsed_ci_workflow, ci_workflow, test_stub)
-# weave: run 'weave explain tests/test_template/test_tooling_contracts.py' for per-hunk detail, 'weave check' to verify your resolution
-# weave: run 'weave explain tests/test_template/test_tooling_contracts.py' for per-hunk detail, 'weave check' to verify your resolution

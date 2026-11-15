@@ -716,5 +716,3 @@ def assert_setup_rust_installs_linkers(steps: list[Any], label: str) -> None:
     assert not by_hand, (
         f"expected {label} to install no linker by hand, got {by_hand!r}"
     )
-# weave: run 'weave explain tests/helpers/tooling_contracts/workflows.py' for per-hunk detail, 'weave check' to verify your resolution
-# weave: run 'weave explain tests/helpers/tooling_contracts/workflows.py' for per-hunk detail, 'weave check' to verify your resolution

@@ -210,4 +210,3 @@ def test_redact_pinned_shas_preserves_action_path(path: str, sha: str) -> None:
     assert _redact_pinned_shas({"uses": f"{path}@{sha}"}) == {
         "uses": f"{path}@<sha>"
     }, "expected redaction to replace only the SHA and keep the action path"
-# weave: run 'weave explain tests/test_template/test_snapshots.py' for per-hunk detail, 'weave check' to verify your resolution
