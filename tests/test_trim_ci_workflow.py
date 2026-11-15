@@ -82,16 +82,22 @@ def test_trim_rejects_a_workflow_missing_a_required_step(missing: str) -> None:
     """A renamed or removed required step fails loudly instead of trimming away."""
     blocks = [block for block in FULL if f"name: {missing}\n" not in block]
 
-    with pytest.raises(AssertionError, match="lacks coverage-job steps"):
+    with pytest.raises(AssertionError, match="lacks coverage-job steps") as caught:
         trim_ci_workflow(_workflow(blocks))
+
+    assert missing in str(caught.value), "expected the failure to name the missing step"
 
 
 def test_trim_rejects_a_workflow_without_a_checkout() -> None:
     """The unnamed checkout step is required as well."""
     blocks = [block for block in FULL if CHECKOUT_USES_PREFIX not in block]
 
-    with pytest.raises(AssertionError, match="lacks coverage-job steps"):
+    with pytest.raises(AssertionError, match="lacks coverage-job steps") as caught:
         trim_ci_workflow(_workflow(blocks))
+
+    assert CHECKOUT_USES_PREFIX in str(caught.value), (
+        "expected the failure to name the missing checkout step"
+    )
 
 
 @given(extra_count=st.integers(min_value=0, max_value=8), split=st.integers(0, 8))
