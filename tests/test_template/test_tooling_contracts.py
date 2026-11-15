@@ -68,7 +68,7 @@ def test_polonius_contract_rejects_stale_shared_action_revision(
 
 def test_polonius_contract_allows_independent_shared_action_revision() -> None:
     """Allow unrelated shared actions to advance independently."""
-    workflow = """uses: leynos/shared-actions/.github/actions/setup-rust@b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea
+    workflow = """uses: leynos/shared-actions/.github/actions/setup-rust@1123a35f1cc7810f65bfffa5ea4c8b981d6c0090
 uses: leynos/shared-actions/.github/actions/generate-coverage@0000000000000000000000000000000000000000
 """
 
@@ -80,7 +80,7 @@ def test_polonius_contract_rejects_missing_setup_rustflags() -> None:
     workflow = """jobs:
   build-test:
     steps:
-      - uses: leynos/shared-actions/.github/actions/setup-rust@b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea
+      - uses: leynos/shared-actions/.github/actions/setup-rust@1123a35f1cc7810f65bfffa5ea4c8b981d6c0090
         with: {}
 """
 
@@ -149,7 +149,7 @@ def test_polonius_contract_rejects_release_rustflags_env_override() -> None:
     workflow = """jobs:
   build:
     steps:
-      - uses: leynos/shared-actions/.github/actions/setup-rust@b804b69fa7f978cf9091b9d9bd5481d8ce58c2ea
+      - uses: leynos/shared-actions/.github/actions/setup-rust@1123a35f1cc7810f65bfffa5ea4c8b981d6c0090
         with:
           toolchain: nightly-2025-06-10
           rustflags: -Zpolonius=next
