@@ -218,10 +218,11 @@ def xfail_known_act_runtime_limitations(
             "act currently cannot execute an upstream action that declares "
             "runs.using: node24"
         )
-    if (
-        "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times" in logs
-        and "Provided artifact name input during validation is empty" in logs
-    ):
+    # act v0.2.84 reports only the first message; earlier versions reported the
+    # artefact-name validation error as well. Either way the failure is in the
+    # composite action's output phase, after tests and coverage ran, and the
+    # evidence check below proves they did.
+    if "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times" in logs:
         assert_ci_exercised_expected_steps(
             logs, expected_base_rustflags=expected_base_rustflags
         )
