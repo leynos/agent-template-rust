@@ -141,7 +141,10 @@ def run_act(
     if act_github_token:
         # The shared setup-rust action reads github-token while choosing its
         # sccache backend; without a secret it fails under act.
-        command.extend(["-s", f"GITHUB_TOKEN={act_github_token}"])
+        # Pass the secret by name, with its value in the child environment, so
+        # it never appears in the process arguments, listings or timeout errors.
+        env["GITHUB_TOKEN"] = act_github_token
+        command.extend(["-s", "GITHUB_TOKEN"])
         phase_logs.append("act phase: forwarding ACT_GITHUB_TOKEN as GITHUB_TOKEN")
     phase_logs.append("act phase: workflow execution started")
     completed = subprocess.run(

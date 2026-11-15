@@ -106,6 +106,44 @@ def test_polonius_contract_rejects_incorrect_coverage_log() -> None:
         _assert_coverage_workflow(workflow, "build-test", enabled=True)
 
 
+def test_polonius_contract_rejects_incorrect_coverage_rustdocflags() -> None:
+    """Reject a coverage step whose doctest flags differ from make test's."""
+    workflow = """jobs:
+  build-test:
+    steps:
+      - name: Log coverage linker configuration
+        run: |
+          echo "Coverage RUSTFLAGS: -D warnings -C link-arg=-fuse-ld=lld"
+      - name: Test and Measure Coverage
+        env:
+          RUSTFLAGS: -D warnings -C link-arg=-fuse-ld=lld
+          RUSTDOCFLAGS: -D warnings
+"""
+
+    with pytest.raises(AssertionError, match="RUSTDOCFLAGS"):
+        _assert_coverage_workflow(workflow, "build-test", enabled=False)
+
+
+@pytest.mark.parametrize("scope_input", ["all-targets", "all-features", "doctests"])
+def test_coverage_main_contract_rejects_a_missing_scope_input(
+    tmp_path: Path, copier: CopierFixture, scope_input: str
+) -> None:
+    """Reject coverage-main when it narrows the test scope the PR gate runs."""
+    project = render_project(
+        tmp_path,
+        copier,
+        project_name="ScopeExample",
+        package_name="scope_example",
+        flavour=APP,
+    )
+    workflow = read_generated_text(project / ".github/workflows/coverage-main.yml")
+    narrowed = workflow.replace(f"          {scope_input}: 'true'\n", "")
+    assert narrowed != workflow, f"expected the render to carry {scope_input}"
+
+    with pytest.raises(AssertionError, match=scope_input):
+        assert_coverage_main_workflow_contract(narrowed)
+
+
 def test_polonius_contract_rejects_release_rustflags_env_override() -> None:
     """Reject a release build step that overrides setup-rust flags."""
     workflow = """jobs:
