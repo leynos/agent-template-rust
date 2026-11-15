@@ -609,9 +609,29 @@ run; recorded skips and platform limits.
   through the pool-token helper. `CodeRabbit` still reports `Review paused` for
   the head, so a fresh review is queued as comenq `84ea26e2` with an ETA of
   roughly seven hours.
+- [x] 2026-11-15: comenq `84ea26e2` posted after its queue delay and CodeRabbit
+  reviewed `cf251cc`, raising two further inline findings. Both were valid: the
+  migration guide told a project without CodeScene coverage to remove the
+  automerge caller, which would also remove Dependabot auto-merge, and the
+  generated `AGENTS.md` implied the `ui` profile always applies when the
+  `cargo test` fallback has no profiles. Both are fixed and committed. Main had
+  meanwhile landed #173, which rewrites the same `AGENTS.md` material, so the
+  branch was rebased onto `bbc31cc` with recovery refs `r12-*`. The conflicts
+  were in `template/AGENTS.md.jinja` and
+  `tests/test_template/test_policy_guidance.py`; the resolutions keep main's
+  corrected Clippy example, warning-denial wording and caret guidance, and this
+  branch's real `lint` recipe, YAML/shell ordering and flag routing.
+  `git range-diff` shows 29 of 30 commits identical, the exception being the
+  commit that touches those two files. Gates rerun green sequentially:
+  `make check-fmt`, `make test` (218 passed, 2 expected `act` skips),
+  `make typecheck`, `make lint` and `make spelling`.
 
 ## Surprises & discoveries
 
+- A semantic merge driver in this session emits
+  `# weave: run 'weave explain …'` marker lines into a conflicted Python file.
+  They are not comments ruff accepts as trivia gaps, so `make check-fmt` fails
+  until they are deleted; the resolution commit must not keep them.
 - The Lody session exports `GIT_CONFIG_KEY_*`/`GIT_CONFIG_VALUE_*` entries that
   rewrite `git@github.com:` and `ssh://git@github.com/` to HTTPS and install
   the Lody credential helper. A push started with only `GIT_SSH_COMMAND` set is
