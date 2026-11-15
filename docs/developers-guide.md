@@ -211,8 +211,11 @@ the CI and `coverage-main` workflows. `actions/cache` versions an entry by its
 path list, so the changed list no longer matches the stored entry and nothing
 is restored; the `Ensure baseline files` step (lines 291-300) then creates the
 missing files as `0`. The ratchet passes, and the next push to main saves the
-fresh measurement that guards later runs. The action publishes only on a push
-to main (`Save baselines`, lines 476-509), so a manual dispatch publishes
+fresh measurement that guards later runs. The action creates a Python baseline
+file too, but generated Rust projects measure no Python, so no Python ratchet
+is reset; a project that has added Python coverage of its own loses that
+baseline in the same reset and must accept it. The action publishes only on a
+push to main (`Save baselines`, lines 476-509), so a manual dispatch publishes
 nothing; an update that fires no push event needs a job restricted to main that
 sets `publish-baseline: always`.
 
