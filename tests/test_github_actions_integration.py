@@ -70,7 +70,7 @@ def trim_ci_workflow(workflow: str) -> str:
             )
         if keep_block:
             kept.append(line)
-    missing = sorted(COVERAGE_JOB_STEP_NAMES - seen)
+    missing = sorted((COVERAGE_JOB_STEP_NAMES | {CHECKOUT_USES_PREFIX}) - seen)
     assert not missing, f"rendered ci.yml lacks coverage-job steps: {missing}"
     return "".join(kept)
 

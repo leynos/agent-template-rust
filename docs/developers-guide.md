@@ -183,6 +183,18 @@ runs `make test-act`. The main `.github/workflows/ci.yml` workflow runs ordinary
 blocking the main test and coverage path. Generated projects ship no
 act-validation workflow.
 
+Migration: a project rendered before this change keeps the old
+`.github/workflows/act-validation.yml`, whose only step ran
+`make test WITH_ACT=1`. After `copier update`, delete that workflow and the
+references to it in `docs/repository-layout.md` and `docs/developers-guide.md`;
+nothing else depends on it, because rendered projects have no act-marked tests.
+
+The act checks deliberately omit the rendered project's audit, spelling and
+Markdown lint. `make audit` needs the network and vulnerability databases, so
+the rendered CI and the weekly `audit.yml` run it on GitHub, and the rendered
+CI runs the format, spelling and lint targets there too. Act would only repeat
+them.
+
 The template also renders `.github/workflows/mutation-testing.yml` into
 generated projects; its rendered contract is asserted by
 `_assert_mutation_workflow_contracts` in
