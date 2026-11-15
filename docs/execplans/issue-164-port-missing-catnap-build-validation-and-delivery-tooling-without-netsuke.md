@@ -625,6 +625,19 @@ run; recorded skips and platform limits.
   commit that touches those two files. Gates rerun green sequentially:
   `make check-fmt`, `make test` (218 passed, 2 expected `act` skips),
   `make typecheck`, `make lint` and `make spelling`.
+- [x] 2026-11-15: The rebased history was force-pushed with a lease as
+  `80a74d9`, the remote head was read back, and `mergeStateStatus` moved to
+  `CLEAN` with `mergeable: MERGEABLE`. Hosted `CI` and `Act Validation` both
+  completed `success`; one `gh run watch` exited non-zero only because the
+  annotations API returned `HTTP 502`, and a status poll then showed the run
+  `completed/success`. Replies to both findings were posted with pool tokens
+  and comenq `bcfe4ed7` obtained a review of `80a74d9`, which raised two
+  further findings on the migration guide's test-lane section: the `cargo test`
+  fallback has no profiles or lane separation, and an explicit `[[test]]` must
+  be named after its file stem because the lane selects with `--test <stem>`.
+  Both were verified against `template/Makefile.jinja` and fixed as `e2327fd`;
+  both hosted checks are green on it, the replies are posted, and comenq
+  `5040de2b` requests the next review.
 
 ## Surprises & discoveries
 
