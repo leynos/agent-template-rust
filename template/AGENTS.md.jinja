@@ -17,7 +17,8 @@
   each step is a helper whose name says what it does and whose signature
   declares what it consumes and produces. Prefer this over long inline
   sequences, even when the inline code is straight-line. Whitaker's
-  `bumpy_road_function` lint enforces this shape.
+  `bumpy_road_function` lint flags the commonest departure from it: separate
+  clusters of conditional logic sharing one function body.
 - **Clear commit messages.** Commit messages should be descriptive, explaining
   what was changed and why.
 - **Name things precisely.** Use clear, descriptive variable and function names.
