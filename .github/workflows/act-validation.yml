@@ -16,7 +16,7 @@ jobs:
     permissions:
       contents: read
     env:
-      ACT_VERSION: v0.2.80
+      ACT_VERSION: v0.2.84
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

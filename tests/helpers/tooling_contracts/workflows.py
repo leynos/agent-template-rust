@@ -321,7 +321,7 @@ def _assert_ci_workflow_contracts(
     assert "act-validation" not in jobs, (
         "expected generated main CI workflow to keep act validation separate"
     )
-    assert "ACT_VERSION: v0.2.80" not in ci_workflow, (
+    assert "ACT_VERSION" not in ci_workflow, (
         "expected generated main CI workflow not to install act"
     )
     assert "act_Linux_x86_64.tar.gz" not in ci_workflow, (
