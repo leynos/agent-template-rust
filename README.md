@@ -60,23 +60,27 @@ without a manually managed virtual environment:
 make test
 ```
 
-Optional local GitHub Actions validation is gated behind `WITH_ACT=1` and
-requires `act` plus a Docker-compatible container runtime:
+Optional local GitHub Actions validation requires `act` plus a
+Docker-compatible container runtime. Run only the act-backed checks with:
 
 ```bash
-make test WITH_ACT=1
+make test-act
 ```
 
-Parent and generated-project CI run this mode in a separate
-`act-validation.yml` workflow, so container-backed workflow checks run in
-parallel with the normal test and coverage workflow.
+`make test WITH_ACT=1` runs them alongside the full suite. Parent CI runs
+`make test-act` in a separate `act-validation.yml` workflow, in parallel with
+the normal test workflow. The act checks parse every rendered workflow, dry-run
+the CI job, and execute a trimmed CI job (checkout, Rust set-up, and the shared
+coverage action) for real. The rendered project's lint, audit and test targets
+run once, in the normal template tests, so they are not repeated under act.
+Generated projects ship no act-validation workflow.
 
 ## Generated Quality Gate Flow
 
 Figure: The generated `make all` quality gate verifies formatting, linting, and
 tests. The main generated CI workflow also runs the audit and coverage targets;
-the separate Act validation workflow runs the parent template tests with
-`WITH_ACT=1` so rendered workflow checks do not slow the main CI path.
+the separate Act validation workflow runs only the act-backed template tests
+(`make test-act`), so rendered workflow checks do not slow the main CI path.
 
 ```mermaid
 flowchart LR
@@ -115,11 +119,11 @@ flowchart LR
         CargoAudit --> Ignores[CARGO_AUDIT_IGNORES to --ignore flags]
     end
 
-    subgraph Act_Validation[Generated .github/workflows/act-validation.yml]
+    subgraph Act_Validation[Parent .github/workflows/act-validation.yml]
         ActWorkflow[act-validation job]
         ActWorkflow --> InstallAct[install act]
         InstallAct --> DockerInfo[docker info]
-        DockerInfo --> ActTests[make test WITH_ACT=1]
+        DockerInfo --> ActTests[make test-act]
     end
 ```
 

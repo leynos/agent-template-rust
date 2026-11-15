@@ -155,26 +155,33 @@ in place for human PRs. The compensating control is
 triggered manually.
 
 Optional GitHub Actions validation runs rendered workflows through `act`. It is
-disabled by default and only runs when `WITH_ACT=1` is present:
+disabled by default; `make test-act` runs only the act-backed tests, and
+`make test WITH_ACT=1` runs them alongside the full suite:
 
 ```sh
-make test WITH_ACT=1
+make test-act
 ```
 
-The parent Makefile maps `WITH_ACT=1` to `RUN_ACT_VALIDATION=1` for pytest.
-Those checks require `act` and either Docker or Podman. They prepare rendered
-projects as temporary Git repositories, run the generated act-validation
-workflow, and assert black-box evidence for Rust test execution. The
-act-validation workflow keeps `PYTEST_ADDOPTS: -rx` so hosted logs show each
-xfail test ID and reason. `act` may reject an upstream action declaring
-`runs.using: node24` before Rust tests can run; archive/output failures may be
-marked as xfail only after logs prove Rust setup and coverage/test execution
-succeeded.
+The parent Makefile maps both to `RUN_ACT_VALIDATION=1` for pytest. Those
+checks require `act` and either Docker or Podman. They prepare rendered
+projects as temporary Git repositories and run three kinds of check:
+`act --list` parses every rendered workflow, an act dry run resolves the CI job
+and its actions, and a trimmed CI job (checkout, Rust set-up, and the shared
+coverage action; see `trim_ci_workflow` in
+`tests/test_github_actions_integration.py`) runs for real with black-box
+evidence for Rust test execution. The rendered project's own lint, audit and
+test targets run once, in the ordinary template tests, so act does not repeat
+them. The act-validation workflow keeps `PYTEST_ADDOPTS: -rx` so hosted logs
+show each xfail test ID and reason. `act` may reject an upstream action
+declaring `runs.using: node24` before Rust tests can run; archive/output
+failures may be marked as xfail only after logs prove Rust setup and
+coverage/test execution succeeded.
 
-Parent CI keeps Act validation in `.github/workflows/act-validation.yml`. The
-main `.github/workflows/ci.yml` workflow runs ordinary `make test` without
-`WITH_ACT=1` so the slower container-backed checks run in parallel instead of
-blocking the main test and coverage path.
+Parent CI keeps Act validation in `.github/workflows/act-validation.yml`, which
+runs `make test-act`. The main `.github/workflows/ci.yml` workflow runs ordinary
+`make test` so the slower container-backed checks run in parallel instead of
+blocking the main test and coverage path. Generated projects ship no
+act-validation workflow.
 
 The template also renders `.github/workflows/mutation-testing.yml` into
 generated projects; its rendered contract is asserted by
@@ -267,19 +274,19 @@ Reusable test support lives under `tests/helpers/`:
   reference pinned to a full 40-hex SHA, and all included consumers must use
   the same revision.
 - `assert_polonius_toolchain_contracts` checks the `setup-rust` revision
-  passthrough in CI and coverage-main. Its `audit_workflow` and
-  `act_validation_workflow` inputs extend those checks to audit and
-  act-validation; release is checked when that application-only workflow is
+  passthrough in CI and coverage-main. Its `audit_workflow` input extends those
+  checks to audit; release is checked when that application-only workflow is
   present.
 - `tests/conftest.py` provides the session-scoped `act_ready` fixture, which
   skips act-dependent tests unless `RUN_ACT_VALIDATION=1` is set and at least
   one container runtime is reachable.
 - `tests/test_github_actions_integration.py` renders a project, initializes it
-  as a Git repository, runs the generated act-validation workflow through
-  `act`, and asserts black-box Rust test evidence from JSON event logs.
+  as a Git repository, checks workflow wiring with `act --list` and an act dry
+  run, runs a trimmed CI job through `act`, and asserts black-box Rust test
+  evidence from JSON event logs.
 - `tests/test_parent_ci.py` asserts that parent main CI keeps act validation
   separate and that `.github/workflows/act-validation.yml` carries act pinning
-  and installation, the Docker runtime check, and `make test WITH_ACT=1`.
+  and installation, the Docker runtime check, and `make test-act`.
 
 Container-aware support for optional `act` tests lives in `tests/utilities.py`.
 Direct helper edge-case tests live in `tests/test_helpers.py`; rendered project

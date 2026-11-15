@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -16,6 +17,62 @@ from tests.utilities import container_daemon_socket, docker_environment
 EVENT = Path(__file__).parent / "fixtures" / "pull_request.event.json"
 ACT_IMAGE = "ubuntu-latest=catthehacker/ubuntu:act-latest"
 RUST_SETUP_LOG_STEP = "Log Rust compiler configuration"
+COVERAGE_STEP = "Test and Measure Coverage"
+COVERAGE_JOB_STEP_NAMES = frozenset(
+    {
+        "Setup Rust",
+        RUST_SETUP_LOG_STEP,
+        "Log coverage linker configuration",
+        COVERAGE_STEP,
+    }
+)
+CHECKOUT_USES_PREFIX = "actions/checkout@"
+STEP_HEADER = re.compile(r"^ {6}- (?P<key>name|uses): (?P<value>.+?)\s*$")
+
+
+def trim_ci_workflow(workflow: str) -> str:
+    """Reduce a rendered CI workflow to the steps the coverage job needs.
+
+    The parent ``make test`` already renders each variant and runs its format,
+    lint, audit and test targets once. A real act run only has to prove that the
+    Rust set-up and the shared coverage action work end to end, so the other
+    steps (spelling, audit, Whitaker, lint) are dropped from the act copy.
+
+    Parameters
+    ----------
+    workflow
+        Rendered ``ci.yml`` text.
+
+    Returns
+    -------
+    str
+        The workflow with every step outside the coverage job's steps removed.
+
+    Raises
+    ------
+    AssertionError
+        Raised when a step the coverage job needs is missing, which means the
+        template renamed it and ``COVERAGE_JOB_STEP_NAMES`` must follow.
+    """
+    kept: list[str] = []
+    seen: set[str] = set()
+    keep_block = True
+    for line in workflow.splitlines(keepends=True):
+        header = STEP_HEADER.match(line)
+        if header:
+            value = header.group("value").strip("'\"")
+            is_checkout = header.group("key") == "uses" and value.startswith(
+                CHECKOUT_USES_PREFIX
+            )
+            seen.add(CHECKOUT_USES_PREFIX if is_checkout else value)
+            keep_block = is_checkout or (
+                header.group("key") == "name" and value in COVERAGE_JOB_STEP_NAMES
+            )
+        if keep_block:
+            kept.append(line)
+    missing = sorted(COVERAGE_JOB_STEP_NAMES - seen)
+    assert not missing, f"rendered ci.yml lacks coverage-job steps: {missing}"
+    return "".join(kept)
 
 
 def prepare_git_repository(project: CopierProject) -> None:
@@ -43,8 +100,10 @@ def prepare_git_repository(project: CopierProject) -> None:
     print(f"act phase: git repository preparation completed in {elapsed:.3f}s")
 
 
-def run_act(project: CopierProject, *, artifact_dir: Path) -> tuple[int, str]:
-    """Run the generated act-validation workflow through act."""
+def run_act(
+    project: CopierProject, *, artifact_dir: Path, dry_run: bool = False
+) -> tuple[int, str]:
+    """Run the generated CI workflow through act, optionally as a dry run."""
     started = time.perf_counter()
     phase_logs = [
         f"act phase: setup started for {project.path}",
@@ -68,6 +127,8 @@ def run_act(project: CopierProject, *, artifact_dir: Path) -> tuple[int, str]:
         "--json",
         "-b",
     ]
+    if dry_run:
+        command.append("--dryrun")
     docker_host = container_daemon_socket(env)
     if docker_host is not None:
         command.extend(["--container-daemon-socket", docker_host])
@@ -193,13 +254,22 @@ def test_generated_act_validation_workflow_runs_tests(
     enable_polonius: bool,
     expected_base_rustflags: str,
 ) -> None:
-    """Validate both generated CI Rust flag branches through act."""
+    """Run both Rust flag branches of the trimmed CI coverage job through act.
+
+    Only the coverage job's steps run (see ``trim_ci_workflow``); the rendered
+    project's lint, audit and test targets run once in the ordinary template
+    tests.
+    """
     project = render_project(
         tmp_path / f"act_rust_{enable_polonius}",
         copier,
         project_name="ActRust",
         package_name="act_rust",
         enable_polonius=enable_polonius,
+    )
+    ci_workflow = project / ".github" / "workflows" / "ci.yml"
+    ci_workflow.write_text(
+        trim_ci_workflow(ci_workflow.read_text(encoding="utf-8")), encoding="utf-8"
     )
     prepare_git_repository(project)
 
@@ -212,3 +282,48 @@ def test_generated_act_validation_workflow_runs_tests(
         logs,
         expected_base_rustflags=expected_base_rustflags,
     )
+
+
+@pytest.mark.act
+@pytest.mark.parametrize("enable_polonius", [False, True], ids=["warnings", "polonius"])
+def test_generated_workflows_parse_and_resolve_under_act(
+    act_ready: None,
+    copier: CopierFixture,
+    tmp_path: Path,
+    enable_polonius: bool,
+) -> None:
+    """Check the rendered workflows' wiring through act without running steps.
+
+    ``act --list`` parses every rendered workflow, and a dry run of the CI job
+    resolves its steps and the actions they use. Neither executes a step, so the
+    full CI job is not run a second time.
+    """
+    project = render_project(
+        tmp_path / f"act_wiring_{enable_polonius}",
+        copier,
+        project_name="ActWiring",
+        package_name="act_wiring",
+        enable_polonius=enable_polonius,
+    )
+    prepare_git_repository(project)
+    listed = subprocess.run(
+        ["act", "--list"],
+        cwd=project.path,
+        env=docker_environment(),
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=120,
+    )
+    assert listed.returncode == 0, f"act --list failed:\n{listed.stdout}{listed.stderr}"
+    workflows = sorted(
+        path.name for path in (project / ".github" / "workflows").glob("*.yml")
+    )
+    unlisted = [file for file in workflows if file not in listed.stdout]
+    assert not unlisted, f"act did not list rendered workflows: {unlisted}"
+
+    code, logs = run_act(
+        project, artifact_dir=tmp_path / f"dryrun-{enable_polonius}", dry_run=True
+    )
+    assert code == 0, logs
+    assert COVERAGE_STEP in logs, "the dry run should resolve the shared coverage step"

@@ -47,18 +47,18 @@ def test_parent_act_validation_runs_template_tests_with_act_enabled() -> None:
     assert "docker info" in workflow, (
         "expected parent act workflow to verify the Docker runtime before act tests"
     )
-    assert "make test WITH_ACT=1" in workflow, (
-        "expected parent act workflow to run parent tests with act validation enabled"
+    assert "make test-act" in workflow, (
+        "expected parent act workflow to run only the act-backed tests"
+    )
+    assert "make test WITH_ACT=1" not in workflow, (
+        "expected parent act workflow not to re-run the full suite"
     )
     assert "PYTEST_ADDOPTS: -rx" in workflow, (
         "expected parent act validation to report xfailed test IDs and reasons"
     )
 
 
-@pytest.mark.parametrize(
-    "workflow_path",
-    [".github/workflows/ci.yml", ".github/workflows/act-validation.yml"],
-)
+@pytest.mark.parametrize("workflow_path", [".github/workflows/ci.yml"])
 def test_parent_workflows_accept_any_sccache_backend(workflow_path: str) -> None:
     """Every parent Rust setup step names its cache expectation explicitly.
 

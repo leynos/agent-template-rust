@@ -1,6 +1,6 @@
 """Contract tests for how the workflows provision clang, lld and mold.
 
-The parent repository's CI and act-validation workflows, and the generated CI
+The parent repository's CI workflow, and the generated CI
 and coverage-main workflows (asserted by the template tooling contracts through
 the same helper), install the linkers through ``setup-rust``'s
 ``install-mold`` and ``install-clang-lld`` inputs. These tests read the parent
@@ -38,11 +38,11 @@ def _steps(workflow: str) -> list[Any]:
     return [step for job in document["jobs"].values() for step in job["steps"]]
 
 
-@pytest.mark.parametrize("workflow", ["ci.yml", "act-validation.yml"])
+@pytest.mark.parametrize("workflow", ["ci.yml"])
 def test_parent_workflows_install_the_linkers_through_setup_rust(
     workflow: str,
 ) -> None:
-    """The parent CI and act-validation workflows provision the linkers."""
+    """The parent CI workflow provisions the linkers."""
     assert_setup_rust_installs_linkers(_steps(workflow), f"parent {workflow}")
 
 
