@@ -84,6 +84,10 @@ def test_test_act_recipe_runs_only_the_act_marked_tests() -> None:
 
     assert "RUN_ACT_VALIDATION=1" in recipe, "expected the recipe to enable act"
     assert "-m act" in recipe, "expected the recipe to select the act marker"
+    assert "$(MAKE)" not in recipe and "make " not in recipe, (
+        "expected the recipe not to call another make target, which could run "
+        "the unmarked suite"
+    )
     assert recipe.count("pytest") == 1, (
         "expected the recipe to run pytest once, so it cannot also run an "
         "unmarked full suite"
