@@ -592,6 +592,8 @@ def test_act_archive_failure_xfails_after_rust_and_test_signals() -> None:
         '"Output":"Base RUSTFLAGS: -D warnings"}\n'
         '{"Output":"$ cargo llvm-cov nextest"}\n'
         '{"Output":"$ cargo llvm-cov test"}\n'
+        '{"step":"Test and Measure Coverage","stepID":["4","rust"],'
+        '"stepResult":"success"}\n'
         "Parameter INPUT_ARTEFACT_NAME_SUFFIX specified multiple times\n"
         "Provided artifact name input during validation is empty\n"
         '{"step":"Test and Measure Coverage","stepID":["4","out"],'

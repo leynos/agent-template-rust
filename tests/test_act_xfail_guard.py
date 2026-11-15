@@ -36,6 +36,7 @@ def _evidence() -> list[dict[str, object]]:
     return [
         _event(step=RUST_SETUP_LOG_STEP, msg=f"Base RUSTFLAGS: {FLAGS}"),
         _event(step=COVERAGE_STEP, msg="$ cargo llvm-cov nextest --workspace"),
+        _event(step=COVERAGE_STEP, stepID=["4", "rust"], stepResult="success"),
     ]
 
 
@@ -81,6 +82,16 @@ def test_failure_in_another_step_is_not_masked() -> None:
     ]
 
     with pytest.raises(AssertionError):
+        assert_act_result(1, _log(events), expected_base_rustflags=FLAGS)
+
+
+def test_output_error_without_a_successful_rust_step_is_not_masked() -> None:
+    """A started coverage command without a successful rust step does not xfail."""
+    events = [
+        event for event in _evidence() if event.get("stepResult") != "success"
+    ] + [_output_error(), _failure("4", "out"), _failure("4")]
+
+    with pytest.raises(AssertionError, match="successful coverage action rust step"):
         assert_act_result(1, _log(events), expected_base_rustflags=FLAGS)
 
 

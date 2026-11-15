@@ -190,8 +190,16 @@ def assert_ci_exercised_expected_steps(
     """Assert that act logs include the expected Rust test gate."""
     saw_test_step = False
     saw_rust = False
+    saw_rust_success = False
     saw_rust_setup_log = False
     for event in iter_json_log_events(logs):
+        step_ids = event.get("stepID", event.get("stepid", []))
+        saw_rust_success = saw_rust_success or (
+            event.get("stepResult") == "success"
+            and event_text(event, "step", "Step") == COVERAGE_STEP
+            and isinstance(step_ids, list)
+            and step_ids[-1:] == ["rust"]
+        )
         output = str(event_text(event, "Output", "output", "message", "msg"))
         step = str(event_text(event, "name", "step_name", "Step", "step"))
         saw_test_step = saw_test_step or "$ cargo llvm-cov" in output
@@ -206,6 +214,9 @@ def assert_ci_exercised_expected_steps(
     assert saw_rust_setup_log, f"Rust setup diagnostics were not observed:\n{logs}"
     assert saw_test_step, f"CI coverage command was not observed:\n{logs}"
     assert saw_rust, f"Rust coverage tests were not observed:\n{logs}"
+    assert saw_rust_success, (
+        f"a successful coverage action rust step was not observed:\n{logs}"
+    )
 
 
 def only_coverage_output_failures(events: list[dict[str, object]]) -> bool:
