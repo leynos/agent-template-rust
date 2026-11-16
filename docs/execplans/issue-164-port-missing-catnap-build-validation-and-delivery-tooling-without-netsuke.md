@@ -686,6 +686,16 @@ run; recorded skips and platform limits.
   after main's rewrap; `template/docs/developers-guide.md.jinja` was rewrapped
   and both library and application Polonius renders then reported "left
   unchanged". The affected subset reran green (`54 passed`).
+- [x] 2026-11-16: The fixes were committed as `d35b150` and force-pushed with a
+  lease bound to `c733550`; the remote head was read back as `d35b150`. Every
+  gate then ran once, sequentially, on the final candidate: `make check-fmt`,
+  `make test` (235 passed, 4 skipped), `make typecheck`, `make lint` and
+  `make spelling`, all exit zero, with each log kept under
+  `/tmp/<gate>-agent-template-rust-issue-164.out`. Hosted `CI` and
+  `Act Validation` both completed `success` on `d35b150`. All 26 review threads
+  remain resolved. CodeRabbit's `APPROVED` submission covers the pre-rebase head
+  `c733550`, so it is stale for `d35b150`; comenq request `58801f00` is queued
+  for a review of the new head and reported a long queue delay.
 
 ## Surprises & discoveries
 
