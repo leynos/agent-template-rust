@@ -18,8 +18,9 @@ The tests build the rendered project and validate the generated Makefile with
 
 Figure: The generated `make all` quality gate verifies formatting, linting, and
 tests. The main generated CI workflow also runs the audit and coverage targets;
-the separate Act validation workflow runs the parent template tests with
-`WITH_ACT=1` so rendered workflow checks do not slow the main CI path.
+the parent repository's separate Act validation workflow runs only the
+act-marked template tests (`make test-act`), so rendered workflow checks do not
+slow the main CI path. Generated projects ship no act-validation workflow.
 
 ```mermaid
 flowchart LR
@@ -62,10 +63,10 @@ flowchart LR
         CargoAudit --> Ignores[CARGO_AUDIT_IGNORES to --ignore flags]
     end
 
-    subgraph Act_Validation[Generated .github/workflows/act-validation.yml]
+    subgraph Act_Validation[Parent .github/workflows/act-validation.yml]
         ActWorkflow[act-validation job]
         ActWorkflow --> InstallAct[install act]
         InstallAct --> DockerInfo[docker info]
-        DockerInfo --> ActTests[make test WITH_ACT=1]
+        DockerInfo --> ActTests[make test-act]
     end
 ```

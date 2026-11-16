@@ -651,6 +651,41 @@ run; recorded skips and platform limits.
   only in the `--all` wording. Gates rerun green sequentially: `make check-fmt`,
   `make test` (218 passed, 2 expected `act` skips), `make typecheck`,
   `make lint` and `make spelling`.
+- [x] 2026-11-16: Main advanced again, through `d6d92a7`, and the branch was
+  rebased with recovery refs `r15-old-head` (`c733550`), `r15-old-base`
+  (`6152841`) and `r15-target` (`d6d92a7`). Thirty-five old commits replayed as
+  thirty-four: `c733550` ("Reflow main's helper policy paragraph to the fixed
+  point") became empty because main's own #180 rewrap landed the same text, so
+  it was dropped with `--empty=stop` rather than kept as a no-op. Seven commits
+  conflicted. The resolutions kept both sides' pertinent changes: main's
+  `setup-rust` scope inputs (`all-targets`, `all-features`, `doctests`) and the
+  `publish-artefact` contract alongside this branch's publish keys and Polonius
+  release comment; main's deletion of the rendered act-validation workflow
+  alongside this branch's parent act workflow and `make test-act`; and main's
+  shared-actions revision `1123a35f` for this branch's release pin. Main also
+  changed the rendered `ci.yml` tail from our `{%- endraw %}` to a plain
+  `{% endraw %}`, which appends a blank line to the rendered file and fails
+  yamllint `empty-lines`; the strip-before form was restored. Two weave
+  annotation lines per conflicted Python file and duplicated blank lines were
+  removed before committing. `git range-diff` shows 27 of 34 commits identical;
+  the seven that differ differ only by those intentional resolutions.
+  `git diff --check r15-target HEAD` reports only the `.ambr` snapshot trailing
+  whitespace that the old series already carried.
+- [x] 2026-11-16: The first full-suite run after the rebase failed 24 tests
+  (`24 failed, 211 passed, 4 skipped`). Two root causes, both from main's
+  changes: the rendered blank line cascaded into `test_basic_rendering`,
+  `test_tooling_contracts`, `test_yaml_lint_gates` and thirteen
+  `test_lint_targets` clippy assertions, and
+  `test_parent_act_validation_provisions_the_markdown_formatter` asserted a
+  step that main's #178 removed. Fixed by restoring `{%- endraw %}` and
+  rewriting the test as
+  `test_parent_act_validation_needs_no_markdown_formatter`, which asserts the
+  act workflow runs `make test-act` and does not provision the formatter,
+  because act-marked tests never invoke a rendered `check-fmt` gate. The
+  rendered `docs/developers-guide.md` was also not a mdtablefix fixed point
+  after main's rewrap; `template/docs/developers-guide.md.jinja` was rewrapped
+  and both library and application Polonius renders then reported "left
+  unchanged". The affected subset reran green (`54 passed`).
 
 ## Surprises & discoveries
 

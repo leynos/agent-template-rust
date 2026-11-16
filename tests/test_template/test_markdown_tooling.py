@@ -11,7 +11,6 @@ fails the test. Ignored files must stay untouched.
 
 from __future__ import annotations
 
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -121,19 +120,17 @@ def test_rendered_check_fmt_reformats_git_visible_markdown(
     )
 
 
-def test_parent_act_validation_provisions_the_markdown_formatter() -> None:
-    """Act validation renders projects whose formatting gate needs mdtablefix."""
+def test_parent_act_validation_needs_no_markdown_formatter() -> None:
+    """The act lane runs only act-marked tests, none of which format Markdown."""
     workflow = (REPO_ROOT / ".github/workflows/act-validation.yml").read_text(
         encoding="utf-8"
     )
 
-    assert re.search(r"install-mdtablefix@[0-9a-f]{40}\b", workflow), (
-        "expected act validation to install the Markdown formatter pinned to a "
-        "full 40-hex commit SHA"
+    assert "install-mdtablefix" not in workflow, (
+        "expected act validation not to provision the Markdown formatter: it "
+        "runs only the act-marked tests, which never invoke a rendered "
+        "check-fmt gate"
     )
-    assert workflow.index("install-mdtablefix") < workflow.index(
-        "name: Test with act validation"
-    ), (
-        "expected act validation to provision the formatter before rendering and "
-        "testing generated projects"
+    assert "make test-act" in workflow, (
+        "expected act validation to run the act-only test lane"
     )
