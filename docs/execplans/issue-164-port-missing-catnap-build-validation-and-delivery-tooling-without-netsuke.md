@@ -696,6 +696,31 @@ run; recorded skips and platform limits.
   remain resolved. CodeRabbit's `APPROVED` submission covers the pre-rebase head
   `c733550`, so it is stale for `d35b150`; comenq request `58801f00` is queued
   for a review of the new head and reported a long queue delay.
+- [x] 2026-11-16: `11c5ef0` carried the gate evidence into the plan and was
+  pushed; hosted `CI` and `Act Validation` were green on it. The queued comenq
+  request posted after about five hours and CodeRabbit reviewed `11c5ef0`,
+  returning `CHANGES_REQUESTED` with four inline findings. Main meanwhile
+  advanced to `5ae0c8e` (#182, a `setup-uv` pin bump), which conflicted with
+  this branch in the parent `ci.yml` and `act-validation.yml`, so the branch
+  was rebased with recovery refs `r16-old-head` (`11c5ef0`), `r16-old-base`
+  (`d6d92a7`) and `r16-target` (`5ae0c8e`). Only the first of the 37 replayed
+  commits conflicted, and the resolution keeps main's `963ce8f` pin while
+  retaining the branch's added CI steps; `git range-diff` shows the other 36
+  commits identical.
+- [x] 2026-11-16: Three of the four findings were verified against the current
+  code and fixed as `0c0b390`. The UI-lane paragraph now says the `compile_*`
+  exclusion applies only under nextest, because `TEST_UI_EXCLUDE` is empty in
+  the `cargo test` fallback; the release paragraph now describes the `cc`
+  default and the `aarch64-linux-gnu-gcc` selection, because the workflow's
+  linker step contains that `case`; and the Markdown test's tracked-file
+  assertion is independent, because `untracked-example.md` contained the
+  asserted string and is now `uncommitted-example.md`. The fourth finding asks
+  for the parent guide's "Test Helper Layout" map to move to
+  `docs/repository-layout.md`; that section predates this branch (introduced by
+  #40), and the parent repository has no such document, so the disposition is a
+  documented rebuttal proposing a separate issue rather than an unrelated
+  restructure here. The rendered guide was re-rendered and is a mdtablefix
+  fixed point again.
 
 ## Surprises & discoveries
 
