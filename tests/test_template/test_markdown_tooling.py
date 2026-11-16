@@ -63,8 +63,10 @@ def test_rendered_check_fmt_reformats_git_visible_markdown(
         project_name="MarkdownExample",
         package_name="markdown_example",
     )
+    # The names share no suffix, so a match for one file cannot be satisfied by
+    # the other's path in the formatter's output.
     tracked = project / "docs" / "tracked-example.md"
-    untracked = project / "docs" / "untracked-example.md"
+    untracked = project / "docs" / "uncommitted-example.md"
     ignored = project / "target" / "ignored-example.md"
     ignored.parent.mkdir(parents=True, exist_ok=True)
     tracked.write_text(MESSY_MARKDOWN, encoding="utf-8")
@@ -87,7 +89,7 @@ def test_rendered_check_fmt_reformats_git_visible_markdown(
     assert "tracked-example.md" in output, (
         f"expected check-fmt to select tracked Markdown\noutput:\n{output}"
     )
-    assert "untracked-example.md" in output, (
+    assert "uncommitted-example.md" in output, (
         f"expected check-fmt to select untracked Markdown\noutput:\n{output}"
     )
     assert "ignored-example.md" not in output, (

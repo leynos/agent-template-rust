@@ -18,7 +18,9 @@ and reports an intentional no-op when the project has none; `make all` includes
 the lane. The default run excludes those targets when they exist, because each
 one builds a nested Cargo project that only the UI lane should run; nextest
 rejects a filter that names no binary, so the exclusion is added only when a
-target is discovered. `make coverage` passes the same filter to
+target is discovered. Without nextest, `cargo test` cannot express the filter,
+so `make test` and `make coverage` run the compile-time targets as ordinary
+tests. With nextest, `make coverage` passes the same filter to
 `cargo llvm-cov nextest`. The shared CI coverage action accepts no test filter,
 so its caller runs the UI lane first and then has
 `scripts/exclude-ui-targets.sh` add the same filter to the project's nextest
@@ -128,14 +130,16 @@ The matrix keeps `fail-fast` disabled so one broken leg does not hide whether
 the others build. Linux, Windows, and FreeBSD targets build inside `cross`;
 both macOS targets build natively with `cargo` on `macos-15-intel` and
 `macos-latest`, because `cross` has no Apple image. Every leg clears the
-nightly development flags, and every cross-built Linux leg links with `cc`
-rather than the development `clang` configuration: the container has gcc and no
-clang, and the override is written per matrix target because its variable name
-carries the target. The toolchain follows the project's borrow-checker mode: a
-project that enables the analysis releases on the dated nightly that
-`rust-toolchain.toml` pins, with `RUSTFLAGS=-Zpolonius=next`, while every other
-project releases on stable with an empty `RUSTFLAGS`. Each artefact gets a
-`shasum -a 256` checksum file beside the binary.
+nightly development flags, and every cross-built Linux leg overrides the
+development `clang` configuration: the container has gcc and no clang. The
+x86_64 leg links with `cc`, while `aarch64-*` legs use the image's
+target-prefixed `aarch64-linux-gnu-gcc` driver, so the override is written per
+matrix target because its variable name carries the target. The toolchain
+follows the project's borrow-checker mode: a project that enables the analysis
+releases on the dated nightly that `rust-toolchain.toml` pins, with
+`RUSTFLAGS=-Zpolonius=next`, while every other project releases on stable with
+an empty `RUSTFLAGS`. Each artefact gets a `shasum -a 256` checksum file beside
+the binary.
 
 ## Spelling policy
 
