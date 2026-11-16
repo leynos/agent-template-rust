@@ -2,11 +2,15 @@
 # This project enables the nightly-only Polonius alpha borrow checker. Keep the
 # dated pin reproducible and review docs/polonius.md before changing it.
 {% endif -%}
+# This file is the single source of truth for the compiler, its components, and
+# the development backend. `scripts/check-build-tools.sh` reads both the
+# channel and the component list from here rather than duplicating either.
 [toolchain]
 channel = "nightly-{{ rust_nightly_date }}"
 components = [
   "clippy",
   "llvm-tools-preview",
+  "rust-analyzer",
   "rustc-codegen-cranelift-preview",
   "rustfmt",
 ]

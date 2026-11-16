@@ -23,6 +23,8 @@ def render_project(
     enable_polonius: bool | None = None,
     license_year: int | None = 2026,
     dev_target: str = "x86_64-unknown-linux-gnu",
+    github_repository: str | None = None,
+    repository_url: str | None = None,
 ) -> CopierProject:
     """Render a generated Rust project with publishable metadata.
 
@@ -45,6 +47,13 @@ def render_project(
         Copyright year. ``None`` omits the answer so Copier uses its default.
     dev_target : str
         Rust target triple used for generated development tooling.
+    github_repository : str | None
+        GitHub repository as ``owner/name``. ``None`` omits the answer so
+        Copier derives it from ``repository_url``.
+    repository_url : str | None
+        Repository URL metadata. ``None`` keeps the template's default
+        ``https://github.com/example/<package_name>``, from which Copier
+        derives ``example/<package_name>``.
 
     Returns
     -------
@@ -66,6 +75,10 @@ def render_project(
     }
     if enable_polonius is not None:
         answers["enable_polonius"] = enable_polonius
+    if github_repository is not None:
+        answers["github_repository"] = github_repository
+    if repository_url is not None:
+        answers["repository_url"] = repository_url
     if license_year is not None:
         answers["license_year"] = license_year
 

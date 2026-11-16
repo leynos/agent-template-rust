@@ -482,17 +482,6 @@ def test_read_generated_file_uses_shared_error_contract(tmp_path: Path) -> None:
 
 def test_ci_coverage_action_contract_validates_edges() -> None:
     """Validate CI coverage action edge cases."""
-    assert_ci_coverage_action_contract(
-        _ci_workflow(
-            persist_credentials="false",
-            coverage_inputs=(
-                "          output-path: lcov.info\n          format: lcov\n"
-                "          with-ratchet: 'true'\n"
-                "          all-targets: 'true'\n          all-features: 'true'\n"
-                "          doctests: 'true'\n"
-            ),
-        )
-    )
 
     with pytest.raises(
         AssertionError, match="expected CI coverage step to enable doctests"
@@ -527,6 +516,18 @@ def test_ci_coverage_action_contract_validates_edges() -> None:
                     ),
                 )
             )
+    assert_ci_coverage_action_contract(
+        _ci_workflow(
+            persist_credentials="false",
+            coverage_inputs=(
+                "          output-path: lcov.info\n          format: lcov\n"
+                "          with-ratchet: 'true'\n"
+                "          all-targets: 'true'\n          all-features: 'true'\n"
+                "          doctests: 'true'\n"
+                "          publish-artefact: 'false'\n"
+            ),
+        )
+    )
 
     with pytest.raises(
         AssertionError,
@@ -537,6 +538,23 @@ def test_ci_coverage_action_contract_validates_edges() -> None:
                 persist_credentials="false",
                 coverage_inputs=(
                     "          output-path: lcov.info\n          format: lcov\n"
+                ),
+            )
+        )
+
+    with pytest.raises(
+        AssertionError,
+        match="expected the pull-request lane to leave the report artefact",
+    ):
+        assert_ci_coverage_action_contract(
+            _ci_workflow(
+                persist_credentials="false",
+                coverage_inputs=(
+                    "          output-path: lcov.info\n          format: lcov\n"
+                    "          with-ratchet: 'true'\n"
+                    "          all-targets: 'true'\n          all-features: 'true'\n"
+                    "          doctests: 'true'\n"
+                    "          publish-artefact: 'true'\n"
                 ),
             )
         )

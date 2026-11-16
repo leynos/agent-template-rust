@@ -9,14 +9,22 @@ lifetimes (NLL) reject, allowing internal APIs to model borrowing directly.
 
 `.cargo/config.toml` enables Polonius for normal Cargo commands and
 rust-analyzer. An inherited `RUSTFLAGS` value overrides that configuration, so
-the Makefile and GitHub Actions workflows re-state `-Zpolonius=next` whenever
-they set `RUSTFLAGS`. Release builds use the same pinned nightly and flag.
+the Makefile and CI workflows re-state `-Zpolonius=next` whenever they set
+`RUSTFLAGS`.
+
+Release builds keep Polonius. The application release workflow selects the same
+dated nightly as development and sets `RUSTFLAGS=-Zpolonius=next` for both the
+native and cross legs, so source that requires the borrow-checker analysis can
+be tagged and released unchanged. The other nightly development flags
+(`-Zthreads=8`, Cranelift and `mold`) are still cleared: a release artefact
+carries only the flag its source needs. Verify every borrow-sensitive change
+under the supported nightly configuration before tagging.
 
 Source builds performed outside this repository, including registry installs,
 do not inherit its toolchain or Cargo configuration. If this crate later ships
 Polonius-only source through a registry, its installation instructions must
-name both the pinned nightly and `RUSTFLAGS=-Zpolonius=next`, or direct users to
-pre-built artefacts.
+name both the pinned nightly and `RUSTFLAGS=-Zpolonius=next`, or direct users
+to pre-built artefacts.
 
 ## Borrow-centric design
 
@@ -43,8 +51,8 @@ classification preserved:
 Record verified sites below so later reviews start from evidence rather than
 re-running the same analysis.
 
-| Site | Classification | Verified nightly | Notes |
-| --- | --- | --- | --- |
+| Site     | Classification            | Verified nightly     | Notes                                             |
+| -------- | ------------------------- | -------------------- | ------------------------------------------------- |
 | None yet | Initial generated project | `nightly-{{ rust_nightly_date }}` | Add rows as borrow-sensitive APIs are introduced. |
 
 ## Verification

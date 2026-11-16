@@ -16,15 +16,25 @@ def _assert_makefile_contracts(makefile: str) -> None:
         "all",
         "audit",
         "build",
+        "check-build-tools",
+        "check-coverage-tools",
         "check-fmt",
+        "check-rust-toolchain",
         "coverage",
         "fmt",
+        "install-build-tools",
+        "install-cranelift",
         "lint",
+        "lint-actions",
+        "lint-shell",
+        "lint-yaml",
         "markdownlint",
         "nixie",
         "rust-audit",
         "spelling",
         "test",
+        "test-ui",
+        "test-workflow-contracts",
         "typecheck",
     ]:
         assert target in makefile_rules, f"expected generated Makefile target {target}"
@@ -57,12 +67,22 @@ def _assert_makefile_contracts(makefile: str) -> None:
         "expected generated Makefile test target to run doctests with Rustdoc flags"
     )
     assert (
-        'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$(DEV_RUST_FLAGS)" '
-        "$(CARGO) doc --no-deps"
-    ) in makefile, "expected generated Makefile lint target to deny Rustdoc warnings"
-    assert "coverage: ## Generate lcov coverage with lld" in makefile, (
-        "expected generated Makefile to include an lld-backed coverage target"
+        'PATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
+        'RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) doc --no-deps'
+    ) in makefile, (
+        "expected generated Makefile lint target to deny Rustdoc warnings with "
+        "the pinned build tools on PATH"
     )
+    assert (
+        'PATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" '
+        "$(CARGO) clippy $(CLIPPY_FLAGS)"
+    ) in makefile, (
+        "expected generated Makefile lint target to run Clippy with the "
+        "development flags and the pinned build tools on PATH"
+    )
+    assert (
+        "coverage: check-coverage-tools ## Generate lcov coverage with lld" in makefile
+    ), "expected generated Makefile to include an lld-backed coverage target"
     assert "COVERAGE_LINKER_FLAGS ?= -fuse-ld=lld" in makefile, (
         "expected generated Makefile coverage target to select lld"
     )
@@ -141,6 +161,126 @@ def _assert_makefile_contracts(makefile: str) -> None:
     ), (
         "expected generated audit target to run cargo audit with translated ignores "
         "from the workspace root"
+    )
+    assert "INHERITED_RUST_FLAGS := $(RUSTFLAGS)" in makefile, (
+        "expected generated Makefile to capture RUSTFLAGS inherited from the "
+        "environment before composing its own flags"
+    )
+    assert (
+        "RUST_FLAGS := $(INHERITED_RUST_FLAGS) -D warnings $(RUST_FLAGS)" in makefile
+    ), "expected generated Makefile flags to append inherited RUSTFLAGS"
+    assert "DEV_CODEGEN_FLAGS ?= -Zthreads=8 -Zcodegen-backend=cranelift" in makefile, (
+        "expected generated Makefile to route the development backend through "
+        "rustc flags"
+    )
+    assert (
+        "DEV_RUST_FLAGS ?= $(RUST_FLAGS) $(POLONIUS_FLAGS) $(DEV_CODEGEN_FLAGS) "
+        "$(DEV_LINKER_FLAGS)" in makefile
+    ), "expected generated development flags to compose codegen and linker flags"
+    preflights = {
+        "test": "check-build-tools",
+        "test-ui": "check-build-tools",
+        "typecheck": "check-build-tools",
+        "lint": "check-build-tools",
+        "coverage": "check-coverage-tools",
+        "fmt": "check-rust-toolchain",
+        "check-fmt": "check-rust-toolchain",
+        "target/debug/$(TARGET)": "check-build-tools",
+    }
+    for target, prerequisite in preflights.items():
+        rules = re.findall(
+            rf"^{re.escape(target)}:([^\n]*)", makefile, flags=re.MULTILINE
+        )
+        assert any(prerequisite in rule.split() for rule in rules), (
+            f"expected generated {target} target to preflight {prerequisite} "
+            "before compiling"
+        )
+    release_rules = re.findall(r"^release:([^\n]*)", makefile, flags=re.MULTILINE)
+    assert len(release_rules) == 1, (
+        "expected generated Makefile to define one release rule"
+    )
+    release_prerequisites = release_rules[0].split()
+    assert "target/release/$(TARGET)" in release_prerequisites, (
+        "expected generated release target to build the release binary"
+    )
+    if "check-rust-toolchain" in release_prerequisites:
+        assert release_prerequisites.index(
+            "check-rust-toolchain"
+        ) < release_prerequisites.index("target/release/$(TARGET)"), (
+            "expected generated release target to preflight the toolchain before "
+            "compiling"
+        )
+    assert re.search(
+        r"^CV005_CONTRACTS_REF \?= [0-9a-f]{40}$", makefile, flags=re.MULTILINE
+    ), (
+        "expected generated Makefile to pin the shared workflow contract checker "
+        "to a full 40-hex commit SHA"
+    )
+    assert (
+        "git+https://github.com/leynos/shared-actions@$(CV005_CONTRACTS_REF)"
+        "\\#subdirectory=packages/cv005-contracts"
+    ) in makefile, (
+        "expected the generated checker to resolve from the pinned shared revision"
+    )
+    assert "$(CV005_CONTRACTS) check --repository ." in makefile, (
+        "expected generated Makefile to run the pinned shared CV-005 checker"
+    )
+    assert "test-workflow-contracts: ## Check the shared CV-005 workflow contracts" in (
+        makefile
+    ), "expected generated Makefile to expose the workflow contract target"
+    assert "all: check-fmt lint test test-ui test-workflow-contracts" in makefile, (
+        "expected the comprehensive gate to run the UI lane and the workflow "
+        "contract checker"
+    )
+    assert "MDTABLEFIX ?= mdtablefix" in makefile, (
+        "expected generated Makefile to name the Markdown formatter as an "
+        "overridable tool"
+    )
+    assert "MDTABLEFIX_SELECT = --git --include-untracked" in makefile, (
+        "expected generated Markdown formatting to select Git-visible files"
+    )
+    assert "MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences" in (
+        makefile
+    ), "expected generated Markdown formatting to use the shared rule set"
+    assert (
+        "$(MDTABLEFIX) --in-place $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES)" in makefile
+    ), "expected generated fmt target to rewrite the selected Markdown in place"
+    assert (
+        "$(MDTABLEFIX) --check $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES)" in makefile
+    ), "expected generated check-fmt target to verify the selected Markdown"
+    assert "mdformat-all" not in makefile, (
+        "expected generated Makefile to drop the undeclared formatter wrapper"
+    )
+    assert "UI_TEST_TARGETS :=" in makefile, (
+        "expected generated Makefile to define the UI test target list"
+    )
+    assert "tests/compile_*.rs" in makefile, (
+        "expected generated Makefile to discover compile-time UI test targets"
+    )
+    assert (
+        "UI_TEST_CMD := $(if $(filter nextest run,$(TEST_CMD)),"
+        "$(TEST_CMD) --profile ui,$(TEST_CMD))" in makefile
+    ), "expected generated test-ui target to select the serialized nextest profile"
+    assert "UI_TEST_FLAGS ?= --all-features" in makefile, (
+        "expected the UI lane to keep the same feature selection as `make test`"
+    )
+    assert (
+        'PATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" $(CARGO) '
+        "$(UI_TEST_CMD) $(UI_TEST_FLAGS) $(addprefix --test ,$(UI_TEST_TARGETS))"
+        in makefile
+    ), "expected generated test-ui target to run the discovered targets"
+    assert (
+        'CHECK_BUILD_TOOLS ?= PATH="$(BUILD_TOOLS_PATH)" scripts/check-build-tools.sh'
+    ) in makefile, (
+        "expected generated capability preflight to be overridable and to run "
+        "the checker rather than an installer"
+    )
+    assert (
+        'BUILD_TOOLS_PREFIX="$(BUILD_TOOLS_PREFIX)" scripts/install-build-tools.sh'
+    ) in makefile, "expected generated Makefile to expose the pinned tool installer"
+    assert 'RUSTFLAGS="$(RELEASE_RUST_FLAGS)" $(RELEASE_CARGO) build' in makefile, (
+        "expected generated release target to keep its flag route free of the "
+        "development codegen backend"
     )
 
 

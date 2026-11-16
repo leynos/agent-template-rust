@@ -35,26 +35,32 @@ settings, and documented starter code. Library projects render `src/lib.rs`.
 Application projects render `src/main.rs`, `src/lib.rs`, release automation, and
 `[package.metadata.binstall]` metadata for binary installation.
 
-When Polonius is enabled, the generated Cargo configuration, Makefile, coverage
-workflows, and application release workflow preserve `-Zpolonius=next`. The
-Linux target-specific `mold` flags repeat it because Cargo selects target
-rustflags instead of merging them with `[build].rustflags`. The generated
-project also includes `docs/polonius.md` and matching `AGENTS.md` guidance for
-borrow-centric APIs.
+When Polonius is enabled, the generated Cargo configuration, Makefile, and
+coverage workflows preserve `-Zpolonius=next`. The Linux target-specific `mold`
+flags repeat it because Cargo selects target rustflags instead of merging them
+with `[build].rustflags`. The generated project also includes
+`docs/polonius.md` and matching `AGENTS.md` guidance for borrow-centric APIs.
+The application release workflow follows the same mode: a Polonius project
+releases on its dated nightly with `RUSTFLAGS=-Zpolonius=next`, while a project
+without Polonius releases on stable with empty `RUSTFLAGS`. Both modes clear
+the Cranelift, thread, and mold development flags, so a released artefact
+carries only the flags its source needs.
 
-Generated CI and coverage workflows, plus the release workflow rendered for
-applications, pass their base compiler flags through the shared `setup-rust`
-action's `rustflags` input. They pass `-Zpolonius=next` when Polonius is
-enabled and retain `-D warnings` otherwise; coverage steps then repeat that
-base alongside their `lld` linker flag when they override `RUSTFLAGS`. The
-pinned shared-action revision must expose this input, so dependency updates
-must preserve the passthrough contract.
+Generated CI and coverage workflows pass their base compiler flags through the
+shared `setup-rust` action's `rustflags` input. They pass `-Zpolonius=next`
+when Polonius is enabled and retain `-D warnings` otherwise; coverage steps
+then repeat that base alongside their `lld` linker flag when they override
+`RUSTFLAGS`. The pinned shared-action revision must expose this input, so
+dependency updates must preserve the passthrough contract.
 
 CodeScene coverage belongs to `main`. The generated `ci.yml` measures coverage
 on pull requests for its own ratchet and never receives the CodeScene token or
 contacts CodeScene. `coverage-main.yml` runs on pushes to `main` and on
-dispatch, advances the ratchet baseline, and is the only CodeScene caller. A
-`Check CodeScene token availability` step (id `codescene_token`) runs exactly
+dispatch, advances the ratchet baseline for `main` only, and is the only
+CodeScene caller. The shared publisher contract permits no other trigger on it,
+so the daily backstop lives in a separate `coverage-backstop.yml`, which
+dispatches the publisher. A `Check CodeScene token availability` step (id
+`codescene_token`) runs exactly
 `echo "available=${{ secrets.CS_ACCESS_TOKEN != '' }}" >> "$GITHUB_OUTPUT"`;
 the upload runs only when that output is `true` and `github.ref` is
 `refs/heads/main`, and takes the token as its `access-token` input, so the
@@ -62,18 +68,19 @@ generated workflow binds it in no `env` of its own; the action binds that input
 for its own nested steps. Until the repository has a `CS_ACCESS_TOKEN` secret
 the upload skips cleanly. Publisher runs share the concurrency group
 `coverage-main-${{ github.ref }}` and never cancel one another. A merge made by
-the Dependabot automerge workflow's `GITHUB_TOKEN` fires no push event, so it
-publishes nothing until a dispatch or the next push to `main`. Existing
-projects should follow the [0.3.0 migration guide](migrations/0.3.0.md) to
-adopt this shape.
+the Dependabot automerge workflow's `GITHUB_TOKEN` fires no push event, so the
+caller dispatches `coverage-main.yml` once it observes that the pull request
+merged into `main`. The backstop workflow dispatches it daily for a merge path
+that still fails to dispatch, such as auto-merge armed by the shared workflow
+and completed later by GitHub. Existing projects should follow the
+[0.3.0 migration guide](migrations/0.3.0.md) to adopt this shape.
 
 For screen readers: The following flowchart shows how `enable_polonius` selects
-the base Rust flags used by setup and coverage workflows, and by the release
-workflow rendered for applications (library renders omit `release.yml`). The
-enabled path uses `-Zpolonius=next`; the disabled path uses `-D warnings`.
-Coverage adds the `lld` linker flag to either base, while release inherits the
-selected base from `setup-rust` and uses the corresponding nightly or stable
-toolchain.
+the base Rust flags used by setup and coverage workflows. The enabled path uses
+`-Zpolonius=next`; the disabled path uses `-D warnings`. Coverage adds the
+`lld` linker flag to either base. The application release workflow follows the
+same selection, using the dated nightly with `-Zpolonius=next` when Polonius is
+enabled and stable Cargo with empty `RUSTFLAGS` otherwise.
 
 ```mermaid
 flowchart TD
@@ -89,24 +96,33 @@ flowchart TD
   setup_rust_warnings["Setup Rust (setup-rust)\nwith rustflags = -D warnings"]
 
   setup_rust_polonius --> coverage_polonius
-  setup_rust_polonius --> release_polonius
   setup_rust_warnings --> coverage_warnings
-  setup_rust_warnings --> release_warnings
 
   coverage_polonius["Test and Measure Coverage (generate-coverage)\nRUSTFLAGS includes -Zpolonius=next and -C link-arg=-fuse-ld=lld"]
   coverage_warnings["Test and Measure Coverage (generate-coverage)\nRUSTFLAGS includes -D warnings and -C link-arg=-fuse-ld=lld"]
-
-  release_polonius["Build release binary (cross)\nuses nightly toolchain with -Zpolonius=next from setup-rust"]
-  release_warnings["Build release binary (cross)\nuses stable toolchain with -D warnings from setup-rust"]
 ```
 
 _Figure 1: Rust flag selection and propagation through generated setup and
-coverage workflows, and the application-only release workflow._
+coverage workflows. The application-only release workflow follows the same
+selection: the dated nightly with `-Zpolonius=next` when Polonius is enabled,
+and stable Cargo with empty `RUSTFLAGS` otherwise._
 
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so local debug builds
 link quickly. Coverage generation uses `lld` instead because LLVM coverage
 tools expect LLVM-compatible linker behaviour.
+
+Generated CI installs `rust-analyzer` with `rustup component add rust-analyzer`
+after the pinned toolchain is available, so editors and analysis tools use the
+same compiler as the build. It installs Whitaker through the shared
+`leynos/shared-actions` `install-whitaker` action rather than a project-local
+cache or installer script.
+
+The build-tool installers and checks, lint gates, Markdown formatter, test
+lanes, coverage dispatch and release workflow described in this guide are new
+in 0.5.0. Existing projects should follow the
+[0.5.0 migration guide](migrations/0.5.0.md) to adopt them, including the new
+required tools and the release dispatch model.
 
 ## Generated Contributor Guidance
 
@@ -172,15 +188,31 @@ doctest therefore fails the command.
 
 The generated `Makefile` exposes these public targets:
 
-- `make all` runs formatting checks, linting, tests, and spelling checks.
-- `make check-fmt` verifies Rust formatting.
+- `make all` runs formatting checks, linting, tests, the compile-time contract
+  lane, and workflow contracts, then runs spelling last, after those
+  prerequisites.
+- `make check-fmt` verifies Rust formatting and Markdown table formatting.
 - `make fmt` formats Rust and Markdown sources.
-- `make lint` builds documentation, then runs Clippy and Whitaker, with every
-  warning denied.
+- `make lint` runs the strict YAML, GitHub Actions, and shell gates, then
+  builds documentation and runs Clippy and Whitaker, with every warning denied.
+- `make lint-yaml` checks every tracked YAML file with strict yamllint.
+- `make lint-actions` runs actionlint, including shellcheck, over rendered
+  workflows.
+- `make lint-shell` runs shellcheck over tracked scripts.
 - `make typecheck` type-checks the workspace without building.
 - `make test` runs `cargo nextest run` when cargo-nextest is installed and
   falls back to `cargo test` otherwise. It denies warnings in normal tests and
-  in the separate all-feature workspace doctest run.
+  in the separate all-feature workspace doctest run. `.config/nextest.toml`
+  bounds each test and the whole run, and serializes compiler-spawning tests.
+- `make test-ui` runs compile-time contract targets named `tests/compile_*.rs`,
+  or reports an intentional no-op when there are none.
+- `make test-workflow-contracts` runs the pinned shared CV-005 checker over the
+  repository, using the selection in `.github/cv005.toml`.
+- `make install-build-tools` installs the pinned `mold` release, verified
+  against `tools/mold/SHA256SUMS`, and the Cranelift component for the pinned
+  nightly. `make install-cranelift` installs only the component.
+- `make check-build-tools`, `make check-rust-toolchain`, and
+  `make check-coverage-tools` report missing tools and never install anything.
 - `make build` builds the debug target.
 - `make release` builds the release target.
 - `make coverage` writes `lcov.info` using `cargo llvm-cov` and `lld`.
@@ -203,6 +235,32 @@ The generated `Makefile` exposes these public targets:
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
 full generated workflow locally on Linux.
+
+## Dependency Updates
+
+Generated projects configure `.github/dependabot.yml` to check GitHub Actions,
+Cargo dependencies, and the pinned `rust-toolchain` file daily. It groups
+shared-action callers into one pull request, routine GitHub Action minor and
+patch updates into another, and Cargo and toolchain minor and patch updates
+into further pull requests; a Cargo major update stays on its own pull request.
+Fresh releases cool down for seven days and Cargo major updates for fourteen,
+so a withdrawn or broken release is not adopted immediately. No `labels` list
+is configured, so Dependabot applies its default `dependencies` and ecosystem
+labels.
+
+## Delayed Pull Request Comment
+
+Generated projects include `.github/workflows/delayed-pr-comment.yml`, which
+posts one comment on a pull request after a requested delay. It runs only on
+manual dispatch and takes three inputs: `pr_number`, the pull request to
+comment on; `delay_minutes`, a whole number of minutes capped at 300; and
+`message`, the comment body.
+
+The job declares a 330-minute timeout, so the 300-minute wait and the remaining
+work fit inside one bounded run, and asks for only `pull-requests: write`.
+Every input is untrusted: the numeric inputs are validated in the shell before
+arithmetic or `sleep` sees them, and the comment body reaches the action as an
+action input rather than as part of a shell command.
 
 ## Scheduled Mutation Testing
 

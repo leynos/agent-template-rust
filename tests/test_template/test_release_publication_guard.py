@@ -1,0 +1,218 @@
+"""Exercise the rendered release workflow's publication guard.
+
+The release workflow publishes only for a tag push or a tag dispatch that
+explicitly turns the dry run off. These tests render an application project
+with ``render_delivery_project``, parse its
+``.github/workflows/release.yml`` with the shared YAML helpers, and extract
+the ``release`` job's ``if:`` expression. GitHub expression syntax has no
+evaluator in the test suite, so this module translates the subset the guard
+uses -- ``&&``, ``||``, ``!``, comparisons, ``startsWith`` and property
+access -- into Python and evaluates it with ``ast`` against representative
+event payloads. Both the Polonius and stable renders are checked because the
+release mode must not change what can publish.
+"""
+
+from __future__ import annotations
+
+import ast
+import re
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from pytest_copier.plugin import CopierFixture
+
+from tests.helpers.delivery_workflows import render_delivery_project
+from tests.helpers.generated_files import (
+    parse_yaml_mapping,
+    read_generated_text,
+    require_mapping,
+)
+from tests.helpers.rendering import APP
+
+
+def _github_expression_to_python(expression: str) -> str:
+    """Translate the subset of GitHub expression syntax the guard uses."""
+    converted = expression.replace("&&", " and ").replace("||", " or ")
+    converted = re.sub(r"(?<![=!<>])!(?!=)", " not ", converted)
+    converted = re.sub(r"\btrue\b", "True", converted)
+    converted = re.sub(r"\bfalse\b", "False", converted)
+    converted = re.sub(r"\bnull\b", "None", converted)
+    converted = re.sub(r"\bstartsWith\(", "starts_with(", converted)
+    return converted
+
+
+def _evaluate_bool_op(node: ast.BoolOp, context: dict[str, Any]) -> bool:
+    """Evaluate a translated boolean operation."""
+    values = [_evaluate_expression(value, context) for value in node.values]
+    return all(values) if isinstance(node.op, ast.And) else any(values)
+
+
+def _evaluate_compare(node: ast.Compare, context: dict[str, Any]) -> bool:
+    """Evaluate a translated comparison."""
+    left = _evaluate_expression(node.left, context)
+    for operator, comparator in zip(node.ops, node.comparators, strict=True):
+        right = _evaluate_expression(comparator, context)
+        if isinstance(operator, ast.Eq):
+            matched = left == right
+        elif isinstance(operator, ast.NotEq):
+            matched = left != right
+        else:  # pragma: no cover - the guard uses only equality
+            raise TypeError(f"unsupported comparison: {operator!r}")
+        if not matched:
+            return False
+        left = right
+    return True
+
+
+def _evaluate_call(node: ast.Call, context: dict[str, Any]) -> Any:
+    """Evaluate a whitelisted translated function call."""
+    if isinstance(node.func, ast.Name) and node.func.id == "starts_with":
+        value = _evaluate_expression(node.args[0], context)
+        prefix = _evaluate_expression(node.args[1], context)
+        return str(value).startswith(str(prefix))
+    raise ValueError(f"unsupported call: {node.func!r}")
+
+
+def _evaluate_expression_node(node: ast.Expression, context: dict[str, Any]) -> Any:
+    """Evaluate the body of a parsed guard expression."""
+    return _evaluate_expression(node.body, context)
+
+
+def _evaluate_unary_op(node: ast.UnaryOp, context: dict[str, Any]) -> Any:
+    """Evaluate a translated negation, rejecting other unary operators."""
+    if not isinstance(node.op, ast.Not):  # pragma: no cover - guard subset
+        raise TypeError(f"unsupported unary operator: {node.op!r}")
+    return not _evaluate_expression(node.operand, context)
+
+
+def _evaluate_constant(node: ast.Constant, _context: dict[str, Any]) -> Any:
+    """Evaluate a translated literal."""
+    return node.value
+
+
+def _evaluate_name(node: ast.Name, context: dict[str, Any]) -> Any:
+    """Evaluate a translated context lookup."""
+    return context[node.id]
+
+
+def _evaluate_attribute(node: ast.Attribute, context: dict[str, Any]) -> Any:
+    """Evaluate a translated attribute access."""
+    return _evaluate_expression(node.value, context)[node.attr]
+
+
+def _evaluate_subscript(node: ast.Subscript, context: dict[str, Any]) -> Any:
+    """Evaluate a translated subscript access."""
+    return _evaluate_expression(node.value, context)[
+        _evaluate_expression(node.slice, context)
+    ]
+
+
+def _evaluate_expression(node: ast.AST, context: dict[str, Any]) -> Any:
+    """Evaluate the whitelisted nodes of a translated guard expression."""
+    handler = _HANDLERS.get(type(node))
+    if handler is None:  # pragma: no cover - guards use a small expression subset
+        raise ValueError(f"unsupported expression node: {node!r}")
+    return handler(node, context)
+
+
+_HANDLERS: dict[type[ast.AST], Callable[[Any, dict[str, Any]], Any]] = {
+    ast.Expression: _evaluate_expression_node,
+    ast.BoolOp: _evaluate_bool_op,
+    ast.Compare: _evaluate_compare,
+    ast.UnaryOp: _evaluate_unary_op,
+    ast.Constant: _evaluate_constant,
+    ast.Name: _evaluate_name,
+    ast.Attribute: _evaluate_attribute,
+    ast.Subscript: _evaluate_subscript,
+    ast.Call: _evaluate_call,
+}
+
+
+def _evaluate_publication_guard(guard: str, **event: Any) -> bool:
+    """Evaluate a release publication guard for one event row."""
+    translated = ast.parse(_github_expression_to_python(guard), mode="eval")
+    github = {
+        "event_name": event["event_name"],
+        "ref": event["ref"],
+        "actor": event.get("actor", "dependabot[bot]"),
+    }
+    inputs = {"dry-run": event.get("dry_run")}
+    return bool(_evaluate_expression(translated, {"github": github, "inputs": inputs}))
+
+
+def test_release_publication_guard_event_table(
+    tmp_path: Path, copier: CopierFixture
+) -> None:
+    """Publication needs a tag ref and an explicit non-dry-run dispatch."""
+    project = render_delivery_project(
+        tmp_path,
+        copier,
+        flavour=APP,
+        project_name="PublicationGuard",
+        package_name="publication_guard",
+    )
+    workflow = parse_yaml_mapping(
+        read_generated_text(project / ".github/workflows/release.yml"),
+        "release workflow",
+    )
+    release = require_mapping(
+        require_mapping(workflow, "jobs", "release workflow"),
+        "release",
+        "release workflow jobs",
+    )
+    guard = str(release.get("if", ""))
+    assert guard, "expected the release job to carry a publication guard"
+
+    table: list[tuple[dict[str, Any], bool]] = [
+        ({"event_name": "push", "ref": "refs/tags/v1.2.3"}, True),
+        (
+            {
+                "event_name": "workflow_dispatch",
+                "ref": "refs/tags/v1.2.3",
+                "dry_run": False,
+            },
+            True,
+        ),
+        (
+            {
+                "event_name": "workflow_dispatch",
+                "ref": "refs/tags/v1.2.3",
+                "dry_run": True,
+            },
+            False,
+        ),
+        (
+            {
+                "event_name": "workflow_dispatch",
+                "ref": "refs/heads/main",
+                "dry_run": False,
+            },
+            False,
+        ),
+        (
+            {
+                "event_name": "workflow_dispatch",
+                "ref": "refs/heads/main",
+                "dry_run": True,
+            },
+            False,
+        ),
+    ]
+    for event, expected in table:
+        assert _evaluate_publication_guard(guard, **event) is expected, (
+            f"expected publication for {event!r} to be {expected}"
+        )
+
+    # Non-vacuity: a guard that omits the tag check would publish from a branch
+    # dispatch, so the table above distinguishes the real guard.
+    weakened = guard.replace(" && startsWith(github.ref, 'refs/tags/')", "")
+    assert weakened != guard, (
+        "expected the guard to contain the tag check removed by the mutation"
+    )
+    assert _evaluate_publication_guard(
+        weakened,
+        event_name="workflow_dispatch",
+        ref="refs/heads/main",
+        dry_run=False,
+    ), "expected the weakened guard to show why the tag check is required"

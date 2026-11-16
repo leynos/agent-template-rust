@@ -45,20 +45,24 @@ def test_rendered_agents_requires_injected_environment_and_diagnostics(
             "shared `Mutex`, `OnceLock`, or `serial_test` attribute",
             "Clippy warnings MUST be disallowed",
             (
-                'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
+                'PATH="$(BUILD_TOOLS_PATH)" RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" '
                 'RUSTFLAGS="$(DEV_RUST_FLAGS)" cargo doc --no-deps'
             ),
-            "cargo clippy --all-targets --all-features -- -D warnings",
             (
-                'RUSTFLAGS="$(DEV_RUST_FLAGS)" whitaker --all -- '
-                "--all-targets --all-features"
+                'PATH="$(BUILD_TOOLS_PATH)" RUSTFLAGS="$(DEV_RUST_FLAGS)" '
+                "cargo clippy $(CLIPPY_FLAGS)"
             ),
             (
-                "TEST_CMD := $(if $(shell $(CARGO) nextest --version "
-                "2>/dev/null),nextest run,test)"
+                'PATH="$(USER_BIN_PATH):$(PATH)" '
+                'RUSTFLAGS="$(WHITAKER_RUST_FLAGS)" whitaker --all -- '
+                "$(CARGO_FLAGS)"
+            ),
+            (
+                "TEST_CMD := $(if $(shell RUSTUP_AUTO_INSTALL=0 $(CARGO) "
+                "nextest --version 2>/dev/null),nextest run,test)"
             ),
             "test: export RUSTFLAGS := $(DEV_RUST_FLAGS)",
-            "$(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(BUILD_JOBS)",
+            "$(CARGO) $(TEST_CMD) $(TEST_FLAGS) $(TEST_UI_EXCLUDE) $(BUILD_JOBS)",
             (
                 'RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" $(CARGO) test --doc '
                 "--workspace --all-features"
@@ -68,6 +72,7 @@ def test_rendered_agents_requires_injected_environment_and_diagnostics(
             "with Rust warnings denied",
             "all-feature workspace doctests separately with Rustdoc warnings denied",
             "The Makefile decides which warnings are denied",
+            "Clippy gets the development flag route and Whitaker its own",
             "Every module **must** begin with a module level (`//!`) comment",
             "Document public APIs using Rustdoc comments (`///`)",
             "Every `assert!`, `assert_eq!`, and `assert_ne!` invocation",

@@ -1,0 +1,34 @@
+# Bounded, serialized test execution for generated projects.
+#
+# Every run is bounded twice. `slow-timeout` terminates one test that runs
+# longer than `period` multiplied by `terminate-after`, whatever output it
+# produces, and `global-timeout` bounds the whole run. Add a per-test override
+# for a legitimately long test.
+#
+# A compile-time contract test spawns nested Cargo builds. `make test-ui` runs
+# its `tests/compile_*.rs` targets with the `ui` profile, which puts every
+# selected test in the single `nested-cargo` slot and widens its slow timeout:
+# the nested build waits on the shared package-cache lock and on compiler
+# admission, so a first run can legitimately outlast an ordinary test by many
+# minutes. The lane stays bounded by the profile's own slow timeout and by the
+# inherited global timeout. The profile is separate because nextest validates a
+# `binary(...)` filter against the binaries it finds: a generated project
+# without UI tests would reject the configuration outright.
+[profile.default]
+slow-timeout = { period = "180s", terminate-after = 1, grace-period = "5s" }
+global-timeout = "90m"
+
+[profile.ui]
+inherits = "default"
+# The lane names its targets with `--test`, and this keeps them selected even
+# when the inherited default profile has been narrowed: the hosted coverage
+# lane adds `not binary(compile_*)` to `[profile.default]` for its own run.
+default-filter = "all()"
+
+[[profile.ui.overrides]]
+filter = 'all()'
+test-group = 'nested-cargo'
+slow-timeout = { period = "600s", terminate-after = 2, grace-period = "10s" }
+
+[test-groups.nested-cargo]
+max-threads = 1
