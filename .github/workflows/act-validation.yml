@@ -22,7 +22,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup uv
-        uses: astral-sh/setup-uv@963ce8fe9e4fb39553bd07a010f5e986c4dcff9d
+        uses: astral-sh/setup-uv@de938e707d6c238b34e29b5770a011e3155e2a3c
       - name: Install act
         env:
           GITHUB_TOKEN: ${{ github.token }}
