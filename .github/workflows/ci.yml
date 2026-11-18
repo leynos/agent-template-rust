@@ -25,7 +25,7 @@ jobs:
           install-mold: 'true'
           install-clang-lld: 'true'
       - name: Setup uv
-        uses: astral-sh/setup-uv@de938e707d6c238b34e29b5770a011e3155e2a3c
+        uses: astral-sh/setup-uv@b0fdc328c65964c12e997446c1c75b18577b9f1a
       - name: Install the generated-project toolchain
         # The template tests run generated `make` targets whose capability
         # preflight never installs anything. Render the template's own default
