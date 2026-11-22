@@ -45,6 +45,13 @@ same compiler as the build. It installs Whitaker through the shared
 cache or installer script, so remove any local Whitaker installation left from
 an earlier render.
 
+Rendered `ci.yml` cancels superseded pull-request runs. Its workflow-level
+concurrency group is keyed on the workflow and the pull-request number, falling
+back to the ref, and `cancel-in-progress` applies only to `pull_request`
+events. A new push to a pull request therefore cancels the run for the previous
+head, while a dispatch is never cancelled while it runs. Dispatches on the same
+ref still share a group, so a newer dispatch can replace an older pending one.
+
 ## Validation and Environment Policy
 
 This project denies `unknown_lints`, `renamed_and_removed_lints`,
