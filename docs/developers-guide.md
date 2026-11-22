@@ -312,6 +312,19 @@ the selection and output policy in the template and the rules in the shared
 package. `setup-rust` stays on the rustflags passthrough revision that the
 Polonius contract pins exactly, the narrow exception described above.
 
+Rendered `ci.yml` declares a workflow-level concurrency group keyed on
+`${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}`,
+with `cancel-in-progress` bound to
+`${{ github.event_name == 'pull_request' }}`. A push to a pull request cancels
+the run for the previous head; a dispatch is never cancelled while it runs,
+though dispatches on the same ref share a group and a newer one can replace an
+older pending dispatch. The expressions stay inside the template's `{% raw %}`
+region so the rendered YAML carries them literally, and no test pins the
+block's text: `actionlint` and the shared CV-005 contracts cover its shape, so
+a reformat cannot break the suite. The rendered developers guide states the
+behaviour without repeating the expressions, because its readers need the
+contract rather than the template's escaping.
+
 ## Test Helper Layout
 
 Reusable test support lives under `tests/helpers/`:
