@@ -114,6 +114,15 @@ Copier renders from the repository answer. The checker runs through
 not copy the rules into this repository. `make all` includes the target; run it
 directly after changing a workflow.
 
+Rendered `ci.yml` declares a workflow-level concurrency group keyed on the
+workflow and the pull-request number, falling back to the ref, with
+`cancel-in-progress` bound to the pull-request event. Keep the group and the
+cancellation condition intact when editing the workflow: superseded
+pull-request runs are cancelled, while a dispatch is never cancelled while it
+runs. Dispatches on the same ref share a group, so a newer dispatch can replace
+an older pending one. `actionlint` and the workflow contracts cover the shape;
+no test pins the block's text.
+
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
 full generated workflow locally on Linux.
 
