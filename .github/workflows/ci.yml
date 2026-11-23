@@ -38,7 +38,7 @@ jobs:
           uvx --with copier copier copy --defaults --trust . "${project}"
           (cd "${project}" && cargo --version)
       - name: Install the YAML lint tools
-        uses: leynos/shared-actions/.github/actions/install-yaml-lint@cfd51f3d5423cb16155b94e020cdd7eaeebd0833
+        uses: leynos/shared-actions/.github/actions/install-yaml-lint@3551a0bf76fe47d0cc5ff632c7796a8ddb23717e
       - name: Check spelling
         run: make spelling
       - name: Check docstring coverage
