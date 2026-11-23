@@ -55,10 +55,10 @@ dependency updates must preserve the passthrough contract.
 
 Generated `ci.yml` cancels superseded pull-request runs. Its workflow-level
 concurrency group is keyed on the workflow and the pull-request number, falling
-back to the ref, and `cancel-in-progress` applies only to `pull_request`
+back to the run ID, and `cancel-in-progress` applies only to `pull_request`
 events. A new push to a pull request therefore cancels the run for the previous
-head, while a dispatch is never cancelled while it runs. Dispatches on the same
-ref still share a group, so a newer dispatch can replace an older pending one.
+head, while a dispatch is never cancelled while it runs. Each dispatch has a
+group of its own, so a newer dispatch never replaces an older pending one.
 Existing projects adopt this behaviour only by accepting the updated `ci.yml`;
 see the [0.6.0 migration guide](migrations/0.6.0.md).
 

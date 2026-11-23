@@ -100,7 +100,7 @@
     'ci_workflow': dict({
       'concurrency': dict({
         'cancel-in-progress': "${{ github.event_name == 'pull_request' }}",
-        'group': '${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}',
+        'group': '${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}',
       }),
       'jobs': dict({
         'build-test': dict({
