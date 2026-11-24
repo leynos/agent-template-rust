@@ -4,7 +4,7 @@ MAKEFLAGS += --no-print-directory
 
 UV := $(shell command -v uvx 2>/dev/null)
 TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.3
-TYPOS_CONFIG_BUILDER = uv tool run --from \
+TYPOS_CONFIG_BUILDER = uv tool run --python 3.14 --from \
 	"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
 	typos-config-builder
 WITH_ACT ?= 0
