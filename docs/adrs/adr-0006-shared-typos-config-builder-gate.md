@@ -1,6 +1,6 @@
 # ADR-006: Run spelling through the shared typos-config-builder gate
 
-- Status: Accepted
+- Status: Accepted. Amended by ADR-007 (2026-11-25).
 - Date: 2026-09-17
 - Deciders: Agent template maintainers
 - Supersedes: [ADR-003](adr-0003-shared-oxford-spelling-base.md)
@@ -76,5 +76,13 @@ still removes them.
 
 The Decision above records the pin as accepted on 2026-09-17. The pin has since
 moved to `v0.1.3`, the release that ships the canonical `AGENTS.md` spelling
-block. The mechanism, the command, and the scope rules are unchanged; only
-`TYPOS_CONFIG_BUILDER_VERSION` in each `Makefile` differs.
+block. The mechanism, the command, and the scope rules are unchanged by this
+addendum; only `TYPOS_CONFIG_BUILDER_VERSION` in each `Makefile` differs.
+
+## Amendments
+
+[ADR-007](adr-0007-builder-runs-under-python-3-14.md) (2026-11-25) amends the
+command recorded in the Decision: the gate now runs under Python 3.14, because
+the builder requires it. The Decision above stands as the history of what was
+accepted on 2026-09-17; the command in use is
+`uv tool run --python 3.14 --from <pinned builder> typos-config-builder`.
