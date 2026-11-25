@@ -90,7 +90,7 @@ compact and omits build output such as `target/`.
   the shared coverage workflow. It runs on push to `main` and on dispatch; the
   shared publisher contract permits no other trigger.
 - `.github/workflows/delayed-pr-comment.yml`: Posts a requested comment after a
-  validated delay.
+  validated delay, through the shared reusable workflow.
 - `.github/workflows/dependabot-automerge.yml`: Delegates Dependabot pull
   requests to the shared automerge workflow with least-privilege permissions.
 - `.github/workflows/mutation-testing.yml`: Runs scheduled mutation testing

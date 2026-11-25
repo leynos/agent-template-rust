@@ -262,14 +262,16 @@ labels.
 Generated projects include `.github/workflows/delayed-pr-comment.yml`, which
 posts one comment on a pull request after a requested delay. It runs only on
 manual dispatch and takes three inputs: `pr_number`, the pull request to
-comment on; `delay_minutes`, a whole number of minutes capped at 300; and
+comment on; `delay_minutes`, a whole number of minutes capped at 345; and
 `message`, the comment body.
 
-The job declares a 330-minute timeout, so the 300-minute wait and the remaining
-work fit inside one bounded run, and asks for only `pull-requests: write`.
-Every input is untrusted: the numeric inputs are validated in the shell before
-arithmetic or `sleep` sees them, and the comment body reaches the action as an
-action input rather than as part of a shell command.
+The job calls the shared reusable workflow in `leynos/shared-actions`, pinned
+to a full commit SHA, and asks for only `pull-requests: write`. That workflow
+validates both numbers as digits only, caps the delay at 345 minutes, bounds
+the job just under GitHub's 360-minute limit so a valid delay is never
+cancelled, and posts the comment verbatim with `gh`. Every input is untrusted,
+so each one reaches the shell only through the environment, never through an
+expression in a script.
 
 ## Scheduled Mutation Testing
 

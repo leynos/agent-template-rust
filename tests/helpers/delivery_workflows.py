@@ -20,9 +20,6 @@ SHARED_AUTOMERGE_USES_RE = re.compile(
     r"^leynos/shared-actions/\.github/workflows/dependabot-automerge\.yml"
     r"@[0-9a-f]{40}$"
 )
-COMMENT_ACTION_USES_RE = re.compile(
-    r"^thollander/actions-comment-pull-request@[0-9a-f]{40}$"
-)
 UPLOAD_ARTIFACT_USES_RE = re.compile(r"^actions/upload-artifact@[0-9a-f]{40}$")
 DOWNLOAD_ARTIFACT_USES_RE = re.compile(r"^actions/download-artifact@[0-9a-f]{40}$")
 SOFT_PROPS_RELEASE_USES_RE = re.compile(r"^softprops/action-gh-release@[0-9a-f]{40}$")
