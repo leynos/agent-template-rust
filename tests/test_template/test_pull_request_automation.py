@@ -2,7 +2,8 @@
 
 The generated project ships thin callers for shared pull-request automation:
 ``dependabot-automerge.yml`` delegates to the pinned reusable workflow and
-``delayed-pr-comment.yml`` posts through a pinned action. These tests render
+``delayed-pr-comment.yml`` calls the shared delayed comment workflow, whose
+validation is tested in shared-actions. These tests render
 application and library projects with ``render_delivery_project`` and parse
 each caller with the ``delivery_workflows`` helpers, asserting full-SHA pins,
 the permissions each caller grants, and the trigger types it accepts. Callers
@@ -17,12 +18,9 @@ import pytest
 from pytest_copier.plugin import CopierFixture
 
 from tests.helpers.delivery_workflows import (
-    COMMENT_ACTION_USES_RE,
     SHARED_AUTOMERGE_USES_RE,
     named_step,
     render_delivery_project,
-    steps,
-    workflow_triggers,
 )
 from tests.helpers.generated_files import (
     parse_yaml_mapping,
@@ -127,36 +125,3 @@ def test_pull_request_automation_callers_are_pinned_and_scoped(
     assert "gh workflow run coverage-main.yml --ref main" in dispatch_run, (
         "expected the dispatch to start coverage for main"
     )
-
-    delayed_workflow = parse_yaml_mapping(
-        read_generated_text(project / ".github/workflows/delayed-pr-comment.yml"),
-        "delayed comment workflow",
-    )
-    triggers = workflow_triggers(delayed_workflow, "delayed comment workflow")
-    dispatch = require_mapping(triggers, "workflow_dispatch", "delayed triggers")
-    dispatch_inputs = require_mapping(dispatch, "inputs", "delayed triggers")
-    for input_name in ("pr_number", "delay_minutes", "message"):
-        declared = require_mapping(
-            dispatch_inputs, input_name, "delayed workflow inputs"
-        )
-        assert declared.get("required") is True, (
-            f"expected the {input_name} dispatch input to be required"
-        )
-    delayed_job = require_mapping(
-        require_mapping(delayed_workflow, "jobs", "delayed comment workflow"),
-        "delay-and-comment",
-        "delayed workflow jobs",
-    )
-    assert require_mapping(delayed_job, "permissions", "delayed job") == {
-        "pull-requests": "write"
-    }, "expected the comment job to receive only pull-request write access"
-    comment_step = named_step(
-        delayed_job, "Comment on pull request", "delayed workflow job"
-    )
-    assert COMMENT_ACTION_USES_RE.fullmatch(str(comment_step.get("uses", ""))), (
-        "expected the comment action pinned to a full 40-hex commit SHA"
-    )
-    for step in steps(delayed_job, "delayed workflow job"):
-        assert "inputs.message" not in str(step.get("run", "")), (
-            "expected the comment body to stay out of shell commands"
-        )

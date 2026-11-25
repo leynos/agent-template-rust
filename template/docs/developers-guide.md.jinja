@@ -185,10 +185,10 @@ Generated projects also render two pull-request automation callers.
 `.github/workflows/dependabot-automerge.yml` delegates to the shared
 `dependabot-automerge` reusable workflow, passes only the permissions that
 workflow needs, and runs for `dependabot[bot]` or an explicit dispatch.
-`.github/workflows/delayed-pr-comment.yml` validates its numeric dispatch
-inputs in the shell before arithmetic or `sleep` sees them and passes the
-comment body to the action as an input rather than interpolating it into a
-command. Both call pinned full commit SHAs.
+`.github/workflows/delayed-pr-comment.yml` calls the shared reusable delayed
+comment workflow, which validates the numeric dispatch inputs and passes every
+input to the shell only through the environment. Both call pinned full commit
+SHAs.
 
 Contract tests that assert a caller's exact commit SHA create a lockstep
 dependency: every time Dependabot opens a bump PR, the test fails until a human

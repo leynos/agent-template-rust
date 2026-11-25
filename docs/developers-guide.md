@@ -342,16 +342,16 @@ Reusable test support lives under `tests/helpers/`:
   generated installers and checks without touching the machine.
 - `tests/helpers/delivery_workflows.py` renders delivery-test projects and
   provides the workflow trigger and named-step lookup helpers shared by the
-  Dependabot, delayed-comment, pull-request automation, release-publication,
-  and release-workflow tests.
+  Dependabot, pull-request automation, release-publication, and
+  release-workflow tests.
 - `tests/helpers/tooling_contracts/` contains generated Makefile, Cargo,
   documentation, CI, release, coverage-action, delivery, and mutation-testing
   contract assertions. Workflow-level CV-005 checks live in
   `tests/test_template/test_workflow_contracts.py`. Dependency-policy,
-  pull-request automation, delayed-comment, and release checks live in
+  pull-request automation and release checks live in
   `test_dependabot_policy.py`, `test_pull_request_automation.py`,
-  `test_delayed_pr_comment.py`, `test_release_workflow.py`, and
-  `test_release_publication_guard.py` under `tests/test_template/`.
+  `test_release_workflow.py`, and `test_release_publication_guard.py` under
+  `tests/test_template/`.
 - `assert_setup_rust_revision_consistency` in
   `tests/helpers/tooling_contracts/workflows.py` accepts a workflow-name to
   text-or-`None` mapping. `None` skips workflows unavailable for that project
